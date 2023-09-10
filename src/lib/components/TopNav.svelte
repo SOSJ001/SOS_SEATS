@@ -63,7 +63,7 @@ const SessionFromdb = null;
         >
             {#if SessionFromdb !== null}
                 <li out:fade class="nav-item">
-                    <a href="/#/dashboard" class="flex gap-1 ">
+                    <a href="/#/dashboard" class="flex gap-1 text-white hover:text-yellow-400">
                         <svg
                             aria-hidden="true"
                             width="24"
@@ -82,7 +82,7 @@ const SessionFromdb = null;
                 </li>
             {/if}
             <li class="nav-item">
-                <a class="flex gap-1" href="#searchForm"
+                <a class="flex gap-1 text-white hover:text-yellow-400" href="#searchForm"
                     ><svg
                         class=""
                         xmlns="http://www.w3.org/2000/svg"
@@ -154,7 +154,7 @@ const SessionFromdb = null;
                 >
             </li>
             <li class="nav-item">
-                <a class="flex gap-1" href="#event"
+                <a class="flex gap-1 text-white hover:text-yellow-400" href="#event"
                     ><svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="24"
@@ -168,7 +168,7 @@ const SessionFromdb = null;
                 >
             </li>
             <li class="nav-item">
-                <a class="flex gap-1" href="/#/"
+                <a class="flex gap-1 text-white hover:text-yellow-400" href="/#/"
                     ><svg
                         aria-hidden="true"
                         width="24"
@@ -367,20 +367,20 @@ const SessionFromdb = null;
 <!-- SIDE NAV ENDS -->
 
 <style>
-    #text ul li a {
-        color: white;
+    /* #text ul li a { */
+        /* color: white; */
         /* background-color: white; */
-        border-radius: 2rem;
+        /* border-radius: 2rem;
         padding: 7px;
         align-items: center;
-    }
+    } */
 
-    #text ul li a:hover {
-        color: #f59e0b;
+    /* #text ul li a:hover {
+        color: #f59e0b; */
         /* background-color: white; */
         /* border-width: 1px;
         border-color: #f5de0b; */
         /* border-radius: 2rem; */
         /* padding: 5px; */
-    }
+    /* } */
 </style>
