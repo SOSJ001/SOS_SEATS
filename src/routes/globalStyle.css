@@ -30,12 +30,21 @@ html body{
     box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.3);
     background-color: #F5F5F5;
   }
-  a {
-    font-weight: 500;
-    color: white;
-    text-decoration: inherit;
+    /* scroll bar ends */
+
+    #text ul li a {
+      color: white;
+      /* background-color: white; */
+      border-radius: 2rem;
+      padding: 7px;
+      align-items: center;
   }
-  a:hover {
-    color: #f59e0b;
+
+  #text ul li a:hover {
+      color: #f59e0b;
+      /* background-color: white; */
+      /* border-width: 1px;
+      border-color: #f5de0b; */
+      /* border-radius: 2rem; */
+      /* padding: 5px; */
   }
-  /* scroll bar ends */
