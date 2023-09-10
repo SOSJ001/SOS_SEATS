@@ -1,0 +1,33 @@
+@import url("https://fonts.googleapis.com/css2?family=Alkatra:wght@600&display=swap");
+
+:global(body) {
+    font-family: "Roboto", "Open Sans", "Helvetica", sans-serif;
+}
+.fontText {
+    font-family: "Alkatra", cursive;
+}
+#hover1 div a :hover {
+    color: rgb(255, 238, 2);
+}
+
+html body{
+    background-color: black;
+}
+
+/* scroll bar style */
+*::-webkit-scrollbar {
+    width: 4px;
+    background-color: #f5f5f5;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #ffc107;
+  }
+
+  *::-webkit-scrollbar-track {
+    -webkit-box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.3);
+    background-color: #F5F5F5;
+  }
+
+  /* scroll bar ends */
