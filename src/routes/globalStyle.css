@@ -29,5 +29,12 @@ html body{
     box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.3);
     background-color: #F5F5F5;
   }
-
+  a {
+    font-weight: 500;
+    color: white;
+    text-decoration: inherit;
+  }
+  a:hover {
+    color: #f59e0b;
+  }
   /* scroll bar ends */
