@@ -25,7 +25,7 @@
 </script>
 
 <div class="bg-gray-800 items-center text-white overflow-x-hidden">
-    <TopNav class=" text-white">
+    <TopNav >
         <svelte:fragment slot="login">
             <a
                 in:fade
