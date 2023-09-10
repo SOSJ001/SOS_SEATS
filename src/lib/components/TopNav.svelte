@@ -28,7 +28,8 @@ const SessionFromdb = null;
     };
 </script>
 
-<Navbar class=" text-white px-1 py-2.5 fixed w-screen z-20 top-0 left-0 border-b bg-gray-800 px-3"
+<Navbar
+    navClass="px-1 py-2.5 fixed w-screen z-20 top-0 left-0 border-b bg-gray-800 px-3"
 >
     <NavBrand href="/">
         <img src={sosSeats} class=" h-10" alt="SOS SEAT Logo" />
