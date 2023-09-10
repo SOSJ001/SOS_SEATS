@@ -56,7 +56,7 @@ const SessionFromdb = null;
 
     <div
         id="text"
-        class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1"
+        class=" text-white items-center justify-between hidden w-full md:flex md:w-auto md:order-1"
     >
         <ul
             class="flex flex-col font-medium md:flex-row md:space-x-8 md:mt-0 items-center justify-center"
