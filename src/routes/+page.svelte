@@ -4,28 +4,80 @@
     import Banner from "$lib/components/Banner.svelte";
     import Search from "$lib/components/Search.svelte";
     import TopNav from "$lib/components/TopNav.svelte";
-    import { Modal } from "flowbite-svelte";
+    import { Button, Modal } from "flowbite-svelte";
     import { fade } from "svelte/transition";
-    export let data;
+
+    // @ts-ignore
     let loginBtnStyle;
+    let errorMessage = null;
     let signUpBtnStyle;
     let login = false;
     let signup = false;
     let show = false;
     let RegisterBtn;
+    // @ts-ignore
     let LoginBtn;
-    let errorMessage = false;
-    let loginBtnClicked = () => {
-        goto("/dashboard");
+    // @ts-ignore
+    let email;
+    // @ts-ignore
+    let password;
+
+    let loginBtnClicked = async () => {
+        errorMessage = null;
+        // @ts-ignore
+        loginBtnStyle.style = "pointer-events: none;";
+        // @ts-ignore
+        LoginBtn.innerText = "loading...";
+        show = true;
+        // @ts-ignore
+        const email1 = email.value;
+        // @ts-ignore
+        const pass = password.value;
+
+        const response = await fetch("/loginApi", {
+            method: "POST",
+            // @ts-ignore
+            body: JSON.stringify({ email1, pass }),
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+        const { supabaseError, supabaseSession } = await response.json();
+        console.log("Session", supabaseSession);
+
+        if (supabaseError !== null) {
+            errorMessage = supabaseError.message;
+        }else if (supabaseSession !== null){
+            // localStorage.setItem('token', supabaseSession?.access_token || '');
+            console.log("We made it to the next level....i wanted to use the cookie api thet sveltekit provides to keep track of UserSessions so i had to pass through creating my personal api with +server.js and post the data and received the response back..... because i'm getting the data from eternal server so can't use sveltkit server load function in the +page.server.js and also can't use the universal load function because it lives in thr +page.js which dosen't supports form actions (form action only supported in +page.server.js)  so i figured it out the hard way as usual IT'S A NORM....THANK GOD");
+
+        }
     };
+
+    $: {
+        // @ts-ignore
+        if (errorMessage !== null) {
+            // @ts-ignore
+            loginBtnStyle.style = "pointer-events: auto;";
+            // @ts-ignore
+            LoginBtn.innerText = "Signin";
+            show = false;
+            // console.log("here");
+        }
+
+        if (!login) {
+            errorMessage = null;
+            show = false;
+        }
+    }
+
     let SignUpBtnClicked = () => {
         goto("/dashboard");
     };
-    console.log("Superbase", data.supabase);
 </script>
 
 <div class="bg-gray-800 items-center text-white overflow-x-hidden">
-    <TopNav >
+    <TopNav>
         <svelte:fragment slot="login">
             <a
                 in:fade
@@ -159,7 +211,7 @@
                             />
                         </div>
 
-                        <form class="text-left" method="POST">
+                        <form class="text-left">
                             <div class="mb-3">
                                 <label
                                     for="email"
@@ -167,6 +219,7 @@
                                     >Email address</label
                                 >
                                 <input
+                                    bind:this={email}
                                     type="email"
                                     id="email"
                                     class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -181,6 +234,7 @@
                                     >Password</label
                                 >
                                 <input
+                                    bind:this={password}
                                     type="password"
                                     id="password"
                                     class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
