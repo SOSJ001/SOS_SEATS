@@ -24,8 +24,7 @@
 
     let scan = false;
 
-    export let data;
-    console.log("Superbase", data.supabase);
+
 </script>
 
 <div class="bg-gray-700 items-center text-white overflow-x-hidden h-screen">

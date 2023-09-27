@@ -1,4 +1,6 @@
 <script>
+    // import { logOutbtnFunction } from "../supabase";
+
     import { goto } from "$app/navigation";
 
 
@@ -10,11 +12,19 @@
      let logoutBtnStyle;
     let show = false;
 
+
+// logout functon from the superbase store
     function logout() {
         logoutBtnStyle.style = "pointer-events: none;";
         show = true;
-
-        goto("/");
+        // const { SessionFromdb } = logOutbtnFunction;
+        // if(SessionFromdb !== undefined){
+        //     goto('/');
+        // }else{
+        //     console.log('Logout Error',SessionFromdb)
+        // }
+        
+        
         // if(show){
         //     signout;
         // }
@@ -40,7 +50,7 @@
             <ul class="space-y-2 font-medium">
                 <li>
                     <a
-                        href="/#/"
+                        href="/"
                         class="flex items-center p-2 text-white rounded-lg hover:bg-yellow-500 hover:text-white"
                     >
                         <svg

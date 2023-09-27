@@ -1,8 +1,6 @@
 <script>
-const SessionFromdb = null;
- let signout = ()=>{
-    console.log(null);
- }
+    import { sessionFromDb } from "../variable";
+    import { signout } from "../../routes/serverRoutes";
 
     import {
         Navbar,
@@ -18,6 +16,7 @@ const SessionFromdb = null;
     import { sineIn } from "svelte/easing";
     import sosSeats from "../assets/sosSeats.png";
     import { fade, fly } from "svelte/transition";
+
 
     let hidden2 = true;
     let backdrop = false;
@@ -36,8 +35,13 @@ const SessionFromdb = null;
         <!-- <span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">Flowbite</span> -->
     </NavBrand>
     <div class="flex md:order-2">
-        {#if SessionFromdb !== null}
-        <a on:click|preventDefault={signout} href="/#/" class="hover:text-yellow-500 text-white bg-yellow-400 rounded-lg px-3 py-2 hover:bg-white">Logout</a>
+        {#if $sessionFromDb !== null}
+            <a
+                on:click|preventDefault={signout}
+                href="/"
+                class="hover:text-yellow-500 text-white bg-yellow-400 rounded-lg px-3 py-2 hover:bg-white"
+                >Logout</a
+            >
         {:else}
             <slot name="login" />
             <slot name="signup" />
@@ -61,9 +65,12 @@ const SessionFromdb = null;
         <ul
             class="flex flex-col font-medium md:flex-row md:space-x-8 md:mt-0 items-center justify-center"
         >
-            {#if SessionFromdb !== null}
+            {#if $sessionFromDb !== null}
                 <li out:fade class="nav-item">
-                    <a href="/#/dashboard" class="flex gap-1 text-white hover:text-yellow-400">
+                    <a
+                        href="/dashboard"
+                        class="flex gap-1 text-white hover:text-yellow-400"
+                    >
                         <svg
                             aria-hidden="true"
                             width="24"
@@ -82,7 +89,9 @@ const SessionFromdb = null;
                 </li>
             {/if}
             <li class="nav-item">
-                <a class="flex gap-1 text-white hover:text-yellow-400" href="#searchForm"
+                <a
+                    class="flex gap-1 text-white hover:text-yellow-400"
+                    href="#searchForm"
                     ><svg
                         class=""
                         xmlns="http://www.w3.org/2000/svg"
@@ -154,7 +163,9 @@ const SessionFromdb = null;
                 >
             </li>
             <li class="nav-item">
-                <a class="flex gap-1 text-white hover:text-yellow-400" href="#event"
+                <a
+                    class="flex gap-1 text-white hover:text-yellow-400"
+                    href="#event"
                     ><svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="24"
@@ -168,7 +179,9 @@ const SessionFromdb = null;
                 >
             </li>
             <li class="nav-item">
-                <a class="flex gap-1 text-white hover:text-yellow-400" href="/#/"
+                <a
+                    class="flex gap-1 text-white hover:text-yellow-400"
+                    href="/#/"
                     ><svg
                         aria-hidden="true"
                         width="24"
@@ -219,10 +232,10 @@ const SessionFromdb = null;
         <SidebarWrapper divClass="overflow-y-auto px-3 rounded">
             <div class="h-full px-3 pb-4 overflow-y-auto bg-dark">
                 <ul class="space-y-2 font-medium">
-                    {#if SessionFromdb !== null}
+                    {#if $sessionFromDb !== null}
                         <li>
                             <a
-                                href="/#/dashboard"
+                                href="/dashboard"
                                 class="flex items-center p-2 text-white rounded-lg hover:bg-yellow-500 hover:text-white"
                             >
                                 <svg
@@ -368,19 +381,19 @@ const SessionFromdb = null;
 
 <style>
     /* #text ul li a { */
-        /* color: white; */
-        /* background-color: white; */
-        /* border-radius: 2rem;
+    /* color: white; */
+    /* background-color: white; */
+    /* border-radius: 2rem;
         padding: 7px;
         align-items: center;
     } */
 
     /* #text ul li a:hover {
         color: #f59e0b; */
-        /* background-color: white; */
-        /* border-width: 1px;
+    /* background-color: white; */
+    /* border-width: 1px;
         border-color: #f5de0b; */
-        /* border-radius: 2rem; */
-        /* padding: 5px; */
+    /* border-radius: 2rem; */
+    /* padding: 5px; */
     /* } */
 </style>

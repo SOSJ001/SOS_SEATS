@@ -1,4 +1,6 @@
 <script>
+    import { sessionFromDb } from "../lib/variable";
+    import { page, navigating } from '$app/stores';
     import { goto } from "$app/navigation";
     // import { navigating } from "$app/stores";
     import Banner from "$lib/components/Banner.svelte";
@@ -6,6 +8,13 @@
     import TopNav from "$lib/components/TopNav.svelte";
     import { Button, Modal } from "flowbite-svelte";
     import { fade } from "svelte/transition";
+
+    export let data;
+    // setting the cookie to the store value
+    if (data.cookievar1 !== undefined) {
+        sessionFromDb.set(data.cookievar1);
+        console.log("cookievar1 if ", $sessionFromDb);
+    }
 
     // @ts-ignore
     let loginBtnStyle;
@@ -42,15 +51,25 @@
                 "Content-Type": "application/json",
             },
         });
-        const { supabaseError, supabaseSession } = await response.json();
-        console.log("Session", supabaseSession);
+        const { supabaseError, supabaseSession, cookievar } =
+            await response.json();
+
+
+            // ///////////////////////////////////////////////////////
+        // console.log("Session", supabaseSession);
+        // goto("/dashboard");
+        // $page.url.pathname === '/dashboard';
+        // console.log("Cookies", cookievar);
+        // console.log("User", supabaseSession1);
+        /////////////////////////////////////////////////
 
         if (supabaseError !== null) {
             errorMessage = supabaseError.message;
-        }else if (supabaseSession !== null){
-            // localStorage.setItem('token', supabaseSession?.access_token || '');
-            console.log("We made it to the next level....i wanted to use the cookie api thet sveltekit provides to keep track of UserSessions so i had to pass through creating my personal api with +server.js and post the data and received the response back..... because i'm getting the data from eternal server so can't use sveltkit server load function in the +page.server.js and also can't use the universal load function because it lives in thr +page.js which dosen't supports form actions (form action only supported in +page.server.js)  so i figured it out the hard way as usual IT'S A NORM....THANK GOD");
-
+        } else if (supabaseSession !== null) {
+            sessionFromDb.set(supabaseSession); //setting the supabase session to session for tracking purpose
+            console.log("sessionFromDb", $sessionFromDb);
+            // goto('/dashboard');
+            login = false;
         }
     };
 
@@ -82,7 +101,7 @@
             <a
                 in:fade
                 on:click={() => (login = true)}
-                href="/#/"
+                href="/"
                 class="text-white hover:bg-gray-500 hover:text-white rounded-lg px-2 py-2 mr-1"
             >
                 <span> LOGIN </span>
@@ -92,7 +111,7 @@
             <a
                 in:fade
                 on:click={() => (signup = true)}
-                href="/#/"
+                href="/"
                 class="text-white bg-yellow-400 hover:bg-white hover:text-yellow-500 rounded-lg px-2 py-2"
             >
                 <span> SIGNUP </span>
