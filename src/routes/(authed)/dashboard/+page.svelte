@@ -16,6 +16,7 @@
     import DashboardEvent from "$lib/components/DashboardEvent.svelte";
     import { addEventFunction } from "../../serverRoutes";
     import { sessionFromDb } from "$lib/variable";
+    import { Spinner } from 'flowbite-svelte';
 
     // ////////////////////////////////////////////////////////////////////////
     // @ts-ignore
@@ -281,50 +282,59 @@
                 >
                     <div class="relative overflow-x-auto shadow-md rounded-lg">
                         <table class="w-full text-sm text-left text-gray-400">
-                            <thead
-                                class="text-xs uppercase bg-slate-600 text-white"
-                            >
-                                <tr>
-                                    <th scope="col" class="px-6 py-3"> # </th>
-                                    <th scope="col" class="px-6 py-3">
-                                        Flyer
-                                    </th>
-                                    <th
-                                        scope=" col"
-                                        class="whitespace-nowrap px-6 py-3"
-                                    >
-                                        Event Name
-                                    </th>
-                                    <th scope="col" class="px-6 py-3">
-                                        Date
-                                    </th>
-                                    <th scope="col" class="px-6 py-3">
-                                        Venue
-                                    </th>
-                                    <th scope="col" class="px-6 py-3">
-                                        Action
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {#await EventTableResult}
-                                    <p>...waiting</p>
-                                {:then rows}
+                            {#await EventTableResult}
+                                <p class=" w-full text-2xl text-center overflow-hidden text-yellow-200 "><Spinner color="yellow" />
+                                    ...waiting
+                                </p>
+                            {:then rows}
+                                <thead
+                                    class="text-xs uppercase bg-slate-600 text-white"
+                                >
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3">
+                                            #
+                                        </th>
+                                        <th scope="col" class="px-6 py-3">
+                                            Flyer
+                                        </th>
+                                        <th
+                                            scope=" col"
+                                            class="whitespace-nowrap px-6 py-3"
+                                        >
+                                            Event Name
+                                        </th>
+                                        <th scope="col" class="px-6 py-3">
+                                            Date
+                                        </th>
+                                        <th scope="col" class="px-6 py-3">
+                                            Venue
+                                        </th>
+                                        <th scope="col" class="px-6 py-3">
+                                            Action
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                                     {#each rows as row, i}
+                                    <!-- {console.log("it can be done", i + 1)} -->
                                         <tr
                                             class=" border-b border-white bg-gray-800 hover:bg-gray-900"
                                         >
-                                            <td class="px-6 py-4"> {i+1} </td>
+                                            <td class="px-6 py-4"> {i + 1} </td>
                                             <th
                                                 scope="row"
                                                 class="px-6 py-4 font-medium whitespace-nowrap text-white"
                                             >
                                                 Apple MacBook Pro 17"
                                             </th>
-                                            <td class="px-6 py-4">
+                                            <td
+                                                class="px-6 py-4 font-medium whitespace-nowrap text-white"
+                                            >
                                                 {row.name}</td
                                             >
-                                            <td class="px-6 py-4"> {row.date} </td>
+                                            <td class="px-6 py-4">
+                                                {row.date}
+                                            </td>
                                             <td class="px-6 py-4">
                                                 {row.venue}
                                             </td>
@@ -353,10 +363,10 @@
                                             </td>
                                         </tr>
                                     {/each}
-                                {:catch error}
-                                    <p style="color: red">{error.message}</p>
-                                {/await}
-                            </tbody>
+                                    </tbody>
+                            {:catch error}
+                                <p style="color: red">{error.message}</p>
+                            {/await}
                         </table>
                     </div>
 
