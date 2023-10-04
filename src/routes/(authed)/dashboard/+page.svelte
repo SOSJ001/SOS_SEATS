@@ -1,16 +1,93 @@
 <script>
     import "animate.css";
+    import { loadEventToTable } from "$lib/supabase";
     import nothing from "$lib/assets/nothing.png";
     import addEventPic from "$lib/assets/addEvent.png";
     import hi from "$lib/assets/hi.png";
     import { Modal } from "flowbite-svelte";
+    // @ts-ignore
+    // @ts-ignore
+    // @ts-ignore
     import { fade, fly } from "svelte/transition";
-    import { onMount } from "svelte";
+    // import { onMount } from "svelte";
     import TopnavDash from "$lib/components/TopnavDash.svelte";
     import DashboardMenu from "$lib/components/DashboardMenu.svelte";
     import DashboardUtilities from "$lib/components/DashboardUtilities.svelte";
     import DashboardEvent from "$lib/components/DashboardEvent.svelte";
+    import { addEventFunction } from "../../serverRoutes";
+    import { sessionFromDb } from "$lib/variable";
 
+    // ////////////////////////////////////////////////////////////////////////
+    // @ts-ignore
+    // let EventTableResult = [];
+    // async () => {
+    async function onload() {
+        // call the loadEventToTable function
+        let EventTableResult1 = await loadEventToTable();
+        // EventTableResult.push(EventTableResult1);
+        // @ts-ignore
+        console.log("table result EventTableResult1 = ", EventTableResult1);
+        return EventTableResult1;
+    }
+    let EventTableResult = onload();
+
+    // @ts-ignore
+    // console.log("table result outside Onmount = ", EventTableResult);
+
+    // ///////////////////////////////////////////////////////////////////////////////
+
+    // //////////////////////////////////////////////////////////
+    // @ts-ignore
+    // @ts-ignore
+    export let data;
+    // setting the cookie to the store value
+    if (data.cookievar1 !== undefined) {
+        // @ts-ignore
+        sessionFromDb.set(data.cookievar1);
+        console.log("cookievar1 on dashboard ", $sessionFromDb);
+    }
+
+    // //////////////////////////////////////////////////////////
+
+    // //////////////////////////////////////////////
+    // these are for the add event modal
+    // @ts-ignore
+    let eventName;
+    // @ts-ignore
+    let eventDate;
+    // @ts-ignore
+    let eventVenue;
+    let Audience = "Private";
+    // @ts-ignore
+    export let file_input; //thid is the file that must be uploaded
+
+    let createEventFuncton = () => {
+        show = true;
+        // @ts-ignore
+        createEventBtn.innerText = "Creating Please Wait.....";
+        // @ts-ignore
+        addEventFunction(
+            // @ts-ignore
+            eventName.value,
+            // @ts-ignore
+            eventDate.value,
+            // @ts-ignore
+            eventVenue.value,
+            Audience,
+            // @ts-ignore
+            file_input,
+            $sessionFromDb
+        );
+        console.log(
+            // @ts-ignore
+            `Event Name = ${eventName.value}, Event Date = ${eventDate.value}, Event Venue = ${eventVenue.value}, Audience = ${Audience}, File_Input = ${file_input.value}.`
+        );
+    };
+
+    // /////////////////////////////////////////////
+
+    // @ts-ignore
+    // @ts-ignore
     let Session1 = true;
     let event = false;
     let seat = false;
@@ -18,13 +95,17 @@
     let addEvent = false;
     let addSeat = false;
     let show = false;
-    let Audience = "Private";
+    // @ts-ignore
     let createEventBtn;
+    // @ts-ignore
+    // @ts-ignore
     let createEventBtnstyle;
 
     let scan = false;
+    // @ts-ignore
 
-
+    // console.log("table result= ", tableResult);
+    // };
 </script>
 
 <div class="bg-gray-700 items-center text-white overflow-x-hidden h-screen">
@@ -178,7 +259,7 @@
                     />
                     <!-- </marquee> -->
                 </div>
-<DashboardEvent/>
+                <DashboardEvent />
                 <!-- <DashboardEvent /> -->
             </div>
         </div>
@@ -186,6 +267,7 @@
         <!-- models down here  -->
         {#if event}
             <!-- Event modal below -->
+
             <div transition:fade>
                 <Modal
                     bodyClass="p-2"
@@ -225,41 +307,55 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr
-                                    class=" border-b border-white bg-gray-800 hover:bg-gray-900"
-                                >
-                                    <td class="px-6 py-4"> 1 </td>
-                                    <th
-                                        scope="row"
-                                        class="px-6 py-4 font-medium whitespace-nowrap text-white"
-                                    >
-                                        Apple MacBook Pro 17"
-                                    </th>
-                                    <td class="px-6 py-4"> SilverSilver"</td>
-                                    <td class="px-6 py-4"> Laptop </td>
-                                    <td class="px-6 py-4"> Hillstation </td>
+                                {#await EventTableResult}
+                                    <p>...waiting</p>
+                                {:then rows}
+                                    {#each rows as row, i}
+                                        <tr
+                                            class=" border-b border-white bg-gray-800 hover:bg-gray-900"
+                                        >
+                                            <td class="px-6 py-4"> {i+1} </td>
+                                            <th
+                                                scope="row"
+                                                class="px-6 py-4 font-medium whitespace-nowrap text-white"
+                                            >
+                                                Apple MacBook Pro 17"
+                                            </th>
+                                            <td class="px-6 py-4">
+                                                {row.name}</td
+                                            >
+                                            <td class="px-6 py-4"> {row.date} </td>
+                                            <td class="px-6 py-4">
+                                                {row.venue}
+                                            </td>
 
-                                    <td
-                                        class="flex items-center px-6 py-4 space-x-3"
-                                    >
-                                        <a
-                                            on:click|preventDefault|stopPropagation={() => {
-                                                console.log("Edit btn");
-                                            }}
-                                            href="#"
-                                            class="font-medium text-blue-600 dark:text-blue-500 hover:underline"
-                                            >Edit</a
-                                        >
-                                        <a
-                                            on:click|preventDefault|stopPropagation={() => {
-                                                console.log("Remove btn");
-                                            }}
-                                            href="#"
-                                            class="font-medium text-red-600 dark:text-red-500 hover:underline"
-                                            >Remove</a
-                                        >
-                                    </td>
-                                </tr>
+                                            <td
+                                                class="flex items-center px-6 py-4 space-x-3"
+                                            >
+                                                <a
+                                                    on:click|preventDefault|stopPropagation={() => {
+                                                        console.log("Edit btn");
+                                                    }}
+                                                    href="#"
+                                                    class="font-medium text-blue-600 dark:text-blue-500 hover:underline"
+                                                    >Edit</a
+                                                >
+                                                <a
+                                                    on:click|preventDefault|stopPropagation={() => {
+                                                        console.log(
+                                                            "Remove btn"
+                                                        );
+                                                    }}
+                                                    href="#"
+                                                    class="font-medium text-red-600 dark:text-red-500 hover:underline"
+                                                    >Remove</a
+                                                >
+                                            </td>
+                                        </tr>
+                                    {/each}
+                                {:catch error}
+                                    <p style="color: red">{error.message}</p>
+                                {/await}
                             </tbody>
                         </table>
                     </div>
@@ -584,6 +680,7 @@
                                     >Event Name</label
                                 >
                                 <input
+                                    bind:this={eventName}
                                     type="text"
                                     id="eventName"
                                     class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -598,6 +695,7 @@
                                     >Event Date</label
                                 >
                                 <input
+                                    bind:this={eventDate}
                                     type="date"
                                     id="eventDate"
                                     class="text-white bg-gray-700 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -613,6 +711,7 @@
                                 >Event venue</label
                             >
                             <input
+                                bind:this={eventVenue}
                                 type="text"
                                 id="eventVenue"
                                 class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -680,6 +779,7 @@
                                 for="file_input">Upload Flyer/Poster</label
                             >
                             <input
+                                bind:this={file_input}
                                 class="block w-full text-sm border rounded-lg cursor-pointer text-gray-700 focus:outline-none bg-gray-50 border-gray-50 placeholder-gray-400"
                                 aria-describedby="file_input_help"
                                 id="file_input"
@@ -693,11 +793,7 @@
                         <a
                             href=""
                             bind:this={createEventBtnstyle}
-                            on:click|preventDefault|once={() => {
-                                show = true;
-                                createEventBtn.innerText =
-                                    "Creating Please Wait.....";
-                            }}
+                            on:click|preventDefault|once={createEventFuncton}
                             class="text-center"
                             ><div
                                 class="flex flex-row text-white bg-yellow-400 hover:bg-yellow-500 hover:text-white focus:ring-4 focus:outline-none focus:ring-yellow-700 font-medium rounded-lg px-5 text-sm py-2.5 justify-center"
