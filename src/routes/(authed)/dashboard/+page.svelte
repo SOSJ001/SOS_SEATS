@@ -26,7 +26,7 @@
         let EventTableResult1 = await loadEventToTable();
         // EventTableResult.push(EventTableResult1);
         // @ts-ignore
-        console.log("table result EventTableResult1 = ", EventTableResult1);
+        // console.log("table result EventTableResult1 = ", EventTableResult1);
         return EventTableResult1;
     }
     let EventTableResult = onload();
