@@ -16,19 +16,21 @@
     import DashboardEvent from "$lib/components/DashboardEvent.svelte";
     import { addEventFunction } from "../../serverRoutes";
     import { sessionFromDb } from "$lib/variable";
-    import { Spinner } from 'flowbite-svelte';
+    import { Spinner } from "flowbite-svelte";
 
     // ////////////////////////////////////////////////////////////////////////
     // @ts-ignore
     // let EventTableResult = [];
     // async () => {
     async function onload() {
-        // call the loadEventToTable function
-        let EventTableResult1 = await loadEventToTable();
-        // EventTableResult.push(EventTableResult1);
-        // @ts-ignore
-        // console.log("table result EventTableResult1 = ", EventTableResult1);
-        return EventTableResult1;
+        try {
+            const EventTableResult = await loadEventToTable();
+            // console.log('New code', EventTableResult)
+            return EventTableResult;
+        } catch (error) {
+            console.error("Error in onload:", error);
+            return [];
+        }
     }
     let EventTableResult = onload();
 
@@ -283,7 +285,10 @@
                     <div class="relative overflow-x-auto shadow-md rounded-lg">
                         <table class="w-full text-sm text-left text-gray-400">
                             {#await EventTableResult}
-                                <p class=" w-full text-2xl text-center overflow-hidden text-yellow-200 "><Spinner color="yellow" />
+                                <p
+                                    class=" w-full text-2xl text-center overflow-hidden text-yellow-200"
+                                >
+                                    <Spinner color="yellow" />
                                     ...waiting
                                 </p>
                             {:then rows}
@@ -316,31 +321,41 @@
                                 </thead>
                                 <tbody>
                                     {#each rows as row, i}
-                                    <!-- {console.log("it can be done", i + 1)} -->
+                                        <!-- {console.log("it can be done", i + 1)} -->
                                         <tr
-                                            class=" border-b border-white bg-gray-800 hover:bg-gray-900"
+                                            class="border-b border-white bg-gray-800 hover:bg-gray-900"
                                         >
                                             <td class="px-6 py-4"> {i + 1} </td>
-                                            <th
-                                                scope="row"
-                                                class="px-6 py-4 font-medium whitespace-nowrap text-white"
+                                            <td
+                                                class="w-[150px] px-6 py-4 font-medium whitespace-nowrap text-white"
                                             >
-                                                Apple MacBook Pro 17"
-                                            </th>
+                                                <!-- Displaying the image from Supabase Database -->
+                                                <a
+                                                    href={row.Image}
+                                                    target="_blank"
+                                                >
+                                                    <img
+                                                        class=""
+                                                        src={row.Image}
+                                                        alt="Event_image"
+                                                    />
+                                                </a>
+                                            </td>
                                             <td
                                                 class="px-6 py-4 font-medium whitespace-nowrap text-white"
                                             >
-                                                {row.name}</td
+                                                {row.Event.name}</td
                                             >
-                                            <td class="px-6 py-4">
-                                                {row.date}
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                {row.venue}
-                                            </td>
-
                                             <td
-                                                class="flex items-center px-6 py-4 space-x-3"
+                                                class="px-6 py-4 whitespace-nowrap"
+                                            >
+                                                {row.Event.date}
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                {row.Event.venue}
+                                            </td>
+                                            <td
+                                                class="px-6 py-4 whitespace-nowrap space-x-5"
                                             >
                                                 <a
                                                     on:click|preventDefault|stopPropagation={() => {
@@ -351,19 +366,19 @@
                                                     >Edit</a
                                                 >
                                                 <a
-                                                    on:click|preventDefault|stopPropagation={() => {
-                                                        console.log(
-                                                            "Remove btn"
-                                                        );
-                                                    }}
-                                                    href="#"
-                                                    class="font-medium text-red-600 dark:text-red-500 hover:underline"
-                                                    >Remove</a
-                                                >
+                                                        on:click|preventDefault|stopPropagation={() => {
+                                                            console.log(
+                                                                "Remove btn"
+                                                            );
+                                                        }}
+                                                        href="#"
+                                                        class="font-medium text-red-600 dark:text-red-500 hover:underline"
+                                                        >Delete</a
+                                                    >
                                             </td>
                                         </tr>
                                     {/each}
-                                    </tbody>
+                                </tbody>
                             {:catch error}
                                 <p style="color: red">{error.message}</p>
                             {/await}
