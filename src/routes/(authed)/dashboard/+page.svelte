@@ -16,12 +16,11 @@
     import DashboardEvent from "$lib/components/DashboardEvent.svelte";
     import { addEventFunction } from "../../serverRoutes";
     import { sessionFromDb } from "$lib/variable";
-    import { Spinner } from "flowbite-svelte";
+    // import { Spinner } from "flowbite-svelte";
+    import Waiting from "$lib/components/Waiting.svelte";
 
     // ////////////////////////////////////////////////////////////////////////
     // @ts-ignore
-    // let EventTableResult = [];
-    // async () => {
     async function onload() {
         try {
             const EventTableResult = await loadEventToTable();
@@ -203,7 +202,11 @@
                     <span slot="buttomLabel"> EVENTS </span>
                     <div slot="svg2" class=" text-2xl">
                         <!-- DYBAMIC VALUE -->
-                        3
+                        {#await EventTableResult}
+                            <Waiting />
+                        {:then count}
+                            <span>{count.length}</span>
+                        {/await}
                     </div>
 
                     <!-- right column -->
@@ -285,12 +288,7 @@
                     <div class="relative overflow-x-auto shadow-md rounded-lg">
                         <table class="w-full text-sm text-left text-gray-400">
                             {#await EventTableResult}
-                                <p
-                                    class=" w-full text-2xl text-center overflow-hidden text-yellow-200"
-                                >
-                                    <Spinner color="yellow" />
-                                    ...waiting
-                                </p>
+                                <Waiting />
                             {:then rows}
                                 <thead
                                     class="text-xs uppercase bg-slate-600 text-white"
@@ -366,15 +364,15 @@
                                                     >Edit</a
                                                 >
                                                 <a
-                                                        on:click|preventDefault|stopPropagation={() => {
-                                                            console.log(
-                                                                "Remove btn"
-                                                            );
-                                                        }}
-                                                        href="#"
-                                                        class="font-medium text-red-600 dark:text-red-500 hover:underline"
-                                                        >Delete</a
-                                                    >
+                                                    on:click|preventDefault|stopPropagation={() => {
+                                                        console.log(
+                                                            "Remove btn"
+                                                        );
+                                                    }}
+                                                    href="#"
+                                                    class="font-medium text-red-600 dark:text-red-500 hover:underline"
+                                                    >Delete</a
+                                                >
                                             </td>
                                         </tr>
                                     {/each}

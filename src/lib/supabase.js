@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 export const supabase = createClient('https://qwoklzpfoblqmnategny.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2tsenBmb2JscW1uYXRlZ255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTIzMDYxMDksImV4cCI6MjAwNzg4MjEwOX0.BktZ0VzqqY5Wn8wjXfgIKBMdNauNx5-ZChMOnw9vbcs')
 
 // @ts-ignore
+// @ts-ignore
 import { sessionFromDb } from './variable';
 
 
@@ -60,6 +61,7 @@ export async function loadEventToTable() {
 
     // Use Promise.all to await all image requests
     // @ts-ignore
+    // @ts-ignore
     const eventWithImages = await Promise.all(events.map(async (Event, i) => {
         const Images = await SelectImagePath(Event.imageId);
         // @ts-ignore
@@ -73,6 +75,26 @@ export async function loadEventToTable() {
     }));
 
     return eventWithImages;
+}
+
+
+// load seat to table function
+// @ts-ignore
+export async function loadSeatsToTable(EventId) {
+    // @ts-ignore
+    let { data: seat, error } = await supabase
+        .from('seat')
+        .select("*")
+
+        // Filters
+        .eq('eventid', EventId)
+
+        if(error){
+            return null;
+        }else{
+            return seat;
+        }
+
 }
 
 // SELECT IMAGE PATH FROM image Table
@@ -89,6 +111,7 @@ async function SelectImagePath(imageId) {
     } else {
         // const ImageUrl = await GetImageUrl()
         // console.log('This is the image URL',image[0].fileName);
+        // @ts-ignore
         const images = await GetImageUrl(image[0].fileName);
         // console.log('Public url here so ', images)
         return images;
@@ -100,12 +123,13 @@ async function SelectImagePath(imageId) {
 
 
 // get public url for the Event Image below
+// @ts-ignore
 async function GetImageUrl(fileName) {
     const { data } = supabase
         .storage
         .from('event_image')//Bucket id
         .getPublicUrl(fileName)
 
-// console.log('Image Url here so', data.publicUrl);
-return data.publicUrl;
+    // console.log('Image Url here so', data.publicUrl);
+    return data.publicUrl;
 }
