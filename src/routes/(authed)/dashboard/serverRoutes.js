@@ -1,6 +1,7 @@
 import { supabase } from '$lib/supabase';
 import { sessionFromDb } from '$lib/variable';
 import { generateUniqueFilename } from '$lib/supabase';
+import { goto } from '$app/navigation';
 
 
 
@@ -18,6 +19,7 @@ export let signout = async () => {
     const { logoutResponse, cookievar1 } = await response.json();
     if (cookievar1 === '') {
         sessionFromDb.set(null);
+        goto('/');
         // console.log('After ', sessionFromDb);
         // console.log('Data From logout api ', logoutResponse);
         // console.log('Cookievari logout', cookievar1);

@@ -1,23 +1,30 @@
 <script>
+// @ts-nocheck
+
     import { sessionFromDb } from "../lib/variable";
+    // @ts-ignore
     import { page, navigating } from '$app/stores';
     import { goto } from "$app/navigation";
     // import { navigating } from "$app/stores";
     import Banner from "$lib/components/Banner.svelte";
     import Search from "$lib/components/Search.svelte";
     import TopNav from "$lib/components/TopNav.svelte";
+    // @ts-ignore
     import { Button, Modal } from "flowbite-svelte";
     import { fade } from "svelte/transition";
 
+    // @ts-ignore
     export let data;
     // setting the cookie to the store value
     if (data.cookievar1 !== undefined) {
+        // @ts-ignore
         sessionFromDb.set(data.cookievar1);
         console.log("cookievar1 if ", $sessionFromDb);
     }
 
     // @ts-ignore
     let loginBtnStyle;
+    // @ts-ignore
     let errorMessage = null;
     let signUpBtnStyle;
     let login = false;
@@ -31,6 +38,8 @@
     // @ts-ignore
     let password;
 
+
+    // when the login button is clicked....
     let loginBtnClicked = async () => {
         errorMessage = null;
         // @ts-ignore
@@ -51,6 +60,7 @@
                 "Content-Type": "application/json",
             },
         });
+        // @ts-ignore
         const { supabaseError, supabaseSession, cookievar } =
             await response.json();
 
@@ -68,12 +78,13 @@
         } else if (supabaseSession !== null) {
             sessionFromDb.set(supabaseSession); //setting the supabase session to session for tracking purpose
             console.log("sessionFromDb", $sessionFromDb);
-            // goto('/dashboard');
             login = false;
+            goto('/dashboard');
         }
     };
 
-    $: {
+   // @ts-ignore
+     $: {
         // @ts-ignore
         if (errorMessage !== null) {
             // @ts-ignore
