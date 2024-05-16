@@ -11,13 +11,15 @@
   export let guest = false;
   export let event = false;
   let logoutBtnStyle;
-  let show = false;
+
+
+  let show = false; //to manage the logout button spinner
 
   // logout functon from the superbase store
-  function logout() {
+  async function logout() {
     logoutBtnStyle.style = "pointer-events: none;";
-    show = true;
-    signout();
+    show = true; //setting spinner to visible
+    await signout();
     goto('/');
   }
 

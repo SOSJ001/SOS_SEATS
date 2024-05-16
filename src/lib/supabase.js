@@ -1,13 +1,9 @@
+// @ts-nocheck
 import { createClient } from '@supabase/supabase-js'
 export const supabase = createClient('https://qwoklzpfoblqmnategny.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2tsenBmb2JscW1uYXRlZ255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTIzMDYxMDksImV4cCI6MjAwNzg4MjEwOX0.BktZ0VzqqY5Wn8wjXfgIKBMdNauNx5-ZChMOnw9vbcs')
 
-// @ts-ignore
-// @ts-ignore
-import { sessionFromDb } from './variable';
-
 
 // login finction
-// @ts-ignore
 export async function loginbtnFunction(email1, password1) {
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -132,4 +128,12 @@ async function GetImageUrl(fileName) {
 
     // console.log('Image Url here so', data.publicUrl);
     return data.publicUrl;
+}
+
+export async function refreshsession(refreshTtoken) {
+    const { data, error } = await supabase.auth.refreshSession(refreshTtoken)
+    const { session, user } = data
+    return {
+            session
+    }
 }

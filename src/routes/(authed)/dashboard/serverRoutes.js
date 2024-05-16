@@ -5,25 +5,18 @@ import { goto } from '$app/navigation';
 
 
 
-// let idOfUser = sessionFromDb.subscribe
 
-
-// let imageId;
 
 //signout button below
 
 export let signout = async () => {
-    // console.log('Before ', sessionFromDb);
+
     const response = await fetch("./logoutApi"); //logout api to cancel the cookie and logout
     // @ts-ignore
     const { logoutResponse, cookievar1 } = await response.json();
     if (cookievar1 === '') {
-        sessionFromDb.set(null);
-        goto('/');
-        // console.log('After ', sessionFromDb);
-        // console.log('Data From logout api ', logoutResponse);
-        // console.log('Cookievari logout', cookievar1);
-
+        sessionFromDb.set('');
+       
     }
 };
 
@@ -88,8 +81,6 @@ async function uploadEventImage(image, userId1) {
             console.log("Insert Image Error ", error.message);
 
         }
-        // console.log(sessionFromDb);
-        // return;
 
     } else {
         // return {
@@ -97,7 +88,6 @@ async function uploadEventImage(image, userId1) {
 
         // };
     }
-    // console.log(avatarFile);
 }
 
 

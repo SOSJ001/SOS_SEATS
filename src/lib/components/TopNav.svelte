@@ -35,7 +35,7 @@
         <!-- <span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">Flowbite</span> -->
     </NavBrand>
     <div class="flex md:order-2">
-        {#if $sessionFromDb !== null}
+        {#if $sessionFromDb}
             <a
                 on:click|preventDefault={signout}
                 href="/"
@@ -65,7 +65,7 @@
         <ul
             class="flex flex-col font-medium md:flex-row md:space-x-8 md:mt-0 items-center justify-center"
         >
-            {#if $sessionFromDb !== null}
+            {#if $sessionFromDb}
                 <li out:fade class="nav-item">
                     <a
                         href="/dashboard"
@@ -232,7 +232,7 @@
         <SidebarWrapper divClass="overflow-y-auto px-3 rounded">
             <div class="h-full px-3 pb-4 overflow-y-auto bg-dark">
                 <ul class="space-y-2 font-medium">
-                    {#if $sessionFromDb !== null}
+                    {#if $sessionFromDb}
                         <li>
                             <a
                                 href="/dashboard"

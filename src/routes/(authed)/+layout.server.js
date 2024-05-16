@@ -1,12 +1,10 @@
-import { sessionFromDb } from '$lib/variable.js';
+import { sessionFromDb } from "$lib/variable";
 import { redirect } from "@sveltejs/kit";
 
-export function load({ cookies, url }) {
-    // if (!cookies.get('userSession')) {
-    //     throw redirect(303, '/');
-    // } 
-    // this didn't work as it prevented my code from executing
-    if (sessionFromDb === null) {
-        throw redirect(303, '/');
-    }
+export function load({ cookies, locals }) {
+    const cookievar = cookies.get('userSession')
+    if (!cookievar) {
+        console.log('cookie not set');
+        throw redirect(302, '/')  
+    } 
 }

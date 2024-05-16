@@ -10,7 +10,7 @@ export async function GET({ cookies }) {
         logoutResponse = SessionFromdb.error
         return json({ logoutResponse }, { status: 201 });
     }else{
-        // if the signout is a success resrt the cookie and return the response
+        // if the signout is a success reset the cookie and return the response
         cookies.set('userSession', '', { path: '/' });
         const cookievar1 = cookies.get('userSession');
         logoutResponse = "Successfully logged out"
