@@ -1,6 +1,6 @@
 <script>
     //@ts-nocheck
-  import { onDestroy, onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { Html5Qrcode } from 'html5-qrcode';
 
   let qrCodeScanner;
@@ -14,10 +14,11 @@
       if (devices && devices.length) {
         cameraId = devices[0].id;
         qrCodeScanner.start(
-          cameraId,
+          { facingMode: "environment" }, // Use facingMode for better compatibility
           {
             fps: 10, // Optional, frames per second for the scanner
             qrbox: 250, // Optional, QR scanning box width
+            disableFlip: true // Important for iOS devices
           },
           (decodedText, decodedResult) => {
             // Handle the result
