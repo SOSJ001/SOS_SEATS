@@ -239,7 +239,6 @@
           <!-- list of event down here -->
         </DashboardUtilities>
         <div class="w-full h-2 mx-2 bg-yellow-400 mt-4 rounded-full mb-2" />
-        <Qrscanner/>
         <div class=" hover:bg-slate-400 mx-2 rounded items-center">
           <img class="mx-auto my-auto" src={nothing} alt="nothing here" />
           <img
@@ -594,6 +593,7 @@
           <h1>
             <!-- hi there <br /> (this is the scan modal) <br /> maintenance !! -->
           </h1>
+          <Qrscanner/>
         </Modal>
       </div>
     {/if}
