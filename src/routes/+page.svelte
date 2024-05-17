@@ -20,7 +20,6 @@
   if (data.cookievar1 !== undefined) {
     // @ts-ignore
     sessionFromDb.set(data.cookievar1);
-    console.log("cookievar1 if ", $sessionFromDb);
   }
 
   // @ts-ignore

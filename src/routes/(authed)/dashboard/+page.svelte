@@ -1,4 +1,6 @@
 <script>
+  // @ts-nocheck
+
   import "animate.css";
   import { loadEventToTable, supabase } from "$lib/supabase";
   import nothing from "$lib/assets/nothing.png";
@@ -11,7 +13,7 @@
   // @ts-ignore
   // @ts-ignore
   import { fade, fly } from "svelte/transition";
-  import { beforeUpdate, onMount } from "svelte";
+  import {  onMount } from "svelte";
   import TopnavDash from "$lib/components/TopnavDash.svelte";
   import DashboardMenu from "$lib/components/DashboardMenu.svelte";
   import DashboardUtilities from "$lib/components/DashboardUtilities.svelte";
@@ -20,14 +22,8 @@
   import { sessionFromDb } from "$lib/variable";
   // import { Spinner } from "flowbite-svelte";
   import Waiting from "$lib/components/Waiting.svelte";
+  import Qrscanner from "$lib/components/Qrscanner.svelte";
 
-  beforeUpdate(() => {
-    if ($sessionFromDb) {
-      console.log(sessionFromDb + "before update");
-    } else {
-      goto("/");
-    }
-  });
   // ////////////////////////////////////////////////////////////////////////
   // @ts-ignore
   async function onload() {
@@ -243,9 +239,6 @@
           <!-- list of event down here -->
         </DashboardUtilities>
         <div class="w-full h-2 mx-2 bg-yellow-400 mt-4 rounded-full mb-2" />
-        <!-- <hr
-                class="w-full h-1 mx-2 mt-4 mb-2 bg-yellow-400 border-0 rounded dark:bg-gray-700"
-            /> -->
         <div class=" hover:bg-slate-400 mx-2 rounded items-center">
           <img class="mx-auto my-auto" src={nothing} alt="nothing here" />
           <img
@@ -595,13 +588,12 @@
           color="dark"
           bind:open={scan}
           size="sm"
-          outsideclose
-          autoclose
           class="bg-gray-700 text-white"
         >
           <h1>
-            hi there <br /> (this is the scan modal) <br /> maintenance !!
+            <!-- hi there <br /> (this is the scan modal) <br /> maintenance !! -->
           </h1>
+          <Qrscanner/>
         </Modal>
       </div>
     {/if}
