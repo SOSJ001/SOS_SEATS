@@ -7,12 +7,14 @@
   let cameraId;
   let isScanning = false;
   let scanResult = '';
+  let on = false;
 
   const startScanner = async () => {
     try {
       const devices = await Html5Qrcode.getCameras();
       if (devices && devices.length) {
         cameraId = devices[0].id;
+        on = !on;
         qrCodeScanner.start(
           { facingMode: "environment" }, // Use facingMode for better compatibility
           {
@@ -42,7 +44,8 @@
   };
 
   const stopScanner = () => {
-    if (qrCodeScanner) {
+    if (on) {
+        on = !on;
       qrCodeScanner.stop().then(() => {
         isScanning = false;
       }).catch((err) => {

@@ -2,7 +2,7 @@
   // @ts-nocheck
 
   import { sessionFromDb } from "../lib/variable";
-  // @ts-ignore
+  
   import { page, navigating } from "$app/stores";
   import { enhance } from "$app/forms";
   import { goto } from "$app/navigation";
@@ -10,46 +10,46 @@
   import Banner from "$lib/components/Banner.svelte";
   import Search from "$lib/components/Search.svelte";
   import TopNav from "$lib/components/TopNav.svelte";
-  // @ts-ignore
+  
   import { Button, Modal } from "flowbite-svelte";
   import { fade } from "svelte/transition";
 
-  // @ts-ignore
+  
   export let data;
   // setting the cookie to the store value
   if (data.cookievar1 !== undefined) {
-    // @ts-ignore
+    
     sessionFromDb.set(data.cookievar1);
   }
 
-  // @ts-ignore
+  
   let loginBtnStyle;
-  // @ts-ignore
+  
   let errorMessage = null;
   let signUpBtnStyle;
   let login = false;
   let signup = false;
   let show = false;
   let RegisterBtn;
-  // @ts-ignore
+  
   let LoginBtn;
-  // @ts-ignore
+  
   let email;
-  // @ts-ignore
+  
   let password;
 
   // when the login button is clicked....
   let loginBtnClicked = async () => {
     errorMessage = null;
-    // @ts-ignore
+    
     loginBtnStyle.style = "pointer-events: none;";
-    // @ts-ignore
+    
     LoginBtn.innerText = "loading...";
     show = true;
 
-    // @ts-ignore
+    
     const email1 = email.value;
-    // @ts-ignore
+    
     const pass = password.value;
 
     const response = await fetch("/loginApi", {
@@ -60,7 +60,7 @@
       },
     });
 
-    // @ts-ignore
+    
     const { supabaseError, supabaseSession, cookievar } = await response.json(); //wait for the responso from the server
 
     if (supabaseError !== null) {
@@ -76,13 +76,13 @@
   };
   // login button ends;
 
-  // @ts-ignore
+  
   $: {
-    // @ts-ignore
+    
     if (errorMessage !== null) {
-      // @ts-ignore
+      
       loginBtnStyle.style = "pointer-events: auto;";
-      // @ts-ignore
+      
       LoginBtn.innerText = "Signin";
       show = false;
       // console.log("here");

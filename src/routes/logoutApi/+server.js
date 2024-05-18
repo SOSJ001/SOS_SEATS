@@ -11,7 +11,8 @@ export async function GET({ cookies }) {
         return json({ logoutResponse }, { status: 201 });
     }else{
         // if the signout is a success reset the cookie and return the response
-        cookies.set('userSession', '', { path: '/' });
+        // cookies.set('userSession', '', { path: '/' });
+        cookies.delete('userSession');
         const cookievar1 = cookies.get('userSession');
         logoutResponse = "Successfully logged out"
         return json({ logoutResponse, cookievar1 }, { status: 201 })

@@ -2,18 +2,13 @@
   // @ts-nocheck
 
   import "animate.css";
-  import { loadEventToTable, supabase } from "$lib/supabase";
+  import { Card, Button } from "flowbite-svelte";
   import nothing from "$lib/assets/nothing.png";
   import addEventPic from "$lib/assets/addEvent.png";
   import hi from "$lib/assets/hi.png";
   import { Modal } from "flowbite-svelte";
   import { goto } from "$app/navigation";
-
-  // @ts-ignore
-  // @ts-ignore
-  // @ts-ignore
   import { fade, fly } from "svelte/transition";
-  import {  onMount } from "svelte";
   import TopnavDash from "$lib/components/TopnavDash.svelte";
   import DashboardMenu from "$lib/components/DashboardMenu.svelte";
   import DashboardUtilities from "$lib/components/DashboardUtilities.svelte";
@@ -23,71 +18,45 @@
   // import { Spinner } from "flowbite-svelte";
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
+  export let data;
 
   // ////////////////////////////////////////////////////////////////////////
-  // @ts-ignore
-  async function onload() {
-    try {
-      const EventTableResult = await loadEventToTable();
-      // console.log('New code', $sessionFromDb)
-      return EventTableResult;
-    } catch (error) {
-      console.error("Error in onload:", error);
-      return [];
-    }
-  }
-  let EventTableResult = onload();
+  let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
 
-  // @ts-ignore
-  // console.log("table result outside Onmount = ", EventTableResult);
-
-  // ///////////////////////////////////////////////////////////////////////////////
-
-  // //////////////////////////////////////////////////////////
-  // @ts-ignore
-  // @ts-ignore
-
-  // //////////////////////////////////////////////////////////
-
-  // //////////////////////////////////////////////
   // these are for the add event modal
-  // @ts-ignore
+
   let eventName;
-  // @ts-ignore
+
   let eventDate;
-  // @ts-ignore
+
   let eventVenue;
   let Audience = "Private";
-  // @ts-ignore
-  export let file_input; //thid is the file that must be uploaded
+
+  export let file_input; //this is the file that must be uploaded
 
   let createEventFuncton = () => {
     show = true;
-    // @ts-ignore
+
     createEventBtn.innerText = "Creating Please Wait.....";
-    // @ts-ignore
+
     addEventFunction(
-      // @ts-ignore
       eventName.value,
-      // @ts-ignore
+
       eventDate.value,
-      // @ts-ignore
+
       eventVenue.value,
       Audience,
-      // @ts-ignore
+
       file_input,
       $sessionFromDb
     );
     console.log(
-      // @ts-ignore
       `Event Name = ${eventName.value}, Event Date = ${eventDate.value}, Event Venue = ${eventVenue.value}, Audience = ${Audience}, File_Input = ${file_input.value}.`
     );
   };
 
   // /////////////////////////////////////////////
 
-  // @ts-ignore
-  // @ts-ignore
   let Session1 = true;
   let event = false;
   let seat = false;
@@ -95,14 +64,12 @@
   let addEvent = false;
   let addSeat = false;
   let show = false;
-  // @ts-ignore
+
   let createEventBtn;
-  // @ts-ignore
-  // @ts-ignore
+
   let createEventBtnstyle;
 
   let scan = false;
-  // @ts-ignore
 
   // console.log("table result= ", tableResult);
   // };
@@ -271,77 +238,52 @@
           bind:open={event}
           size="lg"
           outsideclose
-          autoclose
           class="bg-gray-700 text-white "
         >
           <div class="relative overflow-x-auto shadow-md rounded-lg">
-            <table class="w-full text-sm text-left text-gray-400">
+            <div class="grid grid-rows-1 md:grid-cols-3 md:gap-x-2">
               {#await EventTableResult}
                 <Waiting />
               {:then rows}
-                <thead class="text-xs uppercase bg-slate-600 text-white">
-                  <tr>
-                    <th scope="col" class="px-6 py-3"> # </th>
-                    <th scope="col" class="px-6 py-3"> Flyer </th>
-                    <th scope=" col" class="whitespace-nowrap px-6 py-3">
-                      Event Name
-                    </th>
-                    <th scope="col" class="px-6 py-3"> Date </th>
-                    <th scope="col" class="px-6 py-3"> Venue </th>
-                    <th scope="col" class="px-6 py-3"> Action </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each rows as row, i}
-                    <!-- {console.log("it can be done", i + 1)} -->
-                    <tr
-                      class="border-b border-white bg-gray-800 hover:bg-gray-900"
-                    >
-                      <td class="px-6 py-4"> {i + 1} </td>
-                      <td
-                        class="w-[150px] px-6 py-4 font-medium whitespace-nowrap text-white"
-                      >
-                        <!-- Displaying the image from Supabase Database -->
-                        <a href={row.Image} target="_blank">
-                          <img class="" src={row.Image} alt="Event_image" />
-                        </a>
-                      </td>
-                      <td
-                        class="px-6 py-4 font-medium whitespace-nowrap text-white"
-                      >
-                        {row.Event.name}</td
-                      >
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        {row.Event.date}
-                      </td>
-                      <td class="px-6 py-4">
-                        {row.Event.venue}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap space-x-5">
-                        <a
-                          on:click|preventDefault|stopPropagation={() => {
-                            console.log("Edit btn");
-                          }}
-                          href="#"
-                          class="font-medium text-blue-600 dark:text-blue-500 hover:underline"
-                          >Edit</a
+                {#each rows as row, i}
+                  <div
+                    class=" md:h-[380px] flex flex-col items-center md:justify-between mb-5 text-white rounded-lg shadow-xl bg-gray-800"
+                  >
+                    <!-- event image below -->
+                    <img
+                      src={row.Image}
+                      class="md:h-[200px] rounded-lg"
+                      alt=""
+                    />
+                    <!-- event details below -->
+                    <div class="w-full p-5">
+                      <div class="w-full flex-col items-start">
+                        <h5
+                          class="mb-2 text-2xl font-bold tracking-tight"
                         >
-                        <a
-                          on:click|preventDefault|stopPropagation={() => {
-                            console.log("Remove btn");
-                          }}
-                          href="#"
-                          class="font-medium text-red-600 dark:text-red-500 hover:underline"
-                          >Delete</a
+                          {row.Event.name}
+                        </h5>
+                        <p
+                          class="mb-3 font-normal leading-tight"
                         >
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
+                         {row.Event.venue}
+                        </p>
+                        <p class="mb-3 font-normal leading-tight">
+                          {row.Event.date}
+                        </p>
+                        <Button> Edit
+                        </Button>
+                         <Button> Delete
+                        </Button>
+                        
+                      </div>
+                    </div>
+                  </div>
+                {/each}
               {:catch error}
                 <p style="color: red">{error.message}</p>
               {/await}
-            </table>
+            </div>
           </div>
 
           <!-- add Event button on the event modal below -->
@@ -593,7 +535,7 @@
           <h1>
             <!-- hi there <br /> (this is the scan modal) <br /> maintenance !! -->
           </h1>
-          <Qrscanner/>
+          <Qrscanner />
         </Modal>
       </div>
     {/if}
