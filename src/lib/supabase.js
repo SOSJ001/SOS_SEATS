@@ -1,7 +1,6 @@
 // @ts-nocheck
-import { PUBLIC_URL001, PUBLIC_AnionKey } from '$env/static/public';
 import { createClient } from '@supabase/supabase-js'
-export const supabase = createClient(PUBLIC_URL001, PUBLIC_AnionKey)
+export const supabase = createClient('https://qwoklzpfoblqmnategny.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2tsenBmb2JscW1uYXRlZ255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTIzMDYxMDksImV4cCI6MjAwNzg4MjEwOX0.BktZ0VzqqY5Wn8wjXfgIKBMdNauNx5-ZChMOnw9vbcs')
 
 
 // login finction
