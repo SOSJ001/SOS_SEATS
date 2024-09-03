@@ -1,6 +1,6 @@
 <div class=" mx-2 pt-2 w-full">
   <div class="bg-gray-800 p-2 rounded">
-    <div class=" grid grid-cols-3 gap-x-2 text-start">
+    <div class=" grid md:grid-cols-3 gap-x-2 text-start">
       <!-- left column  -->
       <div
         class=" border border-t-0 border-r-0 border-b-0 border-yellow-400 text-xl font-bold p-3"

@@ -94,7 +94,7 @@
                 on:click={() => (addEvent = true)}
                 class=" text-white text-sm hover:text-yellow-400 text-center bg-gray-700 rounded hover:bg-white focus:text-yellow-400 focus:bg-white"
               >
-                <div class="px-3 py-4 text-5xl">➕</div>
+                <div class="px-3 py-4 text-xl md:text-3xl">➕</div>
               </button>
               <!-- left column -->
               <svelte:fragment slot="button">
@@ -102,7 +102,7 @@
                   href="/dashboard"
                   class=" text-white text-sm text-center bg-gray-700 rounded "
                 >
-                  <div class="text-6xl p-3">🧾</div>
+                  <div class="text-xl md:text-4xl p-3">🧾</div>
             </span>
               </svelte:fragment>
               <span slot="topLabel"> TOTAL </span>
@@ -122,7 +122,7 @@
                   on:click={() => (seat = true)}
                   class=" text-white text-sm hover:text-yellow-400 text-center bg-gray-700 rounded hover:bg-white focus:text-yellow-400 focus:bg-white"
                 >
-                  <div class="text-6xl p-3">🪑</div>
+                  <div class="text-xl md:text-4xl p-3">🪑</div>
                 </button>
               </svelte:fragment>
 
