@@ -2,7 +2,8 @@
   // @ts-nocheck
 
   import { sessionFromDb } from "../lib/variable";
-  
+  import { loginbtnFunction } from "$lib/supabase";
+
   import { page, navigating } from "$app/stores";
   import { enhance } from "$app/forms";
   import { goto } from "$app/navigation";
@@ -10,79 +11,62 @@
   import Banner from "$lib/components/Banner.svelte";
   import Search from "$lib/components/Search.svelte";
   import TopNav from "$lib/components/TopNav.svelte";
-  
+
   import { Button, Modal } from "flowbite-svelte";
   import { fade } from "svelte/transition";
 
-  
   export let data;
   // setting the cookie to the store value
   if (data.cookievar1 !== undefined) {
-    
     sessionFromDb.set(data.cookievar1);
   }
 
-  
   let loginBtnStyle;
-  
+
   let errorMessage = null;
   let signUpBtnStyle;
   let login = false;
   let signup = false;
   let show = false;
   let RegisterBtn;
-  
+
   let LoginBtn;
-  
+
   let email;
-  
+
   let password;
 
   // when the login button is clicked....
   let loginBtnClicked = async () => {
     errorMessage = null;
-    
+
     loginBtnStyle.style = "pointer-events: none;";
-    
+
     LoginBtn.innerText = "loading...";
     show = true;
-
-    
-    const email1 = email.value;
-    
-    const pass = password.value;
-
-    const response = await fetch("/loginApi", {
-      method: "POST",
-      body: JSON.stringify({ email1, pass }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    
-    const { supabaseError, supabaseSession, cookievar } = await response.json(); //wait for the responso from the server
-
-    if (supabaseError !== null) {
-      // if there is error
-      errorMessage = supabaseError.message;
-    } else if (supabaseSession !== null) {
-      // when login is successful do this
-      sessionFromDb.set(supabaseSession); //setting the supabase session to session for tracking purpose
-      console.log("sessionFromDb_001", $sessionFromDb);
-      login = false;
+    const { data, error } = await loginbtnFunction(email, password);
+    if (error === null) {
+      const sessionData = data.session //set the session data and set the cookie
+      const response = await fetch("/loginApi", {
+        method: "POST",
+        body: JSON.stringify({ sessionData }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
       goto("/dashboard");
+    }else{
+      errorMessage = error.message
     }
+      
   };
   // login button ends;
 
-  
+  //if there is any error messsage reset all below
   $: {
-    
     if (errorMessage !== null) {
-      
       loginBtnStyle.style = "pointer-events: auto;";
-      
+
       LoginBtn.innerText = "Signin";
       show = false;
       // console.log("here");
@@ -237,7 +221,7 @@
                   >Email address</label
                 >
                 <input
-                  bind:this={email}
+                  bind:value={email}
                   type="email"
                   id="email"
                   name="email"
@@ -251,7 +235,7 @@
                   >Password</label
                 >
                 <input
-                  bind:this={password}
+                  bind:value={password}
                   type="password"
                   name="password"
                   id="password"

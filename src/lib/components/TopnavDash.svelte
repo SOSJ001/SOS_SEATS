@@ -18,38 +18,5 @@
         <span class="text-white font-bold">
         <slot  name="userName">HI SOSJ001</slot>
         </span>
-        <!-- <span class="z-60">
-            <NavHamburger
-                on:click={() => (hidden2 = false)}
-                menuClass="h-6 w-6 shrink-0"
-                class="text-white"
-            />
-        </span> -->
     </div>
-
-    <!-- TOP NAV -->
-
-    <!-- <div
-        id="text"
-        class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1"
-    >
-        <ul class="flex flex-col font-medium md:flex-row md:space-x-8 md:mt-0">
-            <li class="nav-item">
-                <a href="/dashboard">
-                    <span>
-                        <i class="fa-solid fa-gauge-high me-2" />DASHBOARD
-                    </span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#searchForm">SEARCH</a>
-            </li>
-            <li class="nav-item">
-                <a href="#event">EVENT</a>
-            </li>
-            <li class="nav-item">
-                <a href="/#/">ABOUT US</a>
-            </li>
-        </ul>
-    </div> -->
 </Navbar>

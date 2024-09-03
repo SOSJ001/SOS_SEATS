@@ -19,28 +19,7 @@ export let signout = async () => {
 
 
 
-// insert event function below
-// @ts-ignore
-export async function addEventFunction(eName, eDate, eVenue, Audience, file_input, userId) {
-    // upload the image first on success insert the event records
-    const imageId = await uploadEventImage(file_input, userId); 
-    console.log("here so", imageId)
 
-
-    // @ts-ignore 
-    const { data, error } = await supabase
-        .from('event')
-        .insert([
-            { name: eName, date: eDate, venue: eVenue, audience: Audience, imageId: imageId, userId: userId },
-        ])
-        .select()
-
-    if (error) {
-        console.log(error?.message)
-    } else {
-        console.log("successfully inserted");
-    }
-}
 
 
 
