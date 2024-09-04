@@ -1,8 +1,8 @@
 <script>
   // @ts-nocheck
-
-  import "animate.css";
   import Event from "$lib/components/event.svelte";
+  import { downloadImage, generateRandomChars } from "$lib/store.js";
+  import { generateQrImage } from "$lib/store";
   import ActionButton from "$lib/components/ActionButton.svelte";
   import { Card, Button } from "flowbite-svelte";
   import nothing from "$lib/assets/nothing.png";
@@ -15,11 +15,11 @@
   import DashboardUtilities from "$lib/components/DashboardUtilities.svelte";
   import DashboardEvent from "$lib/components/DashboardEvent.svelte";
   import { addEventFunction } from "$lib/supabase.js";
-  import { sessionFromDb } from "$lib/variable";
-  // import { Spinner } from "flowbite-svelte";
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
   export let data;
+  let qrCode;
+  let inviteCode
 
   // ////////////////////////////////////////////////////////////////////////
   let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
@@ -29,36 +29,27 @@
   let eventVenue;
   let eventImage = "https://placehold.co/600x400";
   let Audience = "Private";
-  export let file_input; //this is the file that must be uploaded
-  let show = false;
 
-  let createEventFuncton = () => {
-    show = true;
-
-    createEventBtn.innerText = "Creating Please Wait.....";
-
-    addEventFunction(
-      eventName.value,
-      eventDate.value,
-      eventVenue.value,
-      Audience,
-      file_input,
-      $sessionFromDb
-    );
-    console.log(
-      `Event Name = ${eventName.value}, Event Date = ${eventDate.value}, Event Venue = ${eventVenue.value}, Audience = ${Audience}, File_Input = ${file_input.value}.`
-    );
-  };
-
-  // /////////////////////////////////////////////
-  let createEventBtn;
-
-  let createEventBtnstyle;
   // modals variable below
-  let share = false;
-  let scan = false;
+  let share = false; //for share modal
+  let scan = false; //for scan modal
   let shareBy; //radio button
-  let guestName
+  let emailField = false; //to show email field
+  let passCodeDiv = false
+  let email
+  $: {
+    // auto matic update of the variable to show the email field
+    if (shareBy === "email") {
+      emailField = true;
+    } else {
+      emailField = false;
+    }
+    if (shareBy === "downloadQr") {
+      guestName = ""
+      passCodeDiv = false;
+    }
+  }
+  let guestName; //to get the name the guest
 </script>
 
 <div class=" px-3 md:px-0 grid md:grid-cols-3 gap-5 overflow-y-auto">
@@ -82,6 +73,8 @@
               eventName = row.Event.name;
               eventVenue = row.Event.venue;
               eventDate = row.Event.date;
+              shareBy = "";
+              passCodeDiv = false
             }}
           >
             <ActionButton width="full" bgColor="yellow-500">
@@ -128,35 +121,49 @@
         title="SHARE"
         bind:open={share}
         size="sm"
-        outsideclose={true}
-        autoclose
+        autoclose={false}
         class="bg-gray-700 text-white"
       >
         <div
           class="pt-5 flex flex-col items-center md:justify-between text-white rounded-lg shadow-xl bg-gray-800"
         >
           <!-- event image below -->
-          <img src={eventImage} class="md:h-[200px] rounded-lg" alt="" />
+           {#if passCodeDiv}
+            <div>{inviteCode}</div>
+            {:else}
+            <img
+            bind:this={qrCode}
+            src={eventImage}
+            class="md:h-[200px] rounded-lg"
+            alt=""
+          />
+           {/if}
+          
           <!-- share details below -->
           <div class="w-full p-5">
             <div class="w-full flex-col items-start">
               <h5 class="mb-2 text-2xl font-bold tracking-tight">
                 Share: {eventName}
               </h5>
-              <div class="gap-3 flex flex-col items-start pb-5 w-full justify-between">
-                  <input
-                      bind:this={guestName}
-                      type="text"
-                      id="eventName"
-                      class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                      placeholder="Guest Name"
-                      required
-                    />
-                <span class="text-md font-bold">How do you want to share : </span>
+              <div
+                class="gap-3 flex flex-col items-start pb-5 w-full justify-between"
+              >
+                <input
+                  bind:value={guestName}
+                  type="text"
+                  id="eventName"
+                  class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                  placeholder="Guest Name"
+                  required
+                />
+                <span class="text-md font-bold"
+                  >How do you want to share :
+                </span>
+                <!-- share by -->
                 <div class="flex justify-between items-start gap-10">
                   <!-- download qr -->
                   <span class="flex flex-col justify-center items-center">
-                    <label for="download">QR</label>
+                    <label for="download">QR Code</label>
                     <input
                       value="downloadQr"
                       bind:group={shareBy}
@@ -185,12 +192,37 @@
                     />
                   </span>
                 </div>
-                <button class="w-full" on:click={()=>alert (guestName === undefined || guestName === ''?alert('enter Guest Name'):("succesfully downloaded"))}>
+                <!-- email field below -->
+                {#if emailField}
+                  <input
+                    bind:value={email}
+                    type="text"
+                    id="eventName"
+                    class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                    placeholder="Enter email address"
+                    required
+                  />
+                {/if}
+
+                <button
+                  class="w-full"
+                  on:click={async () => {
+                    if(shareBy === "downloadQr"){
+                       eventImage = await generateQrImage(guestName);
+                    downloadImage(eventImage, `${guestName}_invitatiion`);
+                    }else if(shareBy === "passcode"){
+                      passCodeDiv = true
+                      inviteCode = guestName+"_"+generateRandomChars()
+                    }else{
+                      alert(`Email sent to : ${email}`)
+                      guestName = ''
+                    }                   
+                  }}
+                >
                   <ActionButton bgColor="yellow-500" width="full">
-                  <span slot="text">Share</span>
-                </ActionButton> 
+                    <span slot="text">Share</span>
+                  </ActionButton>
                 </button>
-                               
               </div>
             </div>
           </div>

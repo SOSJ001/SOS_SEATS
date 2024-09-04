@@ -1,5 +1,5 @@
 <script>
-    import { sessionFromDb } from "../variable";
+    import { sessionFromDb } from "../store";
     import { signout } from "../../routes/serverRoutes";
 
     import {

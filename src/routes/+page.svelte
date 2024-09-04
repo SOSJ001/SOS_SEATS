@@ -1,7 +1,7 @@
 <script>
   // @ts-nocheck
 
-  import { sessionFromDb } from "../lib/variable";
+  import { sessionFromDb } from "../lib/store";
   import { loginbtnFunction } from "$lib/supabase";
 
   import { page, navigating } from "$app/stores";

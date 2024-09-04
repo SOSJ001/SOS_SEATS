@@ -1,6 +1,6 @@
-import { loadEventToTable, supabase } from "$lib/supabase";
+import { loadEventToTable } from "$lib/supabase";
 
-export function load() {
-    const EventTableResult = loadEventToTable();
+export async function load() {
+    const EventTableResult = await loadEventToTable();
     return { EventTableResult };
 }
