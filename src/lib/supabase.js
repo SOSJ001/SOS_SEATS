@@ -179,3 +179,12 @@ export async function insertIntoGuestTable(guestName, inviteCode, event_Id) {
     .select();
   return response;
 }
+
+//load all guest rows
+export async function loadGuestsRows(user_id) {
+  let response = await supabase
+    .from("usereventandguest")
+    .select("*")
+    .eq("user_id", user_id);
+  return response;
+}

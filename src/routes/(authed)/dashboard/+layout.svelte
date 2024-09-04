@@ -30,7 +30,7 @@ $sessionFromDb = data.user_Id //set the store user_id
   let eventDate;
   let eventVenue;
   let Audience = "Private";
-  export let file_input; //this is the file that must be uploaded
+  let file_input; //this is the file that must be uploaded
 
   let createEventFuncton = () => {
     show = true;
@@ -463,7 +463,7 @@ $sessionFromDb = data.user_Id //set the store user_id
             </Modal>
           </div>
         {/if}
-        <!-- Add event modal below -->
+        <!-- Add seat modal below -->
         {#if addSeat}
           <div transition:fade>
             <Modal

@@ -1,6 +1,15 @@
 <script>
   import { sessionFromDb } from "../store";
   import { signOutbtnFunction } from "$lib/supabase";
+  import {
+    Navbar,
+    NavBrand,
+    NavHamburger,
+    Drawer,
+    CloseButton,
+    Sidebar,
+    SidebarWrapper,
+  } from "flowbite-svelte";
 //   sign out button function
   let signout = async  () => {
     
@@ -13,20 +22,11 @@
     });
     await signOutbtnFunction();
   };
-  import {
-    Navbar,
-    NavBrand,
-    NavHamburger,
-    Drawer,
-    CloseButton,
-    Sidebar,
-    SidebarWrapper,
-    Modal,
-  } from "flowbite-svelte";
+  
 
   import { sineIn } from "svelte/easing";
   import sosSeats from "../assets/sosSeats.png";
-  import { fade, fly } from "svelte/transition";
+  import { fade } from "svelte/transition";
 
   let hidden2 = true;
   let backdrop = false;
@@ -375,21 +375,3 @@
 
 <!-- SIDE NAV ENDS -->
 
-<style>
-  /* #text ul li a { */
-  /* color: white; */
-  /* background-color: white; */
-  /* border-radius: 2rem;
-        padding: 7px;
-        align-items: center;
-    } */
-
-  /* #text ul li a:hover {
-        color: #f59e0b; */
-  /* background-color: white; */
-  /* border-width: 1px;
-        border-color: #f5de0b; */
-  /* border-radius: 2rem; */
-  /* padding: 5px; */
-  /* } */
-</style>
