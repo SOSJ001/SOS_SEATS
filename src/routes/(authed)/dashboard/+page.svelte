@@ -1,5 +1,7 @@
 <script>
   // @ts-nocheck
+  import { sessionFromDb } from "$lib/store.js";
+  import { invalidateAll } from "$app/navigation";
   import Event from "$lib/components/event.svelte";
   import { downloadImage, generateRandomChars } from "$lib/store.js";
   import { generateQrImage } from "$lib/store";
@@ -14,12 +16,15 @@
   import TopnavDash from "$lib/components/TopnavDash.svelte";
   import DashboardUtilities from "$lib/components/DashboardUtilities.svelte";
   import DashboardEvent from "$lib/components/DashboardEvent.svelte";
-  import { addEventFunction } from "$lib/supabase.js";
+  import { addEventFunction, insertIntoGuestTable } from "$lib/supabase.js";
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
   export let data;
+  if (data.cookievar1 !== undefined) {
+    sessionFromDb.set(data.cookievar1);
+  }
   let qrCode;
-  let inviteCode
+  let inviteCode;
 
   // ////////////////////////////////////////////////////////////////////////
   let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
@@ -27,6 +32,7 @@
   let eventName;
   let eventDate;
   let eventVenue;
+  let eventId; //id if the event
   let eventImage = "https://placehold.co/600x400";
   let Audience = "Private";
 
@@ -35,8 +41,8 @@
   let scan = false; //for scan modal
   let shareBy; //radio button
   let emailField = false; //to show email field
-  let passCodeDiv = false
-  let email
+  let passCodeDiv = false;
+  let email;
   $: {
     // auto matic update of the variable to show the email field
     if (shareBy === "email") {
@@ -45,7 +51,7 @@
       emailField = false;
     }
     if (shareBy === "downloadQr") {
-      guestName = ""
+      guestName = "";
       passCodeDiv = false;
     }
   }
@@ -63,6 +69,7 @@
         eventDate={row.Event.date}
         image={row.Image}
       >
+        <!-- SHARE BUTTON, SCAN BUTTON AND DETAILS BUTTON BELOW  -->
         <div slot="button" class="grid grid-cols-3 gap-x-3">
           <button
             class="w-full"
@@ -74,7 +81,8 @@
               eventVenue = row.Event.venue;
               eventDate = row.Event.date;
               shareBy = "";
-              passCodeDiv = false
+              passCodeDiv = false;
+              eventId = row.Event.id;
             }}
           >
             <ActionButton width="full" bgColor="yellow-500">
@@ -128,17 +136,17 @@
           class="pt-5 flex flex-col items-center md:justify-between text-white rounded-lg shadow-xl bg-gray-800"
         >
           <!-- event image below -->
-           {#if passCodeDiv}
+          {#if passCodeDiv}
             <div>{inviteCode}</div>
-            {:else}
+          {:else}
             <img
-            bind:this={qrCode}
-            src={eventImage}
-            class="md:h-[200px] rounded-lg"
-            alt=""
-          />
-           {/if}
-          
+              bind:this={qrCode}
+              src={eventImage}
+              class="md:h-[200px] rounded-lg"
+              alt=""
+            />
+          {/if}
+
           <!-- share details below -->
           <div class="w-full p-5">
             <div class="w-full flex-col items-start">
@@ -207,16 +215,31 @@
                 <button
                   class="w-full"
                   on:click={async () => {
-                    if(shareBy === "downloadQr"){
-                       eventImage = await generateQrImage(guestName);
-                    downloadImage(eventImage, `${guestName}_invitatiion`);
-                    }else if(shareBy === "passcode"){
-                      passCodeDiv = true
-                      inviteCode = guestName+"_"+generateRandomChars()
-                    }else{
-                      alert(`Email sent to : ${email}`)
-                      guestName = ''
-                    }                   
+                    if (shareBy === "downloadQr") {
+                      // share by qr code
+                      inviteCode = guestName + "_" + generateRandomChars();
+                      eventImage = await generateQrImage(inviteCode);
+                      downloadImage(eventImage, `${guestName}_invitatiion`);
+                    } else if (shareBy === "passcode") {
+                      // share by invite code
+                      passCodeDiv = true;
+                      inviteCode = guestName + "_" + generateRandomChars();
+                    } else {
+                      // share by email
+                      alert(`Email sent to : ${email}`);
+                    }
+                    guestName = ""; //reset guest name
+                    const response = await insertIntoGuestTable(
+                      guestName,
+                      inviteCode,
+                      eventId
+                    );
+                    if (response.error === null) {
+                      alert("Invitation Successfully Generated");
+                      invalidateAll();
+                    } else {
+                      alert("Error Creating Invitation");
+                    }
                   }}
                 >
                   <ActionButton bgColor="yellow-500" width="full">

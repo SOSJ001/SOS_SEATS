@@ -3,7 +3,6 @@
 
   import { sessionFromDb } from "../lib/store";
   import { loginbtnFunction } from "$lib/supabase";
-
   import { page, navigating } from "$app/stores";
   import { enhance } from "$app/forms";
   import { goto } from "$app/navigation";
@@ -11,7 +10,6 @@
   import Banner from "$lib/components/Banner.svelte";
   import Search from "$lib/components/Search.svelte";
   import TopNav from "$lib/components/TopNav.svelte";
-
   import { Button, Modal } from "flowbite-svelte";
   import { fade } from "svelte/transition";
 
@@ -494,8 +492,8 @@
                 >
               </div>
 
-              <a
-                href=""
+              <button
+                
                 bind:this={signUpBtnStyle}
                 on:click|preventDefault|once={SignUpBtnClicked}
                 class="text-center"
@@ -524,7 +522,7 @@
 
                   <span bind:this={RegisterBtn}>Signup</span>
                 </div>
-              </a>
+              </button>
             </form>
             <div class=" capitalize m-3">
               have an account? <a

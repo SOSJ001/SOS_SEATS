@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { createClient } from "@supabase/supabase-js";
+import {sessionFromDb} from "$lib/store"
 import { generateUniqueFilename } from "$lib/store.js";
 export const supabase = createClient(
   "https://qwoklzpfoblqmnategny.supabase.co",
@@ -14,16 +15,11 @@ export async function loginbtnFunction(email1, password1) {
   });
   return response;
 }
-
 // Signout function below
 export async function signOutbtnFunction() {
-  const { error } = await supabase.auth.signOut();
-
-  return {
-    SessionFromdb: {
-      error,
-    },
-  };
+    const { error } = await supabase.auth.signOut();
+    sessionFromDb.set(null);
+  return error
 }
 
 // load event to the table
@@ -171,4 +167,15 @@ export async function addEventFunction(
     console.log("successfully inserted");
     return data;
   }
+}
+
+// insert into guest table 
+export async function insertIntoGuestTable(guestName, inviteCode, event_Id) {
+  const response = await supabase
+    .from("guest")
+    .insert([
+      { guestName: guestName, inviteCode: inviteCode, event_Id: event_Id },
+    ])
+    .select();
+  return response;
 }

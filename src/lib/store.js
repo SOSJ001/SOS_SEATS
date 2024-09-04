@@ -1,7 +1,7 @@
 //@ts-nocheck
 import { writable, readable } from "svelte/store";
   import { toDataURL, } from "qrcode";
-export let sessionFromDb = writable();
+export let sessionFromDb = writable(null);
 
 // export function createQrCode(data, image, width, height) {
 //   const qrCode = new QRCodeStyling({
@@ -87,7 +87,7 @@ export function generateRandomChars() {
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let result = "";
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const randomIndex = Math.floor(Math.random() * chars.length);
     result += chars.charAt(randomIndex);
   }
