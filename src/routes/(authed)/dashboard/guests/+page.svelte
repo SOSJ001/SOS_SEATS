@@ -1,7 +1,10 @@
 <script>
+  //@ts-nocheck
+  import { removeGuest } from "$lib/supabase.js";
   export let data;
+
   let rows = data.loadGuestsData;
-  $: rows.error !== null ? console.log(rows.error.message) : console.log(rows);
+  $:rows.error !== null ? console.log(rows.error.message) : "";
 </script>
 
 <div class="relative overflow-auto shadow-md rounded-lg">
@@ -22,7 +25,7 @@
             <tr
               class=" items-center border-b border-white bg-gray-800 hover:bg-gray-900"
             >
-              <td class="px-6 py-4"> {i+1} </td>
+              <td class="px-6 py-4"> {i + 1} </td>
               <th
                 scope="row"
                 class="px-6 py-4 font-medium whitespace-nowrap text-white capitalize"
@@ -41,8 +44,11 @@
                     >Download</button
                   >
                   <button
-                    on:click|preventDefault|stopPropagation={() => {
-                      console.log("Remove btn");
+                    on:click|preventDefault|stopPropagation={async () => {
+                      let error = await removeGuest(row.guest_id);
+                      if (error === null) {
+                        alert("Successfully Removed");
+                      }
                     }}
                     class="font-medium text-red-600 dark:text-red-500 hover:underline"
                     >Remove</button

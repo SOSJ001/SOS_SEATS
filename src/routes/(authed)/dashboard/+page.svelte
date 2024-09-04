@@ -58,7 +58,7 @@
   let guestName; //to get the name the guest
 </script>
 
-<div class=" px-3 md:px-0 grid md:grid-cols-3 gap-5 overflow-y-auto">
+<div class=" px-3 md:px-0 grid lg:grid-cols-3 gap-5 overflow-y-auto">
   {#await EventTableResult}
     <Waiting />
   {:then rows}
@@ -137,7 +137,7 @@
         >
           <!-- event image below -->
           {#if passCodeDiv}
-            <div>{inviteCode}</div>
+            <div>CODE: {inviteCode}</div>
           {:else}
             <img
               bind:this={qrCode}
@@ -228,13 +228,13 @@
                       // share by email
                       alert(`Email sent to : ${email}`);
                     }
-                    guestName = ""; //reset guest name
                     const response = await insertIntoGuestTable(
                       guestName,
                       inviteCode,
                       eventId
                     );
                     if (response.error === null) {
+                      guestName = ""; //reset guest name
                       alert("Invitation Successfully Generated");
                       invalidateAll();
                     } else {

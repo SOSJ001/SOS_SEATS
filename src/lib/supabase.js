@@ -23,8 +23,11 @@ export async function signOutbtnFunction() {
 }
 
 // load event to the table
-export async function loadEventToTable() {
-  let { data: events, error } = await supabase.from("event").select("*");
+export async function loadEventToTable(user_id) {
+  let { data: events, error } = await supabase
+    .from("event")
+    .select("*")
+    .eq("user_id", user_id);;
 
   if (error) {
     console.log("loadEventToTable error", error.message);
@@ -32,14 +35,9 @@ export async function loadEventToTable() {
   }
 
   // Use Promise.all to await all image requests
-  // @ts-ignore
-  // @ts-ignore
   const eventWithImages = await Promise.all(
     events.map(async (Event, i) => {
       const Images = await SelectImagePath(Event.imageId);
-      // @ts-ignore
-      // console.log('image HERE', Images, i);
-
       return {
         Event: Event,
         // @ts-ignore
@@ -187,4 +185,10 @@ export async function loadGuestsRows(user_id) {
     .select("*")
     .eq("user_id", user_id);
   return response;
+}
+
+//Delete guests
+export async function removeGuest(guest_id) {
+  const { error } = await supabase.from("guest").delete().eq("id", guest_id);
+  return error     
 }

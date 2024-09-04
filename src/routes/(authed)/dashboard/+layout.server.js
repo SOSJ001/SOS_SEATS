@@ -1,6 +1,10 @@
+//@ts-nocheck
 import { loadEventToTable } from "$lib/supabase";
 
-export async function load() {
-    const EventTableResult = await loadEventToTable();
+export async function load({cookies}) {
+      let COOKIE_DATA = cookies.get("userSession");
+      COOKIE_DATA = JSON.parse(COOKIE_DATA);
+      const user_Id = COOKIE_DATA?.id;
+    const EventTableResult = await loadEventToTable(user_Id);
     return { EventTableResult };
 }
