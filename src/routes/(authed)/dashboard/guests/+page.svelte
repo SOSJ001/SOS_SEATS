@@ -3,8 +3,8 @@
   import { removeGuest } from "$lib/supabase.js";
   export let data;
 
-  let rows = data.loadGuestsData;
-  $:rows.error !== null ? console.log(rows.error.message) : "";
+  let rows = data.loadGuestsData.data; //getting the rows
+  $:rows = rows
 </script>
 
 <div class="relative overflow-auto shadow-md rounded-lg">
@@ -19,9 +19,7 @@
       </tr>
     </thead>
     <tbody>
-      {#await rows.data then rowData}
-        {#if rowData !== null}
-          {#each rowData as row, i}
+          {#each rows as row, i (row.guest_id)}
             <tr
               class=" items-center border-b border-white bg-gray-800 hover:bg-gray-900"
             >
@@ -46,7 +44,10 @@
                   <button
                     on:click|preventDefault|stopPropagation={async () => {
                       let error = await removeGuest(row.guest_id);
+                      //this this what i'm working on
                       if (error === null) {
+                        const removedArray = rows.splice(i,1)
+                        rows = [...rows]
                         alert("Successfully Removed");
                       }
                     }}
@@ -57,8 +58,6 @@
               </td>
             </tr>
           {/each}
-        {/if}
-      {/await}
     </tbody>
   </table>
 </div>
