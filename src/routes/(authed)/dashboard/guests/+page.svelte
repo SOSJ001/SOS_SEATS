@@ -2,10 +2,12 @@
   //@ts-nocheck
   import { removeGuest } from "$lib/supabase.js";
   import ActionButton from "$lib/components/ActionButton.svelte";
+  import { Modal } from "flowbite-svelte";
+  import { fade, fly } from "svelte/transition";
   export let data;
-
+  // modals open below
+  let share = false;
   let rows = data.loadGuestsData.data; //getting the rows
-  $: rows = rows;
 </script>
 
 <div class="px-3 md:px-0 w-full">
@@ -37,18 +39,7 @@
             <td class=" items-center px-6 py-4">
               <div class="flex gap-3 items-center">
                 <button
-                  on:click={() => {
-                    // open the modal
-                    // share = true;
-                    // eventImage = row.Image;
-                    // eventName = row.Event.name;
-                    // eventVenue = row.Event.venue;
-                    // eventDate = row.Event.date;
-                    // shareBy = "";
-                    // passCodeDiv = false;
-                    // eventId = row.Event.id;
-                  }}
-                >
+                  on:click={() => {alert('If you want to re-share \nThis will resend this invite')}}>
                   <ActionButton
                     textColor="gray-200"
                     hoverTextColor="white"
@@ -84,4 +75,5 @@
       </tbody>
     </table>
   </div>
+  
 </div>

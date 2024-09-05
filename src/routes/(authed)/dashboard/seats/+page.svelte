@@ -4,8 +4,10 @@
   let createEventBtnstyle;
   let show;
   let forSale = true;
-  $:console.log(forSale)
   let ticketPrice;
+  let event_Id;
+  export let data;
+  let events = data.events;
 </script>
 
 <div class="px-3 md:px-0 w-full overflow-hidden">
@@ -24,13 +26,13 @@
           >
           <select
             id="eventName"
+            bind:value={event_Id}
             class=" text-center border text-sm rounded-lg block w-full p-2.5 bg-gray-700 border-gray-300 placeholder-gray-400 text-white focus:ring-blue-500 focus:border-blue-500"
           >
             <option selected>Choose an event</option>
-            <option value="US">United States</option>
-            <option value="CA">Canada</option>
-            <option value="FR">France</option>
-            <option value="DE">Germany</option>
+            {#each events as event}
+              <option value={event.event_Id}>{event.eventName}</option>
+            {/each}
           </select>
         </div>
         <div class="mb-3">
@@ -102,21 +104,21 @@
           </div>
         </div>
         <!-- for dale input  -->
-         {#if forSale}
-            <div class="mb-3 col-span-2">
-              <label for="ticketPrice" class="block mb-2 text-sm font-medium"
-                >Invite/Ticket Price</label
-              >
-              <input
-                type="number"
-                id="ticketPrice"
-                min="0"
-                class="text-white w-full bg-gray-700 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 placeholder-gray-500"
-                placeholder="Enter Price"
-                required
-              />
-            </div>
-          {/if}
+        {#if forSale}
+          <div class="mb-3 col-span-2">
+            <label for="ticketPrice" class="block mb-2 text-sm font-medium"
+              >Invite/Ticket Price</label
+            >
+            <input
+              type="number"
+              id="ticketPrice"
+              min="0"
+              class="text-white w-full bg-gray-700 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 placeholder-gray-500"
+              placeholder="Enter Price"
+              required
+            />
+          </div>
+        {/if}
       </div>
 
       <!-- create event button below -->
@@ -150,7 +152,7 @@
             </svg>
           {/if}
 
-          <span bind:this={createEventBtn}>Add Seat</span>
+          <span bind:this={createEventBtn}>Place Order</span>
         </div>
       </button>
     </form>
