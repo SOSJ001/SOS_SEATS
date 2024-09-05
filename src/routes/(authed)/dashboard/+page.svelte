@@ -189,13 +189,23 @@
                       type="radio"
                     />
                   </span>
-                  <!--  -->
+                  <!-- email -->
                   <span class="flex flex-col justify-center items-center">
                     <label for="mail">Email</label>
                     <input
                       value="email"
                       bind:group={shareBy}
                       id="mail"
+                      type="radio"
+                    />
+                  </span>
+                  <!-- sms -->
+                  <span class="flex flex-col justify-center items-center">
+                    <label for="sms">S.M.S</label>
+                    <input
+                      value="sms"
+                      bind:group={shareBy}
+                      id="sms"
                       type="radio"
                     />
                   </span>
@@ -224,7 +234,7 @@
                       // share by invite code
                       passCodeDiv = true;
                       inviteCode = guestName + "_" + generateRandomChars();
-                    } else {
+                    } else if (shareBy === "email"){
                       // share by email
                       alert(`Email sent to : ${email}`);
                     }

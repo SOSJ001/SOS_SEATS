@@ -14,7 +14,7 @@
   <div class="grid grid-cols-12 gap-4 overflow-hidden">
     <form class="text-left col-span-6">
       <h1 class="w-full text-center text-xl font-bold mb-3 underline">
-        Order Seats
+        Create Order
       </h1>
       <!-- select an event and seat area  -->
       <div class=" grid gap-2">
@@ -158,7 +158,7 @@
     </form>
     <div class="col-span-6 border-2 rounded p-3 overflow-y-auto">
       <h1 class="w-full text-center text-xl font-bold mb-3 underline">
-        Owned Seats
+        Completed Orders
       </h1>
       <div class="w-full h-4/5 justify-center items-center flex">
         <span class="text-gray-500">Oops! No data here</span>
