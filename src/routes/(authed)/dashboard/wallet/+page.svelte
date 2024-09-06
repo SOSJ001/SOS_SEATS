@@ -7,14 +7,14 @@
   let disabled = false;
   let loading = false;
   let transferOptions;
-  let data = [1, 1, 1, 1, 1,1,1,1,1,1,1,1,1,1];
+  let data = [1, 1, 1, 1, 1,1,1,1,];
 
   let sendToken = () => {
     alert("Transfer Clicked");
   };
 </script>
 
-<div class="flex flex-col h-full px-3 gap-4">
+<div class="flex flex-col md:h-full h-fit px-3 gap-4">
   <!-- Balance and Portfolio  -->
   <div
     class="md:flex md:flex-row md:gap-5 space-y-3 md:space-y-0 items-center justify-between md:h-28"

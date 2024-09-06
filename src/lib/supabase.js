@@ -7,6 +7,22 @@ export const supabase = createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2tsenBmb2JscW1uYXRlZ255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTIzMDYxMDksImV4cCI6MjAwNzg4MjEwOX0.BktZ0VzqqY5Wn8wjXfgIKBMdNauNx5-ZChMOnw9vbcs"
 );
 
+//sign up function
+export async function createAccount(email, password, userName, name) {
+  const response = await supabase.auth.signUp({
+    email: email,
+    password: password,
+    options: {
+      data: {
+        name: name,
+        userName: userName,
+        wallet: {},
+      },
+    },
+  });
+  return response;
+}
+
 // login finction
 export async function loginbtnFunction(email1, password1) {
   const response = await supabase.auth.signInWithPassword({
@@ -201,20 +217,20 @@ export async function placeSeatOrder(eventid, Area, maxSeat, ticketPrice) {
         eventid: eventid,
         Area: Area,
         maxSeat: maxSeat,
-        ticketPrice: ticketPrice||0,
+        ticketPrice: ticketPrice || 0,
       },
     ])
     .select();
   return response;
 }
 
-// get order history 
+// get order history
 export async function orderHistory(user_id) {
   let response = await supabase
     .from("orderhistory")
     .select("*")
     .eq("user_id", user_id);
-  return response
+  return response;
 }
 
 //Subscribe to changes on the order history

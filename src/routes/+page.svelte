@@ -12,6 +12,8 @@
   import TopNav from "$lib/components/TopNav.svelte";
   import { Button, Modal } from "flowbite-svelte";
   import { fade } from "svelte/transition";
+  import { createAccount } from "$lib/supabase";
+  import Spinner from '$lib/components/Spinner.svelte'
 
   export let data;
   // setting the cookie to the store value
@@ -20,31 +22,27 @@
   }
 
   let loginBtnStyle;
-
   let errorMessage = null;
-  let signUpBtnStyle;
   let login = false;
   let signup = false;
   let show = false;
   let RegisterBtn;
-
+  let disabled = false;
   let LoginBtn;
-
   let email;
-
   let password;
+  let userName;
+  let name;
 
   // when the login button is clicked....
   let loginBtnClicked = async () => {
     errorMessage = null;
-
     loginBtnStyle.style = "pointer-events: none;";
-
     LoginBtn.innerText = "loading...";
     show = true;
     const { data, error } = await loginbtnFunction(email, password);
     if (error === null) {
-      const sessionData = data.session //set the session data and set the cookie
+      const sessionData = data.session; //set the session data and set the cookie
       const response = await fetch("/loginApi", {
         method: "POST",
         body: JSON.stringify({ sessionData }),
@@ -53,10 +51,9 @@
         },
       });
       goto("/dashboard");
-    }else{
-      errorMessage = error.message
+    } else {
+      errorMessage = error.message;
     }
-      
   };
   // login button ends;
 
@@ -76,8 +73,27 @@
     }
   }
 
-  let SignUpBtnClicked = () => {
-    goto("/dashboard");
+  let SignUpBtnClicked = async ()=>{
+    if(!email || !password ||! userName || !name){
+      alert('fill all required field')
+      return
+    }
+    const { data, error } = await createAccount(email,password,userName,name);
+    if (!error) {
+    alert('clicked')
+      disabled = true;
+      show = true;
+      const sessionData = data.session
+      // set the cookie 
+      const response = await fetch("/loginApi", {
+        method: "POST",
+        body: JSON.stringify({ sessionData }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      goto("/dashboard");
+    }
   };
 </script>
 
@@ -93,6 +109,7 @@
         <span> LOGIN </span>
       </a>
     </svelte:fragment>
+    <!-- sign up button here  -->
     <svelte:fragment slot="signup">
       <a
         in:fade
@@ -213,7 +230,7 @@
               />
             </div>
             <!-- login form -->
-            <form class="text-left">
+            <div class="text-left">
               <div class="mb-3">
                 <label for="email" class="block mb-2 text-sm font-medium"
                   >Email address</label
@@ -296,7 +313,7 @@
                 </div>
               </button>
               <!-- login button ends -->
-            </form>
+            </div>
             <!-- login form -->
             <div
               class=" capitalize m-3 grid md:grid-cols-2 sm:grid-cols-1 gap-1"
@@ -423,11 +440,13 @@
 
             <form class="text-left">
               <div class=" grid grid-cols-2 gap-2">
+                <!-- name  -->
                 <div class="mb-3">
                   <label for="name" class="block mb-2 text-sm font-medium"
                     >Name</label
                   >
                   <input
+                  bind:value={name}
                     type="text"
                     id="name"
                     class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -435,11 +454,13 @@
                     required
                   />
                 </div>
+                <!-- user name  -->
                 <div class="mb-3">
                   <label for="userName" class="block mb-2 text-sm font-medium"
                     >Username</label
                   >
                   <input
+                  bind:value={userName}
                     type="text"
                     id="userName"
                     class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -448,11 +469,12 @@
                   />
                 </div>
               </div>
+              <!-- email  -->
               <div class="mb-3">
                 <label for="email" class="block mb-2 text-sm font-medium"
-                  >Email address</label
-                >
+                  >Email address</label>
                 <input
+                bind:value={email}
                   type="email"
                   id="email"
                   class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -460,11 +482,13 @@
                   required
                 />
               </div>
+              <!-- password  -->
               <div class="mb-3">
                 <label for="password" class="block mb-2 text-sm font-medium"
                   >Password</label
                 >
                 <input
+                bind:value={password}
                   type="password"
                   id="password"
                   class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -491,36 +515,19 @@
                   </a></label
                 >
               </div>
-
+              <!-- sign up button  -->
               <button
-                
-                bind:this={signUpBtnStyle}
-                on:click|preventDefault|once={SignUpBtnClicked}
-                class="text-center"
+                {disabled}
+                on:click|preventDefault={SignUpBtnClicked}
+                class="text-center w-full"
                 ><div
                   class="flex flex-row text-white bg-yellow-400 hover:bg-yellow-500 hover:text-white focus:ring-4 focus:outline-none focus:ring-yellow-700 font-medium rounded-lg px-5 text-sm py-2.5 justify-center"
                 >
                   {#if show}
-                    <svg
-                      aria-hidden="true"
-                      role="status"
-                      class="inline w-4 h-4 mr-3 text-white animate-spin"
-                      viewBox="0 0 100 101"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                        fill="#E5E7EB"
-                      />
-                      <path
-                        d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                        fill="currentColor"
-                      />
-                    </svg>
+                   <Spinner/>
                   {/if}
 
-                  <span bind:this={RegisterBtn}>Signup</span>
+                  <span>Signup</span>
                 </div>
               </button>
             </form>
