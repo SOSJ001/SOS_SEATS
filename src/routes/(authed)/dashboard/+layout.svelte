@@ -1,7 +1,7 @@
 <script>
   // @ts-nocheck
   import Sidebar from "$lib/components/sidebar.svelte";
-
+  import Spinner from "$lib/components/Spinner.svelte";
   // @ts-nocheck
 
   import "animate.css";
@@ -22,7 +22,7 @@
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
   export let data;
-$sessionFromDb = data.user_Id //set the store user_id
+  $sessionFromDb = data.user_Id; //set the store user_id
   // ////////////////////////////////////////////////////////////////////////
   let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
   // these are for the add event modal
@@ -32,29 +32,6 @@ $sessionFromDb = data.user_Id //set the store user_id
   let Audience = "Private";
   let file_input; //this is the file that must be uploaded
 
-  let createEventFuncton = () => {
-    show = true;
-
-    createEventBtn.innerText = "Creating Please Wait.....";
-
-    addEventFunction(
-      eventName.value,
-
-      eventDate.value,
-
-      eventVenue.value,
-      Audience,
-
-      file_input,
-      $sessionFromDb
-    );
-    console.log(
-      `Event Name = ${eventName.value}, Event Date = ${eventDate.value}, Event Venue = ${eventVenue.value}, Audience = ${Audience}, File_Input = ${file_input.value}.`
-    );
-  };
-
-  // /////////////////////////////////////////////
-
   let Session1 = true;
   let event = false;
   let seat = false;
@@ -62,12 +39,27 @@ $sessionFromDb = data.user_Id //set the store user_id
   let addEvent = false;
   let addSeat = false;
   let show = false;
-
-  let createEventBtn;
-
-  let createEventBtnstyle;
-
   let scan = false;
+
+  // /////////////////////////////////////////////
+  let createEventFuncton = async () => {
+    show = true;
+    const {data, error} = await addEventFunction(
+      eventName,
+      eventDate,
+      eventVenue,
+      Audience,
+      file_input,
+      $sessionFromDb
+    );
+    if(!error){
+      alert('Event Creaton Successful')
+      show = false
+      addEvent = false
+    }else{
+      alert('Cannot Create Event \n Try again')
+    }
+  };
 </script>
 
 <div class="flex flex-row">
@@ -76,7 +68,6 @@ $sessionFromDb = data.user_Id //set the store user_id
     <Sidebar />
   </div>
   <div class="w-full overflow-hidden">
-    
     <div
       class="w-full bg-gray-700 items-center text-white overflow-x-hidden h-screen md:px-5 overflow-hidden"
     >
@@ -99,10 +90,10 @@ $sessionFromDb = data.user_Id //set the store user_id
               <svelte:fragment slot="button">
                 <span
                   href="/dashboard"
-                  class=" text-white text-sm text-center bg-gray-700 rounded "
+                  class=" text-white text-sm text-center bg-gray-700 rounded"
                 >
                   <div class="text-xl md:text-4xl p-3">🧾</div>
-            </span>
+                </span>
               </svelte:fragment>
               <span slot="topLabel"> TOTAL </span>
               <span slot="buttomLabel"> EVENTS </span>
@@ -152,7 +143,7 @@ $sessionFromDb = data.user_Id //set the store user_id
           />
         </div> -->
             <!-- <DashboardEvent /> -->
-             <slot />
+            <slot />
           </div>
         </div>
 
@@ -258,7 +249,6 @@ $sessionFromDb = data.user_Id //set the store user_id
                       clearTimeout(time);
                     }, 1000);
                   }}
-                  
                   class="text-white hover:text-gray-50 px-2 md:p-2 hover:bg-gray-800 bg-gray-700 rounded-2xl flex items-center"
                 >
                   <svg
@@ -300,7 +290,7 @@ $sessionFromDb = data.user_Id //set the store user_id
                       class="block mb-2 text-sm font-medium">Event Name</label
                     >
                     <input
-                      bind:this={eventName}
+                      bind:value={eventName}
                       type="text"
                       id="eventName"
                       class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -314,7 +304,7 @@ $sessionFromDb = data.user_Id //set the store user_id
                       class="block mb-2 text-sm font-medium">Event Date</label
                     >
                     <input
-                      bind:this={eventDate}
+                      bind:value={eventDate}
                       type="date"
                       id="eventDate"
                       class="text-white bg-gray-700 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -328,7 +318,7 @@ $sessionFromDb = data.user_Id //set the store user_id
                     >Event venue</label
                   >
                   <input
-                    bind:this={eventVenue}
+                    bind:value={eventVenue}
                     type="text"
                     id="eventVenue"
                     class="text-black bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500"
@@ -398,33 +388,16 @@ $sessionFromDb = data.user_Id //set the store user_id
 
                 <!-- create event button below -->
                 <button
-                  bind:this={createEventBtnstyle}
                   on:click|preventDefault|once={createEventFuncton}
                   class="text-center w-full"
                   ><div
                     class="w-full flex flex-row text-white bg-yellow-400 hover:bg-yellow-500 hover:text-white focus:ring-4 focus:outline-none focus:ring-yellow-700 font-medium rounded-lg px-5 text-sm py-2.5 justify-center"
                   >
                     {#if show}
-                      <svg
-                        aria-hidden="true"
-                        role="status"
-                        class="inline w-4 h-4 mr-3 text-white animate-spin"
-                        viewBox="0 0 100 101"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                          fill="#E5E7EB"
-                        />
-                        <path
-                          d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                          fill="currentColor"
-                        />
-                      </svg>
+                      <Spinner />
                     {/if}
 
-                    <span bind:this={createEventBtn}>Create Event</span>
+                    <span>Create Event</span>
                   </div>
                 </button>
               </form>
@@ -445,7 +418,6 @@ $sessionFromDb = data.user_Id //set the store user_id
                       clearTimeout(time);
                     }, 1000);
                   }}
-                 
                   class="text-white hover:text-gray-50 p-2 hover:bg-gray-800 bg-gray-700 rounded-2xl flex items-center"
                 >
                   <svg
@@ -476,7 +448,6 @@ $sessionFromDb = data.user_Id //set the store user_id
               autoclose
               class="bg-gray-700 text-white"
             >
-             
               <!-- back button on the add Seat modal below -->
               <div
                 class="  font-bold rounded-lg text-xs uppercase bg-white text-gray-800 justify-between items-center flex p-2"

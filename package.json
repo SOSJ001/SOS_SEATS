@@ -25,6 +25,7 @@
   },
   "type": "module",
   "dependencies": {
+    "@solana/web3.js": "^1.95.3",
     "@supabase/supabase-js": "^2.33.1",
     "animate.css": "^4.1.1",
     "html5-qrcode": "^2.3.8",

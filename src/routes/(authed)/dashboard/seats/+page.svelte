@@ -2,8 +2,6 @@
   //@ts-nocheck
   import { placeSeatOrder } from "$lib/supabase.js";
   import Spinner from "$lib/components/Spinner.svelte";
-  import { orderHistoryUpdates } from "$lib/supabase.js";
-  orderHistoryUpdates
   let loading = false;
   let forSale = true;
   let ticketPrice;

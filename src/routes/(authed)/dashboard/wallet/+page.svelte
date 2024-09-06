@@ -2,15 +2,32 @@
   //@ts-nocheck
   import { Card } from "flowbite-svelte";
   import Spinner from "$lib/components/Spinner.svelte";
+  import { enhance } from "$app/forms";
   let userName;
   let amount;
   let disabled = false;
   let loading = false;
   let transferOptions;
-  let data = [1, 1, 1, 1, 1,1,1,1,];
+  let data = [1, 1, 1, 1, 1, 1, 1, 1];
 
   let sendToken = () => {
     alert("Transfer Clicked");
+  };
+  let wallet = false;
+  let createWalletLoader = false
+  //create wallet
+  let createWallet = async () => {
+    disabled = true;
+    createWalletLoader = true;
+    const response = await fetch("/createWalletApi", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const {publicKey, status} = await response.json()
+    disabled = false;
+    createWalletLoader = false;
   };
 </script>
 
@@ -20,13 +37,35 @@
     class="md:flex md:flex-row md:gap-5 space-y-3 md:space-y-0 items-center justify-between md:h-28"
   >
     <!-- left col  -->
+    <!-- create wallet button and balance  -->
     <div class="w-full">
       <Card
         size="lg"
         class="bg-gray-800 md:h-28 h-24 flex flex-row items-center gap-5 p-5 rounded-lg border-none text-gray-200 w-full"
       >
         <h5 class="mb-2 text-2xl font-bold tracking-tight">Total Balance :</h5>
-        <p class="font-normal leading-tight text-xl">240 USDC</p>
+        <!-- checking if there is a wallet for this user  -->
+        {#if wallet}
+          <p class="font-normal leading-tight text-xl">240 USDC</p>
+        {:else}
+          <!-- if there is wallet -->
+
+          <button
+            {disabled}
+            on:click={createWallet}
+            class="text-center md:w-auto w-full"
+          >
+            <div
+              class="flex flex-row text-white bg-yellow-400 hover:bg-yellow-500 hover:text-white focus:ring-4 focus:outline-none focus:ring-yellow-700 font-medium rounded-lg px-5 text-sm py-2.5 justify-center"
+            >
+              {#if createWalletLoader}
+                <Spinner />
+              {/if}
+
+              <span>Create Wallet</span>
+            </div>
+          </button>
+        {/if}
       </Card>
     </div>
     <!-- right col  -->
@@ -37,8 +76,14 @@
       >
         <h5 class="mb-2 text-2xl font-bold tracking-tight">Portfolio</h5>
         <div class="space-x-5">
-          <span class="font-normal leading-tight">USDC 40</span>
-          <span class="font-normal leading-tight">SOL 200</span>
+          {#if wallet}
+            <span class="font-normal leading-tight">USDC 40</span>
+            <span class="font-normal leading-tight">SOL 200</span>
+          {:else}
+            <span class="text-gray-500 font-normal leading-tight"
+              >no data here</span
+            >
+          {/if}
         </div>
       </Card>
     </div>

@@ -16,7 +16,6 @@ export async function createAccount(email, password, userName, name) {
       data: {
         name: name,
         userName: userName,
-        wallet: {},
       },
     },
   });
@@ -159,7 +158,7 @@ export async function addEventFunction(
   const imageId = await uploadEventImage(file_input, userId);
   console.log("here so", imageId);
   // @ts-ignore
-  const { data, error } = await supabase
+  const response = await supabase
     .from("event")
     .insert([
       {
@@ -173,14 +172,7 @@ export async function addEventFunction(
     ])
     .select();
 
-  if (error) {
-    console.log(error?.message);
-    return error?.message;
-  } else {
-    console.log(data);
-    console.log("successfully inserted");
-    return data;
-  }
+  return response;
 }
 
 // insert into guest table
@@ -233,15 +225,11 @@ export async function orderHistory(user_id) {
   return response;
 }
 
-//Subscribe to changes on the order history
-
-export const orderHistoryUpdates = supabase
-  .channel("custom-insert-channel")
-  .on(
-    "postgres_changes",
-    { event: "INSERT", schema: "public", table: "orderhistory" },
-    (payload) => {
-      console.log("Change received!", payload);
-    }
-  )
-  .subscribe();
+//store wallet
+export async function storeWallet(user_id, wallet, publicKey) {
+  const response = await supabase
+    .from("wallet")
+    .insert([{ user_id: user_id, wallet: wallet, publicKey: publicKey }])
+    .select();
+  return response;
+}
