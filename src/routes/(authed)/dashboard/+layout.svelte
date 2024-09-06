@@ -82,10 +82,10 @@ $sessionFromDb = data.user_Id //set the store user_id
     >
       <!-- top  nav -->
       <TopnavDash />
-      <div class="grid grid-col overflow-hidden w-full">
+      <div class="flex flex-col overflow-hidden h-full w-full">
         <div class=" bg-gray-700 h-full w-full overflow-hidden">
           <div
-            class=" mt-16 bg-gray-700 h-screen overflow-y-auto pb-16 overflow-hidden w-full"
+            class=" pt-16 h-full bg-gray-700 overflow-y-auto pb-5 overflow-hidden w-full"
           >
             <DashboardUtilities>
               <button

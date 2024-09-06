@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createClient } from "@supabase/supabase-js";
-import {sessionFromDb} from "$lib/store"
+import { sessionFromDb } from "$lib/store";
 import { generateUniqueFilename } from "$lib/store.js";
 export const supabase = createClient(
   "https://qwoklzpfoblqmnategny.supabase.co",
@@ -17,9 +17,9 @@ export async function loginbtnFunction(email1, password1) {
 }
 // Signout function below
 export async function signOutbtnFunction() {
-    const { error } = await supabase.auth.signOut();
-    sessionFromDb.set(null);
-  return error
+  const { error } = await supabase.auth.signOut();
+  sessionFromDb.set(null);
+  return error;
 }
 
 // load event to the table
@@ -27,7 +27,7 @@ export async function loadEventToTable(user_id) {
   let { data: events, error } = await supabase
     .from("event")
     .select("*")
-    .eq("user_id", user_id);;
+    .eq("user_id", user_id);
 
   if (error) {
     console.log("loadEventToTable error", error.message);
@@ -167,7 +167,7 @@ export async function addEventFunction(
   }
 }
 
-// insert into guest table 
+// insert into guest table
 export async function insertIntoGuestTable(guestName, inviteCode, event_Id) {
   const response = await supabase
     .from("guest")
@@ -190,5 +190,42 @@ export async function loadGuestsRows(user_id) {
 //Delete guests
 export async function removeGuest(guest_id) {
   const { error } = await supabase.from("guest").delete().eq("id", guest_id);
-  return error     
+  return error;
 }
+
+export async function placeSeatOrder(eventid, Area, maxSeat, ticketPrice) {
+  const response = await supabase
+    .from("seat")
+    .insert([
+      {
+        eventid: eventid,
+        Area: Area,
+        maxSeat: maxSeat,
+        ticketPrice: ticketPrice||0,
+      },
+    ])
+    .select();
+  return response;
+}
+
+// get order history 
+export async function orderHistory(user_id) {
+  let response = await supabase
+    .from("orderhistory")
+    .select("*")
+    .eq("user_id", user_id);
+  return response
+}
+
+//Subscribe to changes on the order history
+
+export const orderHistoryUpdates = supabase
+  .channel("custom-insert-channel")
+  .on(
+    "postgres_changes",
+    { event: "INSERT", schema: "public", table: "orderhistory" },
+    (payload) => {
+      console.log("Change received!", payload);
+    }
+  )
+  .subscribe();

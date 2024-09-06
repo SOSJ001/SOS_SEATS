@@ -8,6 +8,8 @@
     { icon: "🧾", name: "Events", url: "/dashboard" },
     { icon: "🙋‍♂️", name: "Guests", url: "/dashboard/guests" },
     { icon: "🪑", name: "Seats", url: "/dashboard/seats" },
+    { icon: "💳", name: "Wallet", url: "/dashboard/wallet" },
+
   ];
   let logout = async () => {
     await signOutbtnFunction();
