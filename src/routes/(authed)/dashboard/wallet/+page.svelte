@@ -20,8 +20,8 @@
   let publickey = data.publickey;
   //send token function below
   let sendToken = async () => {
-    loading = true
-    disabled = true
+    loading = true;
+    disabled = true;
     const response = await fetch("/transferSolApi", {
       method: "POST",
       body: JSON.stringify({ user_id, publickey, userName, amount }),
@@ -29,11 +29,16 @@
     });
     const { payload } = await response.json();
     invalidateAll();
-    alert(
-      `Transaction Sig :\n https://solana.fm/tx/${payload}?cluster=devnet-solana`
-    );
-    loading = false
-    disabled = false
+    if (payload) {
+      alert(
+        `Transaction Sig :\n https://solana.fm/tx/${payload}?cluster=devnet-solana`
+      );
+    }else{
+      alert('User does not exists \n Try sending with external wallet option')
+    }
+
+    loading = false;
+    disabled = false;
   };
   //create wallet
   let createWallet = async () => {

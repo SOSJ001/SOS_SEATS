@@ -23,17 +23,19 @@ export async function POST({ cookies, request }) {
     );
     if (userExists) {
       //build the transaction
-      const { transaction, keypair } = await transferSol(
+      const response = await transferSol(
         user_Id,
         publickey,
         userExists.publicKey,
         amount
       );
-
-       payload = await sendAndConfirmTransaction(connection, transaction, [
-        keypair,
-      ]);
-      
+      if (!response) {
+        payload = await sendAndConfirmTransaction(
+          connection,
+          response.transaction,
+          [response.keypair]
+        );
+      }
     } else {
       console.log("User Not found");
       return;
