@@ -41,8 +41,8 @@
 </script>
 
 <div class="px-3  md:px-0 w-full overflow-hidden h-full">
-  <div class="flex gap-4 overflow-hidden h-full">
-    <div class="w-2/5 text-left bg-gray-800 p-5 rounded-lg">
+  <div class="grid md:flex md:flex-row gap-4 md:overflow-hidden h-full">
+    <div class="w-full md:w-2/5 text-left bg-gray-800 p-5 rounded-lg">
       <h1 class="w-full text-center text-xl font-bold mb-3 underline">
         Create Order
       </h1>
@@ -174,7 +174,7 @@
       </button>
     </div>
     <!-- order history below  -->
-    <div class="w-3/5 bg-gray-800 rounded-lg p-5 overflow-auto h-full">
+    <div class="w-full md:w-3/5 bg-gray-800 rounded-lg p-5 overflow-auto h-full">
       <h1 class="w-full text-center text-xl font-bold mb-3 underline">
         Order History
       </h1>
