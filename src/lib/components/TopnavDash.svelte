@@ -1,22 +1,216 @@
 <script>
-
-    import { NavBrand, NavHamburger, Navbar } from "flowbite-svelte";
-    import sosSeats from "../assets/sosSeats.png";   
-    let hidden2 = true;
-
-
+  import { CloseButton, Drawer, NavBrand, NavHamburger, Navbar, Sidebar, SidebarWrapper } from "flowbite-svelte";
+  import sosSeats from "../assets/sosSeats.png";
+  import { sessionFromDb } from "$lib/store";
+  import { sineIn } from "svelte/easing";
+  let hidden2 = true;
+  let backdrop = false;
+  let transitionParams = {
+    x: -320,
+    duration: 200,
+    easing: sineIn,
+  };
 </script>
+
 <Navbar
-    navClass="px-1 py-2.5 fixed w-screen z-20 top-0 left-0 border-b bg-gray-800"
+  navClass="px-1 py-2.5 fixed w-screen z-20 top-0 left-0 border-b bg-gray-800"
 >
-    <NavBrand href="/">
-        <img src={sosSeats} class="mr-2 h-10" alt="SOS SEAT Logo" />
-        <!-- <span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">Flowbite</span> -->
-    </NavBrand>
-    <div class="flex md:order-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><g fill="none"><path fill="#F9C23C" d="M27.81 9H22.7c-.25 0-.46.174-.53.42c-.19.665-.8 1.157-1.51 1.157s-1.32-.481-1.51-1.157a.558.558 0 0 0-.53-.42H4.19C2.98 9 2 10.003 2 11.242v10.516C2 22.997 2.98 24 4.19 24h14.43c.25 0 .46-.174.53-.42c.19-.665.8-1.157 1.51-1.157s1.32.481 1.51 1.157c.07.246.28.42.53.42h5.11c1.21 0 2.19-1.003 2.19-2.242V11.242C30 10.003 29.02 9 27.81 9Zm-7.15 11.642c-.87 0-1.66-.743-1.66-1.634c0-.89.79-1.602 1.66-1.602c.87 0 1.596.711 1.596 1.602c0 .89-.726 1.634-1.596 1.634Zm0-5.038c-.87 0-1.648-.727-1.648-1.618c0-.89.778-1.617 1.648-1.617c.87 0 1.621.727 1.621 1.617c0 .891-.751 1.618-1.621 1.618Z"/><path fill="#D3883E" d="M10.116 14H5.884C5.395 14 5 13.569 5 13.035s.395-.965.884-.965h4.232c.489 0 .884.431.884.965c0 .545-.395.965-.884.965Zm-4.532 5h9.842c.313 0 .584-.223.574-.5c0-.277-.26-.5-.584-.5H5.584c-.323 0-.584.223-.584.5s.26.5.584.5Zm0 2h9.842c.313 0 .584-.232.574-.5c0-.277-.26-.5-.584-.5H5.584c-.323 0-.584.223-.584.5s.26.5.584.5Zm19.155-4h2.522c.41 0 .739.33.739.739v2.522c0 .41-.33.739-.739.739H24.74a.737.737 0 0 1-.739-.739V17.74c0-.41.33-.739.739-.739Z"/></g></svg>
-        <span class="text-white font-bold">
-        HI <slot  name="userName">SOSJ001</slot>
-        </span>
-    </div>
+  <NavBrand href="/">
+    <img src={sosSeats} class="mr-2 h-10" alt="SOS SEAT Logo" />
+    <!-- <span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">Flowbite</span> -->
+  </NavBrand>
+  <div class="flex md:order-2 items-center">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 32 32"
+      ><g fill="none"
+        ><path
+          fill="#F9C23C"
+          d="M27.81 9H22.7c-.25 0-.46.174-.53.42c-.19.665-.8 1.157-1.51 1.157s-1.32-.481-1.51-1.157a.558.558 0 0 0-.53-.42H4.19C2.98 9 2 10.003 2 11.242v10.516C2 22.997 2.98 24 4.19 24h14.43c.25 0 .46-.174.53-.42c.19-.665.8-1.157 1.51-1.157s1.32.481 1.51 1.157c.07.246.28.42.53.42h5.11c1.21 0 2.19-1.003 2.19-2.242V11.242C30 10.003 29.02 9 27.81 9Zm-7.15 11.642c-.87 0-1.66-.743-1.66-1.634c0-.89.79-1.602 1.66-1.602c.87 0 1.596.711 1.596 1.602c0 .89-.726 1.634-1.596 1.634Zm0-5.038c-.87 0-1.648-.727-1.648-1.618c0-.89.778-1.617 1.648-1.617c.87 0 1.621.727 1.621 1.617c0 .891-.751 1.618-1.621 1.618Z"
+        /><path
+          fill="#D3883E"
+          d="M10.116 14H5.884C5.395 14 5 13.569 5 13.035s.395-.965.884-.965h4.232c.489 0 .884.431.884.965c0 .545-.395.965-.884.965Zm-4.532 5h9.842c.313 0 .584-.223.574-.5c0-.277-.26-.5-.584-.5H5.584c-.323 0-.584.223-.584.5s.26.5.584.5Zm0 2h9.842c.313 0 .584-.232.574-.5c0-.277-.26-.5-.584-.5H5.584c-.323 0-.584.223-.584.5s.26.5.584.5Zm19.155-4h2.522c.41 0 .739.33.739.739v2.522c0 .41-.33.739-.739.739H24.74a.737.737 0 0 1-.739-.739V17.74c0-.41.33-.739.739-.739Z"
+        /></g>
+    </svg>
+    <span class="text-white font-bold">
+      HI <slot name="userName">SOSJ001</slot>
+    </span>
+    <span class="z-60">
+      <!-- <svelte:component this={ hidden2? NavHamburger : CloseButton } {props}/> -->
+      <NavHamburger
+        on:click={() => (hidden2 = false)}
+        menuClass="h-6 w-6 shrink-0"
+        class="text-white"
+      />
+    </span>
+  </div>
 </Navbar>
+<!-- SIDE NAV -->
+<Drawer
+  class="bg-gray-800 z-10 md:hidden"
+  {backdrop}
+  width="w-50"
+  transitionType="fly"
+  {transitionParams}
+  bind:hidden={hidden2}
+>
+  <div class="flex items-center pt-10 mt-5 mb-5 rounded-full">
+    <hr class="w-5 h-1 bg-yellow-400 border-0 dark:bg-gray-700" />
+    <hr class="w-8 h-8 mx-auto bg-gray-200 border-0 rounded dark:bg-gray-700" />
+    <hr class="w-5 h-1 bg-yellow-400 border-0 dark:bg-gray-700" />
+    <!-- <hr class="w-8 h-8 mx-auto my-8 bg-gray-200 border-0 rounded  dark:bg-gray-700"> -->
+    <hr class="w-8 h-8 mx-auto bg-gray-200 border-0 rounded dark:bg-gray-700" />
+    <hr class="w-5 h-1 bg-yellow-400 border-0 dark:bg-gray-700" />
+    <CloseButton
+      on:click={() => (hidden2 = true)}
+      class="border border-solid border-yellow-400 text-white"
+    />
+  </div>
+  <Sidebar asideClass="text-white">
+    <SidebarWrapper divClass="overflow-y-auto px-3 rounded">
+      <div class="h-full px-3 pb-4 overflow-y-auto bg-dark">
+        <ul class="space-y-2 font-medium">
+          {#if $sessionFromDb}
+            <li>
+              <a
+                href="/dashboard"
+                class="flex items-center p-2 text-white rounded-lg hover:bg-yellow-500 hover:text-white"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="w-6 h-6 text-white transition duration-75"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
+                  <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
+                </svg>
+                <span class="ml-3">Dashboard</span>
+              </a>
+            </li>
+          {/if}
+          <li>
+            <a
+              href="#searchForm"
+              class="flex items-center p-2 text-white rounded-lg hover:bg-yellow-500 hover:text-white"
+            >
+              <svg
+                class=""
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 256 256"
+                ><g transform="translate(256 0) scale(-1 1)"
+                  ><g
+                    id="galaSearch0"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-dasharray="none"
+                    stroke-miterlimit="4"
+                    stroke-width="16"
+                    ><path
+                      id="galaSearch1"
+                      stroke-linecap="butt"
+                      stroke-linejoin="miter"
+                      stroke-opacity="1"
+                      d="m 89.074145,145.23139 -68.17345,68.17344"
+                    /><path
+                      id="galaSearch2"
+                      stroke-linecap="butt"
+                      stroke-linejoin="miter"
+                      stroke-opacity="1"
+                      d="M 111.27275,167.42999 43.099304,235.60344"
+                    /><path
+                      id="galaSearch3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="m 43.099305,235.60344 a 15.696788,15.696788 0 0 1 -22.19861,0"
+                    /><path
+                      id="galaSearch4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="m 20.900695,213.40483 a 15.696788,15.696788 0 0 0 0,22.19861"
+                    /><path
+                      id="galaSearch5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M 240.65575,86.483932 A 70.635544,70.635544 0 0 1 170.0202,157.11948 70.635544,70.635544 0 0 1 99.384659,86.483932 70.635544,70.635544 0 0 1 170.0202,15.848389 70.635544,70.635544 0 0 1 240.65575,86.483932 Z"
+                    /><path
+                      id="galaSearch6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-opacity="1"
+                      d="m 89.074145,145.23139 22.198605,22.1986"
+                    /><path
+                      id="galaSearch7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-opacity="1"
+                      d="m 100.17344,156.33068 19.89988,-19.89987"
+                    /><path
+                      id="galaSearch8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-opacity="1"
+                      d="m 70.126446,164.17908 22.198606,22.1986"
+                    /><path
+                      id="galaSearch9"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M 209.26216,86.483936 A 39.241967,39.241967 0 0 1 170.0202,125.7259"
+                    /></g
+                  ></g
+                ></svg
+              >
+              <span class=" ml-3">Search</span>
+            </a>
+          </li>
+          <li>
+            <a
+              href="#event"
+              class="flex items-center p-2 text-white rounded-lg hover:bg-yellow-500 hover:text-white"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                ><path
+                  fill="currentColor"
+                  d="M21 17V8H7v9h14m0-14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h1V1h2v2h8V1h2v2h1M3 21h14v2H3a2 2 0 0 1-2-2V9h2v12m16-6h-4v-4h4v4Z"
+                /></svg
+              >
+              <span class="ml-3">Events</span>
+            </a>
+          </li>
+          <li>
+            <a
+              href="/#/"
+              class="flex items-center p-2 text-white rounded-lg hover:bg-yellow-500 hover:text-white"
+            >
+              <svg
+                aria-hidden="true"
+                class="flex-shrink-0 w-6 h-6 text-white transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <span class="ml-3">About Us</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </SidebarWrapper>
+  </Sidebar>
+</Drawer>
+
+<!-- SIDE NAV ENDS -->

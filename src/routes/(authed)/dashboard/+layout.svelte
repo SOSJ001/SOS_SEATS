@@ -24,9 +24,7 @@
   import { supabase } from "$lib/supabase.js";
   export let data;
   $sessionFromDb = data.user_Id; //set the store user_id
-
   let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
- 
   // subscribe to the insert
   supabase
     .channel("custom-insert-channel")
@@ -36,7 +34,7 @@
       (payload) => {
         updateEventToTable($sessionFromDb, payload.new.imageId).then((arr) => {
           EventTableResult = [arr, ...EventTableResult];
-           $updatedEventsData = EventTableResult //set the store to the event data too for reactive update
+          $updatedEventsData = EventTableResult; //set the store to the event data too for reactive update
         });
       }
     )

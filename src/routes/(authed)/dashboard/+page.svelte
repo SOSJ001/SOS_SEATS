@@ -27,12 +27,17 @@
   let inviteCode;
   // ////////////////////////////////////////////////////////////////////////
   let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
-  $:{
-    if($updatedEventsData.length !== 0 ){
-      EventTableResult =  [...$updatedEventsData]
+  $: {
+    function checkupdate() {
+      if ($updatedEventsData.length === 0) {
+        return;
+      } else {
+        EventTableResult = $updatedEventsData;
+      }
     }
-    
+    checkupdate();
   }
+
   // these are for the modals
   let eventName;
   let eventDate;
@@ -239,7 +244,7 @@
                       // share by invite code
                       passCodeDiv = true;
                       inviteCode = guestName + "_" + generateRandomChars();
-                    } else if (shareBy === "email"){
+                    } else if (shareBy === "email") {
                       // share by email
                       alert(`Email sent to : ${email}`);
                     }
