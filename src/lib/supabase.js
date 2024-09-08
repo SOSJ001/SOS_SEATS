@@ -156,7 +156,6 @@ export async function addEventFunction(
 ) {
   // upload the image first on success insert the event records
   const imageId = await uploadEventImage(file_input, userId);
-  console.log("here so", imageId);
   // @ts-ignore
   const response = await supabase
     .from("event")
@@ -232,4 +231,30 @@ export async function storeWallet(user_id, wallet, publicKey) {
     .insert([{ user_id: user_id, wallet: wallet, publicKey: publicKey }])
     .select();
   return response;
+}
+
+//select specific users and publickey
+export async function usersAndPublickeys(user_id) {
+const response = await supabase
+  .from("userandpublickey")
+  .select("*")
+    .eq("id", user_id);
+  return response
+}
+
+//search all the usersname and publickey
+export async function searchWalletAndUserName() {
+  const response = await supabase
+    .from("userandpublickey")
+    .select("*")
+  return response;
+}
+
+//call this in the server to get the signature
+export async function signTransactionKey(user_id) {
+  const response = await supabase
+    .from("wallet")
+    .select("*")
+    .eq("user_id", user_id);
+  return response
 }

@@ -54,6 +54,7 @@
     );
     if(!error){
       alert('Event Creaton Successful')
+      console.log('invalidation here')
       show = false
       addEvent = false
     }else{

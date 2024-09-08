@@ -2,19 +2,39 @@
   //@ts-nocheck
   import { Card } from "flowbite-svelte";
   import Spinner from "$lib/components/Spinner.svelte";
-  import { enhance } from "$app/forms";
-  let userName;
+  import { invalidateAll } from "$app/navigation";
+  import { ACTIONS_CORS_HEADERS } from "@solana/actions";
+  export let data;
+  const user_id = data.user_Id;
+  let userName; //user name to send the transactions to
+  let walletAddress; //wallet address to send the transaction to.
   let amount;
-  let disabled = false;
+  let disabled = false; //to disable the buttons
   let loading = false;
   let transferOptions;
-  let data = [1, 1, 1, 1, 1, 1, 1, 1];
+  let userNameArray = []; //to store the array of user name as popup when typing
+  let data1 = [1, 1, 1, 1, 1, 1, 1, 1];
 
-  let sendToken = () => {
-    alert("Transfer Clicked");
+  let wallet = data.status; // to verify if the user has a wallet
+  let createWalletLoader = false;
+  let publickey = data.publickey;
+  //send token function below
+  let sendToken = async () => {
+    loading = true
+    disabled = true
+    const response = await fetch("/transferSolApi", {
+      method: "POST",
+      body: JSON.stringify({ user_id, publickey, userName, amount }),
+      headers: ACTIONS_CORS_HEADERS,
+    });
+    const { payload } = await response.json();
+    invalidateAll();
+    alert(
+      `Transaction Sig :\n https://solana.fm/tx/${payload}?cluster=devnet-solana`
+    );
+    loading = false
+    disabled = false
   };
-  let wallet = false;
-  let createWalletLoader = false
   //create wallet
   let createWallet = async () => {
     disabled = true;
@@ -25,9 +45,20 @@
         "Content-Type": "application/json",
       },
     });
-    const {publicKey, status} = await response.json()
+    const { publicKey, status } = await response.json();
     disabled = false;
     createWalletLoader = false;
+    publickey = publicKey;
+    wallet = status;
+  };
+
+  //copy wallet address
+  let copy = () => {
+    // Prepare the clipboard data
+    const clipboardData = window.clipboard;
+    // Copy the text
+    navigator.clipboard.writeText(publickey);
+    alert("Publickey Copied");
   };
 </script>
 
@@ -43,10 +74,14 @@
         size="lg"
         class="bg-gray-800 md:h-28 h-24 flex flex-row items-center gap-5 p-5 rounded-lg border-none text-gray-200 w-full"
       >
-        <h5 class="mb-2 text-2xl font-bold tracking-tight">Total Balance :</h5>
+        <h5 class="mb-2 text-2xl font-bold tracking-tight whitespace-nowrap">
+          Total Balance :
+        </h5>
         <!-- checking if there is a wallet for this user  -->
         {#if wallet}
-          <p class="font-normal leading-tight text-xl">240 USDC</p>
+          <p class="font-normal leading-tight text-xl">
+            {data.balance.toFixed(3) || 0} SOL
+          </p>
         {:else}
           <!-- if there is wallet -->
 
@@ -78,7 +113,7 @@
         <div class="space-x-5">
           {#if wallet}
             <span class="font-normal leading-tight">USDC 40</span>
-            <span class="font-normal leading-tight">SOL 200</span>
+            <span class="font-normal leading-tight">SOL 240</span>
           {:else}
             <span class="text-gray-500 font-normal leading-tight"
               >no data here</span
@@ -88,31 +123,54 @@
       </Card>
     </div>
   </div>
-  <!-- transfer tokens -->
-  <div class="font-bold text-xl border-b">Transfer</div>
+  <!-- transfer tokens and publicey-->
+  <div class="font-bold text-xl border-b flex flex-row justify-between">
+    <span>Transfer</span>
+
+    {#if wallet}
+      <div class="text-sm w-[200px] truncate text-end" title="click to copy">
+        <label for="copy"><span>Publickey: </span>{publickey}</label>
+        <button hidden id="copy" on:click={copy} {disabled}> copy </button>
+      </div>
+    {/if}
+  </div>
   <div
     class="bg-gray-800 p-5 rounded-lg md:flex md:flex-row md:gap-5 space-y-5 md:space-y-0"
   >
     <select
       id="eventName"
       bind:value={transferOptions}
-      class="w-full md:w-auto text-center border text-sm rounded-lg block p-2.5 bg-gray-700 border-gray-300 placeholder-gray-400 text-white focus:ring-blue-500 focus:border-blue-500"
+      class="w-full md:w-auto text-center text-sm rounded-lg block p-2.5 bg-gray-700 border-0 placeholder-gray-400 text-white focus:ring-0 focus:border-0"
     >
-      <option value={true} selected>S.O.S Seats User</option>
-      <option value={false} selected>Enternal Solana Wallet</option>
+      <option value={true} selected>To S.O.S Seats User</option>
+      <option value={false}>To Solana Wallet address </option>
     </select>
+    <!-- transfer button here  -->
     <div
       class="md:flex md:flex-row justify-start md:gap-10 md:space-y-0 space-y-5"
     >
       <div class="md:flex md:flex-row gap-3 md:space-y-0 space-y-5">
-        <input
-          type="text"
-          bind:value={userName}
-          id="seatArea"
-          class="text-white bg-gray-700 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500 dark:focus:ring-blue-500"
-          placeholder="User Name"
-          required
-        />
+        {#if transferOptions}
+          <input
+            type="text"
+            bind:value={userName}
+            list="userName"
+            id="seatArea"
+            class="text-white bg-gray-700 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500"
+            placeholder="User Name"
+            required
+          />
+        {:else}
+          <input
+            type="text"
+            bind:value={walletAddress}
+            id="seatArea"
+            class="text-white bg-gray-700 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-500"
+            placeholder="paste wallet address"
+            required
+          />
+        {/if}
+
         <input
           type="number"
           bind:value={amount}
@@ -122,6 +180,7 @@
           required
         />
       </div>
+      <!-- transfer button here  -->
       <button
         {disabled}
         on:click|preventDefault={sendToken}
@@ -154,7 +213,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each data as row, i}
+        {#each data1 as row, i}
           <tr
             class=" items-center border-b border-white bg-gray-800 hover:bg-gray-900"
           >

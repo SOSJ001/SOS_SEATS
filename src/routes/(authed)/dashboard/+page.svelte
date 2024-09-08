@@ -20,8 +20,8 @@
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
   export let data;
-  if (data.cookievar1 !== undefined) {
-    sessionFromDb.set(data.cookievar1);
+  if (data.user_Id !== undefined) {
+    sessionFromDb.set(data.user_Id);
   }
   let qrCode;
   let inviteCode;
