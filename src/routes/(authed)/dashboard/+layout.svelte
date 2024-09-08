@@ -17,21 +17,37 @@
   import TopnavDash from "$lib/components/TopnavDash.svelte";
   import DashboardUtilities from "$lib/components/DashboardUtilities.svelte";
   import DashboardEvent from "$lib/components/DashboardEvent.svelte";
-  import { addEventFunction } from "$lib/supabase.js";
-  import { sessionFromDb } from "$lib/store.js";
+  import { addEventFunction, updateEventToTable } from "$lib/supabase.js";
+  import { updatedEventsData, sessionFromDb } from "$lib/store.js";
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
+  import { supabase } from "$lib/supabase.js";
   export let data;
   $sessionFromDb = data.user_Id; //set the store user_id
-  // ////////////////////////////////////////////////////////////////////////
+
   let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
+ 
+  // subscribe to the insert
+  supabase
+    .channel("custom-insert-channel")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "event" },
+      (payload) => {
+        updateEventToTable($sessionFromDb, payload.new.imageId).then((arr) => {
+          EventTableResult = [arr, ...EventTableResult];
+           $updatedEventsData = EventTableResult //set the store to the event data too for reactive update
+        });
+      }
+    )
+    .subscribe();
   // these are for the add event modal
   let eventName;
   let eventDate;
   let eventVenue;
   let Audience = "Private";
   let file_input; //this is the file that must be uploaded
-
+  let disabled = false;
   let Session1 = true;
   let event = false;
   let seat = false;
@@ -43,8 +59,9 @@
 
   // /////////////////////////////////////////////
   let createEventFuncton = async () => {
+    disabled = true;
     show = true;
-    const {data, error} = await addEventFunction(
+    const { data, error } = await addEventFunction(
       eventName,
       eventDate,
       eventVenue,
@@ -52,13 +69,13 @@
       file_input,
       $sessionFromDb
     );
-    if(!error){
-      alert('Event Creaton Successful')
-      console.log('invalidation here')
-      show = false
-      addEvent = false
-    }else{
-      alert('Cannot Create Event \n Try again')
+    if (!error) {
+      alert("Event Creaton Successful");
+      show = false;
+      addEvent = false;
+      disabled = false;
+    } else {
+      alert("Cannot Create Event \n Try again");
     }
   };
 </script>
@@ -73,11 +90,10 @@
       class="w-full bg-gray-700 items-center text-white overflow-x-hidden h-screen md:px-5 overflow-hidden"
     >
       <!-- top  nav -->
-      <TopnavDash >
+      <TopnavDash>
         <svelte:fragment slot="userName">
           {data.userName}
         </svelte:fragment>
-        
       </TopnavDash>
       <div class="flex flex-col overflow-hidden h-full w-full">
         <div class=" bg-gray-700 h-full w-full overflow-hidden">
@@ -394,6 +410,7 @@
 
                 <!-- create event button below -->
                 <button
+                  {disabled}
                   on:click|preventDefault|once={createEventFuncton}
                   class="text-center w-full"
                   ><div

@@ -2,7 +2,7 @@
   //@ts-nocheck
   import { Card } from "flowbite-svelte";
   import Spinner from "$lib/components/Spinner.svelte";
-  import { invalidateAll } from "$app/navigation";
+  import { invalidate } from "$app/navigation";
   import { ACTIONS_CORS_HEADERS } from "@solana/actions";
   export let data;
   const user_id = data.user_Id;
@@ -28,13 +28,13 @@
       headers: ACTIONS_CORS_HEADERS,
     });
     const { payload } = await response.json();
-    invalidateAll();
+    invalidate("data:balance");
     if (payload) {
       alert(
         `Transaction Sig :\n https://solana.fm/tx/${payload}?cluster=devnet-solana`
       );
-    }else{
-      alert('User does not exists \n Try sending with external wallet option')
+    } else {
+      alert("User does not exists \n Try sending with external wallet option");
     }
 
     loading = false;
@@ -85,7 +85,7 @@
         <!-- checking if there is a wallet for this user  -->
         {#if wallet}
           <p class="font-normal leading-tight text-xl">
-            {data.balance.toFixed(3) || 0} SOL
+            {data.balance.toFixed(4) || 0} SOL
           </p>
         {:else}
           <!-- if there is wallet -->

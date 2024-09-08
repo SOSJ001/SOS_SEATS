@@ -1,6 +1,6 @@
 <script>
   // @ts-nocheck
-  import { sessionFromDb } from "$lib/store.js";
+  import { sessionFromDb, updatedEventsData } from "$lib/store.js";
   import { invalidateAll } from "$app/navigation";
   import Event from "$lib/components/event.svelte";
   import { downloadImage, generateRandomChars } from "$lib/store.js";
@@ -25,9 +25,14 @@
   }
   let qrCode;
   let inviteCode;
-
   // ////////////////////////////////////////////////////////////////////////
   let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
+  $:{
+    if($updatedEventsData.length !== 0 ){
+      EventTableResult =  [...$updatedEventsData]
+    }
+    
+  }
   // these are for the modals
   let eventName;
   let eventDate;

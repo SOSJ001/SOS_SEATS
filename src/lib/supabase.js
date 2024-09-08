@@ -64,6 +64,28 @@ export async function loadEventToTable(user_id) {
   return eventWithImages;
 }
 
+//update event table
+export async function updateEventToTable(user_id, event_Id) {
+  let { data: events, error } = await supabase
+    .from("event")
+    .select("*")
+    .eq("user_id", user_id)
+    .eq("imageId", event_Id);
+
+  if (error) {
+    console.log("loadEventToTable error", error.message);
+    return [];
+  }
+
+
+  const Images = await SelectImagePath(events[0].imageId);
+  return {
+    Event: events[0],
+    // @ts-ignore
+    Image: Images
+  };
+}
+
 // load seat to table function
 // @ts-ignore
 export async function loadSeatsToTable(EventId) {
@@ -235,18 +257,16 @@ export async function storeWallet(user_id, wallet, publicKey) {
 
 //select specific users and publickey
 export async function usersAndPublickeys(user_id) {
-const response = await supabase
-  .from("userandpublickey")
-  .select("*")
+  const response = await supabase
+    .from("userandpublickey")
+    .select("*")
     .eq("id", user_id);
-  return response
+  return response;
 }
 
 //search all the usersname and publickey
 export async function searchWalletAndUserName() {
-  const response = await supabase
-    .from("userandpublickey")
-    .select("*")
+  const response = await supabase.from("userandpublickey").select("*");
   return response;
 }
 
@@ -256,5 +276,5 @@ export async function signTransactionKey(user_id) {
     .from("wallet")
     .select("*")
     .eq("user_id", user_id);
-  return response
+  return response;
 }
