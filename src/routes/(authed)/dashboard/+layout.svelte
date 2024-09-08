@@ -73,7 +73,12 @@
       class="w-full bg-gray-700 items-center text-white overflow-x-hidden h-screen md:px-5 overflow-hidden"
     >
       <!-- top  nav -->
-      <TopnavDash />
+      <TopnavDash >
+        <svelte:fragment slot="userName">
+          {data.userName}
+        </svelte:fragment>
+        
+      </TopnavDash>
       <div class="flex flex-col overflow-hidden h-full w-full">
         <div class=" bg-gray-700 h-full w-full overflow-hidden">
           <div

@@ -29,7 +29,7 @@ export async function POST({ cookies, request }) {
         userExists.publicKey,
         amount
       );
-      if (!response) {
+      if (response !== null) {
         payload = await sendAndConfirmTransaction(
           connection,
           response.transaction,
