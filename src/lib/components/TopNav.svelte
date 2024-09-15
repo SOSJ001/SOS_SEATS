@@ -1,5 +1,5 @@
 <script>
-  import { sessionFromDb } from "../store";
+  import { sessionFromDb } from "$lib/store";
   import { signOutbtnFunction } from "$lib/supabase";
   import {
     Navbar,
@@ -50,8 +50,7 @@
         on:click|preventDefault={signout}
         href="/"
         class="hover:text-yellow-500 text-white bg-yellow-400 rounded-lg px-3 py-2 hover:bg-white"
-        >Logout</a
-      >
+        >Logout</a>
     {:else}
       <slot name="login" />
       <slot name="signup" />
@@ -75,131 +74,32 @@
     <ul
       class="flex flex-col font-medium md:flex-row md:space-x-8 md:mt-0 items-center justify-center"
     >
+    <li class="nav-item">
+      <a
+        class="flex gap-1 text-white hover:text-yellow-400"
+        href="/"
+        ><span class="text-xl">🏠</span><span>HOME</span></a
+      >
+    </li>
       {#if $sessionFromDb}
         <li out:fade class="nav-item">
           <a
             href="/dashboard"
             class="flex gap-1 text-white hover:text-yellow-400"
           >
-            <svg
-              aria-hidden="true"
-              width="24"
-              height="24"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
-              <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
-            </svg>
+            <span class="text-xl">🖥️</span>
             <span> DASHBOARD </span>
           </a>
         </li>
       {/if}
       <li class="nav-item">
-        <a
-          class="flex gap-1 text-white hover:text-yellow-400"
-          href="#searchForm"
-          ><svg
-            class=""
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 256 256"
-            ><g transform="translate(256 0) scale(-1 1)"
-              ><g
-                id="galaSearch0"
-                fill="none"
-                stroke="currentColor"
-                stroke-dasharray="none"
-                stroke-miterlimit="4"
-                stroke-width="16"
-                ><path
-                  id="galaSearch1"
-                  stroke-linecap="butt"
-                  stroke-linejoin="miter"
-                  stroke-opacity="1"
-                  d="m 89.074145,145.23139 -68.17345,68.17344"
-                /><path
-                  id="galaSearch2"
-                  stroke-linecap="butt"
-                  stroke-linejoin="miter"
-                  stroke-opacity="1"
-                  d="M 111.27275,167.42999 43.099304,235.60344"
-                /><path
-                  id="galaSearch3"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="m 43.099305,235.60344 a 15.696788,15.696788 0 0 1 -22.19861,0"
-                /><path
-                  id="galaSearch4"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="m 20.900695,213.40483 a 15.696788,15.696788 0 0 0 0,22.19861"
-                /><path
-                  id="galaSearch5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M 240.65575,86.483932 A 70.635544,70.635544 0 0 1 170.0202,157.11948 70.635544,70.635544 0 0 1 99.384659,86.483932 70.635544,70.635544 0 0 1 170.0202,15.848389 70.635544,70.635544 0 0 1 240.65575,86.483932 Z"
-                /><path
-                  id="galaSearch6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-opacity="1"
-                  d="m 89.074145,145.23139 22.198605,22.1986"
-                /><path
-                  id="galaSearch7"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-opacity="1"
-                  d="m 100.17344,156.33068 19.89988,-19.89987"
-                /><path
-                  id="galaSearch8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-opacity="1"
-                  d="m 70.126446,164.17908 22.198606,22.1986"
-                /><path
-                  id="galaSearch9"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M 209.26216,86.483936 A 39.241967,39.241967 0 0 1 170.0202,125.7259"
-                /></g
-              ></g
-            ></svg
-          > <span>SEARCH</span></a
-        >
-      </li>
-      <li class="nav-item">
-        <a class="flex gap-1 text-white hover:text-yellow-400" href="#event"
-          ><svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            ><path
-              fill="currentColor"
-              d="M21 17V8H7v9h14m0-14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h1V1h2v2h8V1h2v2h1M3 21h14v2H3a2 2 0 0 1-2-2V9h2v12m16-6h-4v-4h4v4Z"
-            /></svg
-          > <span> EVENT</span></a
+        <a class="flex gap-1 text-white hover:text-yellow-400" href="/marketplace"
+          ><span class="text-xl">🏬</span><span> MARKETPLACE</span></a
         >
       </li>
       <li class="nav-item">
         <a class="flex gap-1 text-white hover:text-yellow-400" href="/#/"
-          ><svg
-            aria-hidden="true"
-            width="24"
-            height="24"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-              clip-rule="evenodd"
-            />
-          </svg> <span> ABOUT US</span></a
+          ><span class="text-xl">ℹ️</span> <span> ABOUT US</span></a
         >
       </li>
     </ul>
@@ -330,7 +230,7 @@
           </li>
           <li>
             <a
-              href="#event"
+              href="/marketplace"
               class="flex items-center p-2 text-white rounded-lg hover:bg-yellow-500 hover:text-white"
             >
               <svg
@@ -343,7 +243,7 @@
                   d="M21 17V8H7v9h14m0-14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h1V1h2v2h8V1h2v2h1M3 21h14v2H3a2 2 0 0 1-2-2V9h2v12m16-6h-4v-4h4v4Z"
                 /></svg
               >
-              <span class="ml-3">Events</span>
+              <span class="ml-3">Marketplace</span>
             </a>
           </li>
           <li>

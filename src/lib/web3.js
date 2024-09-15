@@ -15,11 +15,17 @@ export async function createNew_wallet() {
 
 //get balance function
 export async function getBalance(publickey) {
-  const lamportBalance = await connection.getBalance(
+  try {
+     const lamportBalance = await connection.getBalance(
     new web3.PublicKey(publickey)
   );
   const balance = lamportBalance / web3.LAMPORTS_PER_SOL;
   return balance;
+  } catch (error) {
+    console.log("error getting balance from getBalance() :", console.error(error));
+    return null
+  }
+ 
 }
 
 //transfer sol

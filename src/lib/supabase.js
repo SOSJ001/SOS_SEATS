@@ -37,7 +37,7 @@ export async function signOutbtnFunction() {
   return error;
 }
 
-// load event to the table
+// load event to the user table
 export async function loadEventToTable(user_id) {
   let { data: events, error } = await supabase
     .from("event")
@@ -64,6 +64,34 @@ export async function loadEventToTable(user_id) {
   return eventWithImages;
 }
 
+
+
+// load event to marketplace table 
+export async function loadEventToMarketplaceTable(sth) {
+  let { data: events, error } = await supabase
+    .from("event")
+    .select("*")
+    .eq("audience", sth);
+
+  if (error) {
+    console.log("loadEventToTable error", error.message);
+    return [];
+  }
+
+  // Use Promise.all to await all image requests
+  const eventWithImages = await Promise.all(
+    events.map(async (Event, i) => {
+      const Images = await SelectImagePath(Event.imageId);
+      return {
+        Event: Event,
+        // @ts-ignore
+        Image: Images,
+      };
+    })
+  );
+
+  return eventWithImages;
+}
 //update event table
 export async function updateEventToTable(user_id, event_Id) {
   let { data: events, error } = await supabase

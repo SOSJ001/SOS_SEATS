@@ -7,12 +7,12 @@
 </script>
 
 <div
-  class="pt-5 flex flex-col items-center md:justify-between text-white rounded-lg shadow-xl bg-gray-800"
+  class="pt-5 md:max-w-[350px] flex flex-col items-center md:justify-between text-white rounded-lg shadow-xl bg-gray-800"
 >
   <!-- event image below -->
   <img
     src= {image}
-    class="md:h-[200px] rounded-lg"
+    class="md:h-[200px] max-h-[260px] md:max-h-full rounded-lg"
     alt=""
   />
   <!-- event details below -->

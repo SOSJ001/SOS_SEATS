@@ -19,15 +19,20 @@
   import { addEventFunction, insertIntoGuestTable } from "$lib/supabase.js";
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
+  import { Tabs, TabItem } from "flowbite-svelte";
   export let data;
   if (data.user_Id !== undefined) {
     sessionFromDb.set(data.user_Id);
   }
   let qrCode;
   let inviteCode;
+ 
   // ////////////////////////////////////////////////////////////////////////
   let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
-  $: {
+   let bought = EventTableResult.slice(0,1) //event bought
+   let listed = EventTableResult.slice(1,2) //event bought
+
+   $: {
     function checkupdate() {
       if ($updatedEventsData.length === 0) {
         return;
@@ -68,52 +73,137 @@
   let guestName; //to get the name the guest
 </script>
 
-<div class=" px-3 md:px-0 grid lg:grid-cols-3 gap-5 overflow-y-auto">
-  {#await EventTableResult}
-    <Waiting />
-  {:then rows}
-    {#each rows as row, i (row.Event.id)}
-      <Event
-        eventName={row.Event.name}
-        eventVenue={row.Event.venue}
-        eventDate={row.Event.date}
-        image={row.Image}
-      >
-        <!-- SHARE BUTTON, SCAN BUTTON AND DETAILS BUTTON BELOW  -->
-        <div slot="button" class="grid grid-cols-3 gap-x-3">
-          <button
-            class="w-full"
-            on:click={() => {
-              // open the modal
-              share = true;
-              eventImage = row.Image;
-              eventName = row.Event.name;
-              eventVenue = row.Event.venue;
-              eventDate = row.Event.date;
-              shareBy = "";
-              passCodeDiv = false;
-              eventId = row.Event.id;
-            }}
-          >
-            <ActionButton width="full" bgColor="yellow-500">
-              <span slot="text">Share</span>
-            </ActionButton>
-          </button>
-          <button class="w-full" on:click={() => (scan = true)}>
-            <ActionButton width="full" bgColor="yellow-500">
-              <span slot="text">Scan</span>
-            </ActionButton>
-          </button>
+<div class=" px-3 md:px-0">
+  <Tabs
+    activeClasses="bg-none p-4 text-yellow-300"
+    contentClass="bg-transparent pt-3 w-full"
+  >
+    <TabItem open title="Created" class="">
+      <div class="flex w-full">
+        <div class="grid lg:grid-cols-3 sm:grid-cols-2 gap-3">
+          {#await EventTableResult}
+            <Waiting />
+          {:then rows}
+            {#each rows as row, i (row.Event.id)}
+              <Event
+                eventName={row.Event.name}
+                eventVenue={row.Event.venue}
+                eventDate={row.Event.date}
+                image={row.Image}
+              >
+                <!-- SHARE BUTTON, SCAN BUTTON AND DETAILS BUTTON BELOW  -->
+                <div slot="button" class="grid grid-cols-3 gap-x-3">
+                  <button
+                    class="w-full"
+                    on:click={() => {
+                      // open the modal
+                      share = true;
+                      eventImage = row.Image;
+                      eventName = row.Event.name;
+                      eventVenue = row.Event.venue;
+                      eventDate = row.Event.date;
+                      shareBy = "";
+                      passCodeDiv = false;
+                      eventId = row.Event.id;
+                    }}
+                  >
+                    <ActionButton width="full" bgColor="yellow-500">
+                      <span slot="text">Share</span>
+                    </ActionButton>
+                  </button>
+                  <button class="w-full" on:click={() => (scan = true)}>
+                    <ActionButton width="full" bgColor="yellow-500">
+                      <span slot="text">Scan</span>
+                    </ActionButton>
+                  </button>
 
-          <ActionButton bgColor="yellow-500">
-            <span slot="text">Details</span>
-          </ActionButton>
+                  <ActionButton bgColor="yellow-500">
+                    <span slot="text">Details</span>
+                  </ActionButton>
+                </div>
+              </Event>
+            {/each}
+          {:catch error}
+            <p style="color: red">{error.message}</p>
+          {/await}
         </div>
-      </Event>
-    {/each}
-  {:catch error}
-    <p style="color: red">{error.message}</p>
-  {/await}
+      </div>
+    </TabItem>
+    <TabItem title="Bought">
+      <div class="flex w-full">
+        <div class="grid lg:grid-cols-3 sm:grid-cols-2 gap-3">
+          {#await EventTableResult}
+            <Waiting />
+          {:then rows}
+            {#each bought as row, i (row.Event.id)}
+              <Event
+                eventName={row.Event.name}
+                eventVenue={row.Event.venue}
+                eventDate={row.Event.date}
+                image={row.Image}
+              >
+                <!-- SHARE BUTTON, SCAN BUTTON AND DETAILS BUTTON BELOW  -->
+                <div slot="button" class="grid grid-cols-2 gap-x-3">
+                  <button
+                    class="w-full"
+                    on:click={() => {alert('Successfully Listed')}}
+                  >
+                    <ActionButton width="full" bgColor="yellow-500">
+                      <span slot="text">Resell</span>
+                    </ActionButton>
+                  </button>
+                  <ActionButton bgColor="yellow-500">
+                    <span slot="text">Details</span>
+                  </ActionButton>
+                </div>
+              </Event>
+            {/each}
+          {:catch error}
+            <p style="color: red">{error.message}</p>
+          {/await}
+        </div>
+      </div>
+    </TabItem>
+    <TabItem title="Listed">
+      <div class="flex w-full">
+        <div class="grid lg:grid-cols-3 sm:grid-cols-2 gap-3">
+          {#await EventTableResult}
+            <Waiting />
+          {:then rows}
+            {#each listed as row, i (row.Event.id)}
+              <Event
+                eventName={row.Event.name}
+                eventVenue={row.Event.venue}
+                eventDate={row.Event.date}
+                image={row.Image}
+              >
+                <!-- SHARE BUTTON, SCAN BUTTON AND DETAILS BUTTON BELOW  -->
+                <div slot="button" class="grid grid-cols-2 gap-x-3">
+                  <button
+                    class="w-full"
+                    on:click={() => {
+                      alert('This will delist this ticket')
+                    }}
+                  >
+                    <ActionButton width="full" bgColor="yellow-500">
+                      <span slot="text">Delist</span>
+                    </ActionButton>
+                  </button>
+
+                  <ActionButton bgColor="yellow-500">
+                    <span slot="text">Details</span>
+                  </ActionButton>
+                </div>
+              </Event>
+            {/each}
+          {:catch error}
+            <p style="color: red">{error.message}</p>
+          {/await}
+        </div>
+      </div>
+    </TabItem>
+  </Tabs>
+
   {#if scan}
     <!-- seat modal below -->
     <div transition:fade>
