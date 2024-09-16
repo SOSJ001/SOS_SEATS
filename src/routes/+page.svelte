@@ -10,6 +10,9 @@
   import { fade } from "svelte/transition";
   import { createAccount } from "$lib/supabase";
   import Spinner from "$lib/components/Spinner.svelte";
+  import michael  from "$lib/assets/michael.jpeg";
+  import  jnice  from "$lib/assets/jnice.jpeg";
+  import jenny  from "$lib/assets/jenny.jpeg";
 
   export let data;
   // setting the cookie to the store value
@@ -1017,14 +1020,15 @@
           class="flex flex-col items-center p-6 bg-gray-900 rounded-lg shadow-lg"
         >
           <img
-            src="https://via.placeholder.com/150"
+            src={jenny}
             alt="Team Member 1"
             class="w-32 h-32 mb-4 rounded-full object-cover"
           />
-          <h3 class="text-xl font-semibold mb-2 text-gray-100">Jennifer E.K Kargbo</h3>
+          <h3 class="text-xl font-semibold mb-2 text-gray-100">
+            Jennifer E.K Kargbo
+          </h3>
           <p class="text-gray-300 text-center">
-            Lead Developer with over 10 years of experience in blockchain
-            technology and software development.
+            Lead writer with over 6 years of experience in content creation, writing and literature
           </p>
         </div>
 
@@ -1033,11 +1037,13 @@
           class="flex flex-col items-center p-6 bg-gray-900 rounded-lg shadow-lg"
         >
           <img
-            src="https://via.placeholder.com/150"
+            src={jnice}
             alt="Team Member 2"
             class="w-32 h-32 mb-4 rounded-full object-cover"
           />
-          <h3 class="text-xl font-semibold mb-2 text-gray-100">Amara D. James</h3>
+          <h3 class="text-xl font-semibold mb-2 text-gray-100">
+            Amara D. James
+          </h3>
           <p class="text-gray-300 text-center">
             Product Manager with a knack for user experience design and project
             management in tech startups.
@@ -1049,14 +1055,15 @@
           class="flex flex-col items-center p-6 bg-gray-900 rounded-lg shadow-lg"
         >
           <img
-            src="https://via.placeholder.com/150"
+            src={michael}
             alt="Team Member 3"
             class="w-32 h-32 mb-4 rounded-full object-cover"
           />
-          <h3 class="text-xl font-semibold mb-2 text-gray-100">Michael S.O.S Johnson</h3>
+          <h3 class="text-xl font-semibold mb-2 text-gray-100">
+            Michael S.O.S Johnson
+          </h3>
           <p class="text-gray-300 text-center">
-            Marketing Specialist with expertise in digital marketing and
-            strategic growth in the tech industry.
+            Lead Developer with over 4 years of experience in  web development/software development.
           </p>
         </div>
       </div>
