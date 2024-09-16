@@ -22,7 +22,7 @@
         fade={3000}
       />
     </div>
-    <div class="text-white">YOUR TICKET FOR</div>
+    <div class="text-white">YOUR TICKET <br> OR INVITATION FOR</div>
     <div class="text-yellow-300">
       <AnimatedHeadline
         texts={[

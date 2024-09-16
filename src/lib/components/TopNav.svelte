@@ -98,7 +98,7 @@
         >
       </li>
       <li class="nav-item">
-        <a class="flex gap-1 text-white hover:text-yellow-400" href="/#/"
+        <a class="flex gap-1 text-white hover:text-yellow-400" href="#aboutUs"
           ><span class="text-xl">ℹ️</span> <span> ABOUT US</span></a
         >
       </li>
