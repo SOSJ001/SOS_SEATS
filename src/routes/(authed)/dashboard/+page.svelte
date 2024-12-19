@@ -58,6 +58,7 @@
   let share = false; //for share modal
   let scan = false; //for scan modal
   let shareBy; //radio button
+  let gender;
   let emailField = false; //to show email field
   let passCodeDiv = false;
   let email;
@@ -175,7 +176,6 @@
       };
     });
   }
-  
 </script>
 
 <div class=" px-3 md:px-0">
@@ -374,6 +374,33 @@
                   placeholder="Guest Name"
                   required
                 />
+
+                <!-- gender below -->
+                <div class="flex justify-between items-center gap-10">
+                  <span class="text-md font-bold">Select Gender </span>
+                  <div class="flex justify-between items-start gap-10">
+                    <!-- email -->
+                    <span class="flex flex-col justify-center items-center">
+                      <label for="mail">Male</label>
+                      <input
+                        value={true}
+                        bind:group={gender}
+                        id="mail"
+                        type="radio"
+                      />
+                    </span>
+                    <span class="flex flex-col justify-center items-center">
+                      <label for="mail">Female</label>
+                      <input
+                        value={false}
+                        bind:group={gender}
+                        id="mail"
+                        type="radio"
+                      />
+                    </span>
+                  </div>
+                </div>
+
                 <span class="text-md font-bold"
                   >How do you want to share :
                 </span>
@@ -449,21 +476,21 @@
                           console.error("Error merging image and text:", error);
                         });
 
-                      html2canvas(canvas)
-                        .then((canvas) => {
-                          const dataURL = canvas.toDataURL("image/png"); // Adjust format as needed (e.g., 'image/jpeg')
+                      // html2canvas(canvas)
+                      //   .then((canvas) => {
+                      //     const dataURL = canvas.toDataURL("image/png"); // Adjust format as needed (e.g., 'image/jpeg')
 
-                          // Create a link element to trigger the download
-                          const link = document.createElement("a");
-                          link.href = dataURL;
-                          link.download = `${guestName}_invitatiion.png`; // Replace with desired filename
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        })
-                        .catch((error) => {
-                          console.error("Error capturing element:", error);
-                        });
+                      //     // Create a link element to trigger the download
+                      //     const link = document.createElement("a");
+                      //     link.href = dataURL;
+                      //     link.download = `${guestName}_invitatiion.png`; // Replace with desired filename
+                      //     document.body.appendChild(link);
+                      //     link.click();
+                      //     document.body.removeChild(link);
+                      //   })
+                      //   .catch((error) => {
+                      //     console.error("Error capturing element:", error);
+                      //   });
 
                       alert("here");
                     } else if (shareBy === "passcode") {
@@ -477,7 +504,8 @@
                     const response = await insertIntoGuestTable(
                       guestName,
                       inviteCode,
-                      eventId
+                      eventId,
+                      gender
                     );
                     if (response.error === null) {
                       guestName = ""; //reset guest name

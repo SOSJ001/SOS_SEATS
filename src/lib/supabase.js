@@ -225,11 +225,16 @@ export async function addEventFunction(
 }
 
 // insert into guest table
-export async function insertIntoGuestTable(guestName, inviteCode, event_Id) {
+export async function insertIntoGuestTable(guestName, inviteCode, event_Id, IsMale) {
   const response = await supabase
     .from("guest")
     .insert([
-      { guestName: guestName, inviteCode: inviteCode, event_Id: event_Id },
+      {
+        guestName: guestName,
+        inviteCode: inviteCode,
+        event_Id: event_Id,
+        IsMale: IsMale,
+      },
     ])
     .select();
   return response;
@@ -247,6 +252,11 @@ export async function loadGuestsRows(user_id) {
 //Delete guests
 export async function removeGuest(guest_id) {
   const { error } = await supabase.from("guest").delete().eq("id", guest_id);
+  return error;
+}
+
+export async function removeEvent(id) {
+const { error } = await supabase.from("event").delete().eq("id", id);
   return error;
 }
 
