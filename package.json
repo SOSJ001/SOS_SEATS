@@ -29,6 +29,7 @@
     "@solana/web3.js": "^1.95.3",
     "@supabase/supabase-js": "^2.33.1",
     "animate.css": "^4.1.1",
+    "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
     "qr-code-styling": "^1.6.0-rc.1",
     "qrcode": "^1.5.4"
