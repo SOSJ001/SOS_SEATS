@@ -6,7 +6,7 @@
   import { downloadImage, generateRandomChars } from "$lib/store.js";
   import { generateQrImage } from "$lib/store";
   import ActionButton from "$lib/components/ActionButton.svelte";
-  import { Card, Button } from "flowbite-svelte";
+  import { Card, Button, Alert } from "flowbite-svelte";
   import nothing from "$lib/assets/nothing.png";
   import addEventPic from "$lib/assets/addEvent.png";
   import hi from "$lib/assets/hi.png";
@@ -20,19 +20,22 @@
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
   import { Tabs, TabItem } from "flowbite-svelte";
+  import { base } from "$app/paths";
+  import html2canvas from 'html2canvas';
+
   export let data;
   if (data.user_Id !== undefined) {
     sessionFromDb.set(data.user_Id);
   }
   let qrCode;
   let inviteCode;
- 
+
   // ////////////////////////////////////////////////////////////////////////
   let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
-   let bought = EventTableResult.slice(0,1) //event bought
-   let listed = EventTableResult.slice(1,2) //event bought
+  let bought = EventTableResult.slice(0, 1); //event bought
+  let listed = EventTableResult.slice(1, 2); //event bought
 
-   $: {
+  $: {
     function checkupdate() {
       if ($updatedEventsData.length === 0) {
         return;
@@ -71,6 +74,107 @@
     }
   }
   let guestName; //to get the name the guest
+  let canvas;
+  let canvas2;
+  function mergeImages(baseImageSrc, overlayImageSrc, canvasId) {
+    const canvas = canvasId;
+    const ctx = canvas.getContext("2d");
+
+    // Get the container's dimensions
+    const container = canvas.parentElement;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    // Set the canvas dimensions to match the container
+    canvas.width = containerWidth;
+    canvas.height = containerHeight;
+
+    // Load the base image
+    const baseImage = new Image();
+    baseImage.src = baseImageSrc;
+
+    baseImage.onload = () => {
+      // Scale the base image to fit the canvas
+      const scaleFactor = Math.min(
+        canvas.width / baseImage.width,
+        canvas.height / baseImage.height
+      );
+      const scaledWidth = baseImage.width * scaleFactor;
+      const scaledHeight = baseImage.height * scaleFactor;
+      const x = (canvas.width - scaledWidth) / 2;
+      const y = (canvas.height - scaledHeight) / 2;
+
+      ctx.drawImage(baseImage, x, y, scaledWidth, scaledHeight);
+
+      // Load the overlay image
+      const overlayImage = new Image();
+      overlayImage.src = overlayImageSrc;
+
+      overlayImage.onload = () => {
+        // Calculate the position and size for the overlay image, considering the scaled base image
+        let A = canvas.width - scaledWidth;
+        let B = A / 2 + scaledWidth;
+        let C = B - 50;
+
+        let a = canvas.height - scaledHeight;
+        let b = a / 2 + scaledHeight;
+        let c = b - 50;
+        const overlayX = C - 10;
+        const overlayY = c - 10;
+        const overlayWidth = 50; // Adjust as needed based on the scaled image size
+        const overlayHeight = 50; // Adjust as needed based on the scaled image size
+
+        ctx.drawImage(
+          overlayImage,
+          overlayX,
+          overlayY,
+          overlayWidth,
+          overlayHeight
+        );
+      };
+    };
+//     html2canvas(canvas).then((canvas)=> {
+//   // canvas is the newly created canvas
+//   const dataURL = canvas.toDataURL('image/png');
+//   alert(dataURL)
+//   // You can now use the dataURL to create an image element or download it
+// });
+    eventImage = canvas.toDataURL('image/png')
+    // console.log(eventImage)
+  }
+
+  function mergeImageAndText(baseImageSrc, text, canvasId) {
+    const canvas = canvasId;
+    const ctx = canvas.getContext("2d");
+
+    // Load the base image
+    const baseImage = new Image();
+    baseImage.src = baseImageSrc;
+    canvas.width = 100;
+    canvas.height = 100;
+
+    return new Promise((resolve, reject) => {
+      baseImage.onload = () => {
+        // Draw the base image
+        ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
+
+        // Add the text
+        const uppercaseText = text.toUpperCase();
+        ctx.font = "9px Arial Bold"; // Adjust font size and style as needed
+        ctx.fillStyle = "black"; // Adjust text color as needed
+        ctx.fillText(uppercaseText, 2, 10); // Adjust text position as needed
+
+        // Create a data URL representing the image
+        const dataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
+
+        resolve(dataURL);
+      };
+
+      baseImage.onerror = (error) => {
+        reject(error);
+      };
+    });
+  }
 </script>
 
 <div class=" px-3 md:px-0">
@@ -146,7 +250,9 @@
                 <div slot="button" class="grid grid-cols-2 gap-x-3">
                   <button
                     class="w-full"
-                    on:click={() => {alert('Successfully Listed')}}
+                    on:click={() => {
+                      alert("Successfully Listed");
+                    }}
                   >
                     <ActionButton width="full" bgColor="yellow-500">
                       <span slot="text">Resell</span>
@@ -182,7 +288,7 @@
                   <button
                     class="w-full"
                     on:click={() => {
-                      alert('This will delist this ticket')
+                      alert("This will delist this ticket");
                     }}
                   >
                     <ActionButton width="full" bgColor="yellow-500">
@@ -221,6 +327,7 @@
       </Modal>
     </div>
   {/if}
+
   {#if share}
     <div transition:fade>
       <Modal
@@ -245,6 +352,8 @@
               class="md:h-[200px] rounded-lg"
               alt=""
             />
+            <canvas bind:this={canvas} class="hidden"></canvas>
+            <canvas bind:this={canvas2} class="hidden"></canvas>
           {/if}
 
           <!-- share details below -->
@@ -328,8 +437,20 @@
                     if (shareBy === "downloadQr") {
                       // share by qr code
                       inviteCode = guestName + "_" + generateRandomChars();
-                      eventImage = await generateQrImage(inviteCode);
-                      downloadImage(eventImage, `${guestName}_invitatiion`);
+                      let qr = await generateQrImage(inviteCode);
+                      // downloadImage(eventImage, `${guestName}_invitatiion`);
+
+                      mergeImageAndText(qr, guestName, canvas2)
+                        .then((dataURL) => {
+                          mergeImages(eventImage, dataURL, canvas);
+                        })
+                        .catch((error) => {
+                          console.error("Error merging image and text:", error);
+                        });
+
+                      
+
+                      alert("here");
                     } else if (shareBy === "passcode") {
                       // share by invite code
                       passCodeDiv = true;
