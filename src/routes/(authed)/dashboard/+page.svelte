@@ -21,7 +21,7 @@
   import Qrscanner from "$lib/components/Qrscanner.svelte";
   import { Tabs, TabItem } from "flowbite-svelte";
   import { base } from "$app/paths";
-  import html2canvas from 'html2canvas';
+  import html2canvas from "html2canvas";
 
   export let data;
   if (data.user_Id !== undefined) {
@@ -86,14 +86,14 @@
     const containerHeight = container.clientHeight;
 
     // Set the canvas dimensions to match the container
-    canvas.width = containerWidth;
-    canvas.height = containerHeight;
 
     // Load the base image
     const baseImage = new Image();
     baseImage.src = baseImageSrc;
 
     baseImage.onload = () => {
+      canvas.width = baseImage.width;
+      canvas.height = baseImage.height;
       // Scale the base image to fit the canvas
       const scaleFactor = Math.min(
         canvas.width / baseImage.width,
@@ -114,15 +114,15 @@
         // Calculate the position and size for the overlay image, considering the scaled base image
         let A = canvas.width - scaledWidth;
         let B = A / 2 + scaledWidth;
-        let C = B - 50;
+        let C = B - 270;
 
         let a = canvas.height - scaledHeight;
         let b = a / 2 + scaledHeight;
-        let c = b - 50;
+        let c = b - 270;
         const overlayX = C - 10;
         const overlayY = c - 10;
-        const overlayWidth = 50; // Adjust as needed based on the scaled image size
-        const overlayHeight = 50; // Adjust as needed based on the scaled image size
+        const overlayWidth = 270; // Adjust as needed based on the scaled image size
+        const overlayHeight = 270; // Adjust as needed based on the scaled image size
 
         ctx.drawImage(
           overlayImage,
@@ -133,13 +133,13 @@
         );
       };
     };
-//     html2canvas(canvas).then((canvas)=> {
-//   // canvas is the newly created canvas
-//   const dataURL = canvas.toDataURL('image/png');
-//   alert(dataURL)
-//   // You can now use the dataURL to create an image element or download it
-// });
-    eventImage = canvas.toDataURL('image/png')
+    //     html2canvas(canvas).then((canvas)=> {
+    //   // canvas is the newly created canvas
+    //   const dataURL = canvas.toDataURL('image/png');
+    //   alert(dataURL)
+    //   // You can now use the dataURL to create an image element or download it
+    // });
+    // eventImage = canvas.toDataURL('image/png')
     // console.log(eventImage)
   }
 
@@ -150,8 +150,8 @@
     // Load the base image
     const baseImage = new Image();
     baseImage.src = baseImageSrc;
-    canvas.width = 100;
-    canvas.height = 100;
+    canvas.width = 271;
+    canvas.height = 271;
 
     return new Promise((resolve, reject) => {
       baseImage.onload = () => {
@@ -160,9 +160,9 @@
 
         // Add the text
         const uppercaseText = text.toUpperCase();
-        ctx.font = "9px Arial Bold"; // Adjust font size and style as needed
+        ctx.font = "12px Tahoma Bolder"; // Adjust font size and style as needed
         ctx.fillStyle = "black"; // Adjust text color as needed
-        ctx.fillText(uppercaseText, 2, 10); // Adjust text position as needed
+        ctx.fillText(uppercaseText, 5, 15); // Adjust text position as needed
 
         // Create a data URL representing the image
         const dataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
@@ -346,13 +346,13 @@
           {#if passCodeDiv}
             <div>CODE: {inviteCode}</div>
           {:else}
-            <img
+            <!-- <img
               bind:this={qrCode}
               src={eventImage}
               class="md:h-[200px] rounded-lg"
               alt=""
-            />
-            <canvas bind:this={canvas} class="hidden"></canvas>
+            /> -->
+            <canvas bind:this={canvas}></canvas>
             <canvas bind:this={canvas2} class="hidden"></canvas>
           {/if}
 
@@ -448,7 +448,21 @@
                           console.error("Error merging image and text:", error);
                         });
 
-                      
+                      // html2canvas(canvas)
+                      //   .then((canvas) => {
+                      //     const dataURL = canvas.toDataURL("image/png"); // Adjust format as needed (e.g., 'image/jpeg')
+
+                      //     // Create a link element to trigger the download
+                      //     const link = document.createElement("a");
+                      //     link.href = dataURL;
+                      //     link.download = `${guestName}_invitatiion.png`; // Replace with desired filename
+                      //     document.body.appendChild(link);
+                      //     link.click();
+                      //     document.body.removeChild(link);
+                      //   })
+                      //   .catch((error) => {
+                      //     console.error("Error capturing element:", error);
+                      //   });
 
                       alert("here");
                     } else if (shareBy === "passcode") {
