@@ -175,6 +175,7 @@
       };
     });
   }
+  
 </script>
 
 <div class=" px-3 md:px-0">
@@ -448,21 +449,21 @@
                           console.error("Error merging image and text:", error);
                         });
 
-                      // html2canvas(canvas)
-                      //   .then((canvas) => {
-                      //     const dataURL = canvas.toDataURL("image/png"); // Adjust format as needed (e.g., 'image/jpeg')
+                      html2canvas(canvas)
+                        .then((canvas) => {
+                          const dataURL = canvas.toDataURL("image/png"); // Adjust format as needed (e.g., 'image/jpeg')
 
-                      //     // Create a link element to trigger the download
-                      //     const link = document.createElement("a");
-                      //     link.href = dataURL;
-                      //     link.download = `${guestName}_invitatiion.png`; // Replace with desired filename
-                      //     document.body.appendChild(link);
-                      //     link.click();
-                      //     document.body.removeChild(link);
-                      //   })
-                      //   .catch((error) => {
-                      //     console.error("Error capturing element:", error);
-                      //   });
+                          // Create a link element to trigger the download
+                          const link = document.createElement("a");
+                          link.href = dataURL;
+                          link.download = `${guestName}_invitatiion.png`; // Replace with desired filename
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        })
+                        .catch((error) => {
+                          console.error("Error capturing element:", error);
+                        });
 
                       alert("here");
                     } else if (shareBy === "passcode") {
