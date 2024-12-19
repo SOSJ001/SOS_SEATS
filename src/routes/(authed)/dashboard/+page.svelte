@@ -16,10 +16,17 @@
   import TopnavDash from "$lib/components/TopnavDash.svelte";
   import DashboardUtilities from "$lib/components/DashboardUtilities.svelte";
   import DashboardEvent from "$lib/components/DashboardEvent.svelte";
-  import { addEventFunction, insertIntoGuestTable } from "$lib/supabase.js";
+  import { insertIntoGuestTable } from "$lib/supabase.js";
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
   import { Tabs, TabItem } from "flowbite-svelte";
+<<<<<<< Updated upstream
+=======
+  import { base } from "$app/paths";
+  import html2canvas from "html2canvas";
+  import { uploadAndGetInviteDump } from "$lib/supabase.js";
+
+>>>>>>> Stashed changes
   export let data;
   if (data.user_Id !== undefined) {
     sessionFromDb.set(data.user_Id);
@@ -71,6 +78,115 @@
     }
   }
   let guestName; //to get the name the guest
+<<<<<<< Updated upstream
+=======
+  let canvas;
+  let canvas2;
+
+  function mergeImages(baseImageSrc, overlayImageSrc, canvasId) {
+    const canvas = canvasId;
+    const ctx = canvas.getContext("2d");
+
+    // Load the base image
+    const baseImage = new Image();
+    baseImage.src = baseImageSrc;
+
+    return new Promise((resolve, reject) => {
+      baseImage.onload = () => {
+        // Set canvas dimensions to match the base image
+        canvas.width = baseImage.width;
+        canvas.height = baseImage.height;
+
+        // Draw the base image
+        ctx.drawImage(baseImage, 0, 0);
+
+        // Load the overlay image
+        const overlayImage = new Image();
+        overlayImage.src = overlayImageSrc;
+
+        overlayImage.onload = () => {
+          // Calculate the position and size for the overlay image, considering the scaled base image
+          let A = canvas.width - baseImage.width;
+          let B = A / 2 + baseImage.width;
+          let C = B - 270;
+
+          let a = canvas.height - baseImage.height;
+          let b = a / 2 + baseImage.height;
+          let c = b - 270;
+          const overlayX = C - 10;
+          const overlayY = c - 10;
+          const overlayWidth = 270;
+          const overlayHeight = 270;
+
+          ctx.drawImage(
+            overlayImage,
+            overlayX,
+            overlayY,
+            overlayWidth,
+            overlayHeight
+          );
+
+          // Create a data URL representing the image
+          const dataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
+
+          resolve(dataURL);
+        };
+
+        overlayImage.onerror = (error) => {
+          reject(error);
+        };
+      };
+
+      baseImage.onerror = (error) => {
+        reject(error);
+      };
+    });
+  }
+
+  function mergeImageAndText(baseImageSrc, text, canvasId) {
+    const canvas = canvasId;
+    const ctx = canvas.getContext("2d");
+
+    // Load the base image
+    const baseImage = new Image();
+    baseImage.src = baseImageSrc;
+    canvas.width = 271;
+    canvas.height = 271;
+
+    return new Promise((resolve, reject) => {
+      baseImage.onload = () => {
+        // Draw the base image
+        ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
+
+        // Add the text
+        const uppercaseText = text.toUpperCase();
+        ctx.font = "12px Tahoma Bolder"; // Adjust font size and style as needed
+        ctx.fillStyle = "black"; // Adjust text color as needed
+        ctx.fillText(uppercaseText, 5, 15); // Adjust text position as needed
+
+        // Create a data URL representing the image
+        const dataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
+
+        // Create an Image element and set its src to the dataURL
+        const image = new Image();
+        image.src = dataURL;
+
+        // Wait for the image to load before returning
+        image.onload = () => {
+          resolve(image);
+        };
+
+        image.onerror = (error) => {
+          reject(error);
+        };
+      };
+
+      baseImage.onerror = (error) => {
+        reject(error);
+      };
+    });
+  }
+>>>>>>> Stashed changes
 </script>
 
 <div class=" px-3 md:px-0">
@@ -245,6 +361,11 @@
               class="md:h-[200px] rounded-lg"
               alt=""
             />
+<<<<<<< Updated upstream
+=======
+            <canvas bind:this={canvas} class="hidden"></canvas>
+            <canvas bind:this={canvas2} class="hidden"></canvas>
+>>>>>>> Stashed changes
           {/if}
 
           <!-- share details below -->
@@ -328,8 +449,37 @@
                     if (shareBy === "downloadQr") {
                       // share by qr code
                       inviteCode = guestName + "_" + generateRandomChars();
+<<<<<<< Updated upstream
                       eventImage = await generateQrImage(inviteCode);
                       downloadImage(eventImage, `${guestName}_invitatiion`);
+=======
+                      let qr = await generateQrImage(inviteCode);
+
+                      mergeImageAndText(qr, guestName, canvas2)
+                        .then(async (image) => {
+                          // eventImage = image;
+                          let inviteDump = await uploadAndGetInviteDump(
+                            image.src,
+                            inviteCode
+                          );
+                          console.log("1", inviteDump)
+                          console.log("2", eventImage)
+
+                          mergeImages(eventImage, inviteDump, canvas)
+                            .then((dataURL) => {
+                              // Use the dataURL to create an image element or download the image
+
+                              eventImage = dataURL;
+                              downloadImage(eventImage, `${guestName}_invitatiion`);
+                            })
+                            .catch((error) => {
+                              console.error("Error merging images:", error);
+                            });
+                        })
+                        .catch((error) => {
+                          console.error("Error merging image and text:", error);
+                        });
+>>>>>>> Stashed changes
                     } else if (shareBy === "passcode") {
                       // share by invite code
                       passCodeDiv = true;

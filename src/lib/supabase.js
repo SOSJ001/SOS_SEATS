@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { sessionFromDb } from "$lib/store";
 import { generateUniqueFilename } from "$lib/store.js";
+import { decode } from "base64-arraybuffer";
 export const supabase = createClient(
   "https://qwoklzpfoblqmnategny.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2tsenBmb2JscW1uYXRlZ255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTIzMDYxMDksImV4cCI6MjAwNzg4MjEwOX0.BktZ0VzqqY5Wn8wjXfgIKBMdNauNx5-ZChMOnw9vbcs"
@@ -64,9 +65,7 @@ export async function loadEventToTable(user_id) {
   return eventWithImages;
 }
 
-
-
-// load event to marketplace table 
+// load event to marketplace table
 export async function loadEventToMarketplaceTable(sth) {
   let { data: events, error } = await supabase
     .from("event")
@@ -105,12 +104,11 @@ export async function updateEventToTable(user_id, event_Id) {
     return [];
   }
 
-
   const Images = await SelectImagePath(events[0].imageId);
   return {
     Event: events[0],
     // @ts-ignore
-    Image: Images
+    Image: Images,
   };
 }
 
@@ -194,6 +192,41 @@ async function uploadEventImage(image, userId1) {
   }
 }
 
+// upload Dump image function
+// @ts-ignore
+export async function uploadAndGetInviteDump(image, filename) {
+  let dataURL = image;
+  const base64Data = dataURL.split(",")[1];
+
+  // Extract image details (assuming the image is a Blob or File object)
+
+
+  let dumpName = `dump/${filename}.png`; // Adjust extension if needed
+
+  try {
+    // Upload the image to Supabase storage
+    const { data, error } = await supabase.storage
+      .from("event_image")
+      .upload(dumpName, decode(base64Data), {
+        contentType: "image/png",
+      });
+
+    if (error) {
+      console.error("Error uploading image:", error);
+      throw error; // Rethrow for further handling if needed
+    } else {
+      // console.log("Image uploaded successfully:", data);
+
+      // Get the public URL for the uploaded image (assuming GetImageUrl is implemented correctly)
+      const dumpUrl = GetImageUrl(dumpName);
+      return dumpUrl;
+    }
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    // Handle other potential errors
+  }
+}
+
 // insert event function below
 // @ts-ignore
 export async function addEventFunction(
@@ -225,7 +258,16 @@ export async function addEventFunction(
 }
 
 // insert into guest table
+<<<<<<< Updated upstream
 export async function insertIntoGuestTable(guestName, inviteCode, event_Id) {
+=======
+export async function insertIntoGuestTable(
+  guestName,
+  inviteCode,
+  event_Id,
+  IsMale
+) {
+>>>>>>> Stashed changes
   const response = await supabase
     .from("guest")
     .insert([
@@ -250,6 +292,14 @@ export async function removeGuest(guest_id) {
   return error;
 }
 
+<<<<<<< Updated upstream
+=======
+export async function removeEvent(id) {
+  const { error } = await supabase.from("event").delete().eq("id", id);
+  return error;
+}
+
+>>>>>>> Stashed changes
 export async function placeSeatOrder(eventid, Area, maxSeat, ticketPrice) {
   const response = await supabase
     .from("seat")
