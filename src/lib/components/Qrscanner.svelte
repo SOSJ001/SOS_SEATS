@@ -19,13 +19,13 @@
           { facingMode: "environment" }, // Use facingMode for better compatibility
           {
             fps: 10, // Optional, frames per second for the scanner
-            qrbox: 250, // Optional, QR scanning box width
+            qrbox: 350, // Optional, QR scanning box width
             disableFlip: true // Important for iOS devices
           },
           (decodedText, decodedResult) => {
             // Handle the result
             console.log(`Decoded Text: ${decodedText}`);
-            scanResult = decodedText;
+            scanResult = decodedText; //scan result
             isScanning = false;
             qrCodeScanner.stop();
           },
