@@ -250,6 +250,14 @@ export async function loadGuestsRows(user_id) {
     .eq("user_id", user_id);
   return response;
 }
+//load Specific Event's guest rows
+export async function loadEventGuestsRows(event_id) {
+  let response = await supabase
+    .from("usereventandguest")
+    .select("*")
+    .eq("event_id", event_id);
+  return response;
+}
 
 //Scan guest invite
 export async function scanGuestInvite(inviteCode, event_Id) {

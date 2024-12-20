@@ -16,7 +16,11 @@
   import TopnavDash from "$lib/components/TopnavDash.svelte";
   import DashboardUtilities from "$lib/components/DashboardUtilities.svelte";
   import DashboardEvent from "$lib/components/DashboardEvent.svelte";
-  import { addEventFunction, insertIntoGuestTable } from "$lib/supabase.js";
+  import {
+    addEventFunction,
+    insertIntoGuestTable,
+    loadEventGuestsRows,
+  } from "$lib/supabase.js";
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
   import { Tabs, TabItem } from "flowbite-svelte";
@@ -63,6 +67,17 @@
   let emailField = false; //to show email field
   let passCodeDiv = false;
   let email;
+  let totalTicketShared;
+  let loadSharedTicket = () => {
+    loadEventGuestsRows(eventId).then((response)=>{
+      if(!response.error){
+        totalTicketShared = response.data.length
+      }else{
+        console.log(response.error)
+      }
+    })
+  };
+
   $: {
     // auto matic update of the variable to show the email field
     if (shareBy === "email") {
@@ -168,7 +183,7 @@
       };
     });
   }
-
+  // clear the canvas
   function clearCanvas(canvasId) {
     const canvas = canvasId;
     const ctx = canvas.getContext("2d");
@@ -227,7 +242,14 @@
                     </ActionButton>
                   </button>
 
-                  <button class="w-full" on:click={() => (details = true)}>
+                  <button
+                    class="w-full"
+                    on:click|stopPropagation={() => {
+                      eventId = row.Event.id;
+                      loadSharedTicket()
+                      details = true;
+                    }}
+                  >
                     <ActionButton width="full" bgColor="yellow-500">
                       <span slot="text">Details</span>
                     </ActionButton>
@@ -552,8 +574,8 @@
         <div
           class="pt-5 flex flex-col items-center md:justify-between text-white rounded-lg shadow-xl bg-gray-800"
         >
-          Details will be here <br />
-          Such as Total tickets Generated <br />
+          Total tickets = {totalTicketShared} <br />
+          Details will be here such as <br />
           total Male and Female <br />
           Event Date <br />
           Total Attended..and more
