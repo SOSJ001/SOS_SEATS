@@ -19,7 +19,7 @@
           { facingMode: "environment" }, // Use facingMode for better compatibility
           {
             fps: 10, // Optional, frames per second for the scanner
-            qrbox: 350, // Optional, QR scanning box width
+            qrbox: 250, // Optional, QR scanning box width
             disableFlip: true // Important for iOS devices
           },
           (decodedText, decodedResult) => {
