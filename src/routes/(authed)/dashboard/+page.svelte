@@ -167,6 +167,12 @@
       };
     });
   }
+
+  function clearCanvas(canvasId) {
+    const canvas = canvasId;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
 </script>
 
 <div class=" px-3 md:px-0">
@@ -344,7 +350,7 @@
               class="md:h-[200px] rounded-lg"
               alt=""
             />
-            <canvas bind:this={canvas}></canvas>
+            <canvas bind:this={canvas} class="hidden"></canvas>
             <canvas bind:this={canvas2} class="hidden"></canvas>
           {/if}
 
@@ -457,13 +463,15 @@
                       // share by qr code
                       inviteCode = guestName + "_" + generateRandomChars();
                       let qr = await generateQrImage(inviteCode);
-                      // downloadImage(eventImage, `${guestName}_invitatiion`);
+                      
                       mergeImageAndText(qr, guestName, canvas2)
                         .then((QrDataURL) => {
                           mergeImages(eventImage, QrDataURL, canvas)
                             .then((dataURL) => {
                               eventImage = dataURL;
                               downloadImage(eventImage, `${guestName}_invitatiion`);
+                              clearCanvas(canvas);
+                              clearCanvas(canvas2);
                             })
                             .catch((error) => {
                               console.error("Error merging images:", error);
@@ -488,7 +496,7 @@
                     );
                     if (response.error === null) {
                       guestName = ""; //reset guest name
-                      // alert("Invitation Successfully Generated");
+                      alert("Invitation Successfully Generated. Download should start automatically.");
                       invalidateAll();
                     } else {
                       alert("Error Creating Invitation");
