@@ -6,7 +6,7 @@
   import { downloadImage, generateRandomChars } from "$lib/store.js";
   import { generateQrImage } from "$lib/store";
   import ActionButton from "$lib/components/ActionButton.svelte";
-  import { Card, Button } from "flowbite-svelte";
+  import { Card, Button, Alert } from "flowbite-svelte";
   import nothing from "$lib/assets/nothing.png";
   import addEventPic from "$lib/assets/addEvent.png";
   import hi from "$lib/assets/hi.png";
@@ -16,30 +16,26 @@
   import TopnavDash from "$lib/components/TopnavDash.svelte";
   import DashboardUtilities from "$lib/components/DashboardUtilities.svelte";
   import DashboardEvent from "$lib/components/DashboardEvent.svelte";
-  import { insertIntoGuestTable } from "$lib/supabase.js";
+  import { addEventFunction, insertIntoGuestTable } from "$lib/supabase.js";
   import Waiting from "$lib/components/Waiting.svelte";
   import Qrscanner from "$lib/components/Qrscanner.svelte";
   import { Tabs, TabItem } from "flowbite-svelte";
-<<<<<<< Updated upstream
-=======
   import { base } from "$app/paths";
   import html2canvas from "html2canvas";
-  import { uploadAndGetInviteDump } from "$lib/supabase.js";
 
->>>>>>> Stashed changes
   export let data;
   if (data.user_Id !== undefined) {
     sessionFromDb.set(data.user_Id);
   }
   let qrCode;
   let inviteCode;
- 
+
   // ////////////////////////////////////////////////////////////////////////
   let EventTableResult = data.EventTableResult; //getting the event table result from the page.server.js load function
-   let bought = EventTableResult.slice(0,1) //event bought
-   let listed = EventTableResult.slice(1,2) //event bought
+  let bought = EventTableResult.slice(0, 1); //event bought
+  let listed = EventTableResult.slice(1, 2); //event bought
 
-   $: {
+  $: {
     function checkupdate() {
       if ($updatedEventsData.length === 0) {
         return;
@@ -62,6 +58,7 @@
   let share = false; //for share modal
   let scan = false; //for scan modal
   let shareBy; //radio button
+  let gender;
   let emailField = false; //to show email field
   let passCodeDiv = false;
   let email;
@@ -78,38 +75,38 @@
     }
   }
   let guestName; //to get the name the guest
-<<<<<<< Updated upstream
-=======
   let canvas;
   let canvas2;
-
-  function mergeImages(baseImageSrc, overlayImageSrc, canvasId) {
+  async function mergeImages(baseImageSrc, overlayImageSrc, canvasId) {
     const canvas = canvasId;
     const ctx = canvas.getContext("2d");
-
     // Load the base image
+    const response = await fetch("/dataUrlApi", {
+      method: "POST",
+      body: JSON.stringify({ baseImageSrc }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const { dataURL } = await response.json();
+    // console.log(dataURL,"hi")
     const baseImage = new Image();
-    baseImage.src = baseImageSrc;
-
+    baseImage.src = dataURL;
     return new Promise((resolve, reject) => {
       baseImage.onload = () => {
         // Set canvas dimensions to match the base image
         canvas.width = baseImage.width;
         canvas.height = baseImage.height;
-
         // Draw the base image
         ctx.drawImage(baseImage, 0, 0);
-
         // Load the overlay image
         const overlayImage = new Image();
         overlayImage.src = overlayImageSrc;
-
         overlayImage.onload = () => {
           // Calculate the position and size for the overlay image, considering the scaled base image
           let A = canvas.width - baseImage.width;
           let B = A / 2 + baseImage.width;
           let C = B - 270;
-
           let a = canvas.height - baseImage.height;
           let b = a / 2 + baseImage.height;
           let c = b - 270;
@@ -117,7 +114,6 @@
           const overlayY = c - 10;
           const overlayWidth = 270;
           const overlayHeight = 270;
-
           ctx.drawImage(
             overlayImage,
             overlayX,
@@ -125,18 +121,14 @@
             overlayWidth,
             overlayHeight
           );
-
           // Create a data URL representing the image
           const dataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
-
           resolve(dataURL);
         };
-
         overlayImage.onerror = (error) => {
           reject(error);
         };
       };
-
       baseImage.onerror = (error) => {
         reject(error);
       };
@@ -165,20 +157,9 @@
         ctx.fillText(uppercaseText, 5, 15); // Adjust text position as needed
 
         // Create a data URL representing the image
-        const dataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
-
-        // Create an Image element and set its src to the dataURL
-        const image = new Image();
-        image.src = dataURL;
-
-        // Wait for the image to load before returning
-        image.onload = () => {
-          resolve(image);
-        };
-
-        image.onerror = (error) => {
-          reject(error);
-        };
+        const QrDataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
+        // console.log("1", dataURL)
+        resolve(QrDataURL);
       };
 
       baseImage.onerror = (error) => {
@@ -186,7 +167,6 @@
       };
     });
   }
->>>>>>> Stashed changes
 </script>
 
 <div class=" px-3 md:px-0">
@@ -262,7 +242,9 @@
                 <div slot="button" class="grid grid-cols-2 gap-x-3">
                   <button
                     class="w-full"
-                    on:click={() => {alert('Successfully Listed')}}
+                    on:click={() => {
+                      alert("Successfully Listed");
+                    }}
                   >
                     <ActionButton width="full" bgColor="yellow-500">
                       <span slot="text">Resell</span>
@@ -298,7 +280,7 @@
                   <button
                     class="w-full"
                     on:click={() => {
-                      alert('This will delist this ticket')
+                      alert("This will delist this ticket");
                     }}
                   >
                     <ActionButton width="full" bgColor="yellow-500">
@@ -337,6 +319,7 @@
       </Modal>
     </div>
   {/if}
+
   {#if share}
     <div transition:fade>
       <Modal
@@ -361,11 +344,8 @@
               class="md:h-[200px] rounded-lg"
               alt=""
             />
-<<<<<<< Updated upstream
-=======
-            <canvas bind:this={canvas} class="hidden"></canvas>
+            <canvas bind:this={canvas}></canvas>
             <canvas bind:this={canvas2} class="hidden"></canvas>
->>>>>>> Stashed changes
           {/if}
 
           <!-- share details below -->
@@ -385,6 +365,33 @@
                   placeholder="Guest Name"
                   required
                 />
+
+                <!-- gender below -->
+                <div class="flex justify-between items-center gap-10">
+                  <span class="text-md font-bold">Select Gender </span>
+                  <div class="flex justify-between items-start gap-10">
+                    <!-- email -->
+                    <span class="flex flex-col justify-center items-center">
+                      <label for="mail">Male</label>
+                      <input
+                        value={true}
+                        bind:group={gender}
+                        id="mail"
+                        type="radio"
+                      />
+                    </span>
+                    <span class="flex flex-col justify-center items-center">
+                      <label for="mail">Female</label>
+                      <input
+                        value={false}
+                        bind:group={gender}
+                        id="mail"
+                        type="radio"
+                      />
+                    </span>
+                  </div>
+                </div>
+
                 <span class="text-md font-bold"
                   >How do you want to share :
                 </span>
@@ -449,26 +456,12 @@
                     if (shareBy === "downloadQr") {
                       // share by qr code
                       inviteCode = guestName + "_" + generateRandomChars();
-<<<<<<< Updated upstream
-                      eventImage = await generateQrImage(inviteCode);
-                      downloadImage(eventImage, `${guestName}_invitatiion`);
-=======
                       let qr = await generateQrImage(inviteCode);
-
+                      // downloadImage(eventImage, `${guestName}_invitatiion`);
                       mergeImageAndText(qr, guestName, canvas2)
-                        .then(async (image) => {
-                          // eventImage = image;
-                          let inviteDump = await uploadAndGetInviteDump(
-                            image.src,
-                            inviteCode
-                          );
-                          console.log("1", inviteDump)
-                          console.log("2", eventImage)
-
-                          mergeImages(eventImage, inviteDump, canvas)
+                        .then((QrDataURL) => {
+                          mergeImages(eventImage, QrDataURL, canvas)
                             .then((dataURL) => {
-                              // Use the dataURL to create an image element or download the image
-
                               eventImage = dataURL;
                               downloadImage(eventImage, `${guestName}_invitatiion`);
                             })
@@ -479,7 +472,6 @@
                         .catch((error) => {
                           console.error("Error merging image and text:", error);
                         });
->>>>>>> Stashed changes
                     } else if (shareBy === "passcode") {
                       // share by invite code
                       passCodeDiv = true;
@@ -491,11 +483,12 @@
                     const response = await insertIntoGuestTable(
                       guestName,
                       inviteCode,
-                      eventId
+                      eventId,
+                      gender
                     );
                     if (response.error === null) {
                       guestName = ""; //reset guest name
-                      alert("Invitation Successfully Generated");
+                      // alert("Invitation Successfully Generated");
                       invalidateAll();
                     } else {
                       alert("Error Creating Invitation");
