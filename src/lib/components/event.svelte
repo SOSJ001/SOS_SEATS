@@ -11,7 +11,8 @@
 >
   <!-- event image below -->
   <img
-    src= {image}
+    loading="lazy"
+    src={image}
     class="md:h-[200px] max-h-[260px] md:max-h-full rounded-lg"
     alt=""
   />

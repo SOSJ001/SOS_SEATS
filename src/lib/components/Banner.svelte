@@ -1,5 +1,5 @@
 <script>
-  import { Button } from 'flowbite-svelte';
+  import { Button } from "flowbite-svelte";
   import explosion from "../assets/explosion.png";
   import { AnimatedHeadline } from "svelte-animated-headline";
 </script>
@@ -7,6 +7,7 @@
 <div class="h-screen w-screen bg-black">
   <div class="banner">
     <img
+      loading="lazy"
       class="h-screen max-w-full rounded-lg fallback-image"
       src={explosion}
       alt="banner"
@@ -22,7 +23,7 @@
         fade={3000}
       />
     </div>
-    <div class="text-white">YOUR TICKET <br> OR INVITATION FOR</div>
+    <div class="text-white">YOUR TICKET <br /> OR INVITATION FOR</div>
     <div class="text-yellow-300">
       <AnimatedHeadline
         texts={[
@@ -41,19 +42,23 @@
       />
     </div>
     <p id="small">
-      Safe, secure, reliable ticketing. Your <span
-        class="text-yellow-300"><AnimatedHeadline
+      Safe, secure, reliable ticketing. Your <span class="text-yellow-300"
+        ><AnimatedHeadline
           texts={["ticket", "invitation"]}
           y={-20}
           wait={0}
           slide={100}
           fade={2000}
         /></span
-      > <br>to live satisfying entertainment!
+      > <br />to live satisfying entertainment!
     </p>
     <div class="Button">
-    <Button size="xl" class="bg-white text-gray-800 hover:bg-yellow-400 hover:text-white hover:outline-none">Learn More</Button>
-  </div>
+      <Button
+        size="xl"
+        class="bg-white text-gray-800 hover:bg-yellow-400 hover:text-white hover:outline-none"
+        >Learn More</Button
+      >
+    </div>
   </div>
 </div>
 
@@ -94,10 +99,9 @@
     width: 80%;
     overflow: hidden;
     margin-top: 70px;
-    
   }
 
-  #content .Button{
+  #content .Button {
     font-size: 16px;
   }
   #small {

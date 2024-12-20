@@ -56,6 +56,7 @@
 
   // modals variable below
   let share = false; //for share modal
+  let details = false; //for share modal
   let scan = false; //for scan modal
   let shareBy; //radio button
   let gender;
@@ -213,15 +214,18 @@
                       <span slot="text">Share</span>
                     </ActionButton>
                   </button>
+
                   <button class="w-full" on:click={() => (scan = true)}>
                     <ActionButton width="full" bgColor="yellow-500">
                       <span slot="text">Scan</span>
                     </ActionButton>
                   </button>
 
-                  <ActionButton bgColor="yellow-500">
-                    <span slot="text">Details</span>
-                  </ActionButton>
+                  <button class="w-full" on:click={() => (details = true)}>
+                    <ActionButton width="full" bgColor="yellow-500">
+                      <span slot="text">Details</span>
+                    </ActionButton>
+                  </button>
                 </div>
               </Event>
             {/each}
@@ -345,6 +349,7 @@
             <div>CODE: {inviteCode}</div>
           {:else}
             <img
+              loading="lazy"
               bind:this={qrCode}
               src={eventImage}
               class="md:h-[200px] rounded-lg"
@@ -459,47 +464,59 @@
                 <button
                   class="w-full"
                   on:click={async () => {
-                    if (shareBy === "downloadQr") {
-                      // share by qr code
-                      inviteCode = guestName + "_" + generateRandomChars();
-                      let qr = await generateQrImage(inviteCode);
-                      
-                      mergeImageAndText(qr, guestName, canvas2)
-                        .then((QrDataURL) => {
-                          mergeImages(eventImage, QrDataURL, canvas)
-                            .then((dataURL) => {
-                              eventImage = dataURL;
-                              downloadImage(eventImage, `${guestName}_invitatiion`);
-                              clearCanvas(canvas);
-                              clearCanvas(canvas2);
-                            })
-                            .catch((error) => {
-                              console.error("Error merging images:", error);
-                            });
-                        })
-                        .catch((error) => {
-                          console.error("Error merging image and text:", error);
-                        });
-                    } else if (shareBy === "passcode") {
-                      // share by invite code
-                      passCodeDiv = true;
-                      inviteCode = guestName + "_" + generateRandomChars();
-                    } else if (shareBy === "email") {
-                      // share by email
-                      alert(`Email sent to : ${email}`);
-                    }
-                    const response = await insertIntoGuestTable(
-                      guestName,
-                      inviteCode,
-                      eventId,
-                      gender
-                    );
-                    if (response.error === null) {
-                      guestName = ""; //reset guest name
-                      alert("Invitation Successfully Generated. Download should start automatically.");
-                      invalidateAll();
+                    if (!guestName) {
+                      alert("Please Enter GuestName To Share");
                     } else {
-                      alert("Error Creating Invitation");
+                      if (shareBy === "downloadQr") {
+                        // share by qr code
+                        inviteCode = guestName + "_" + generateRandomChars();
+                        let qr = await generateQrImage(inviteCode);
+
+                        mergeImageAndText(qr, guestName, canvas2)
+                          .then((QrDataURL) => {
+                            mergeImages(eventImage, QrDataURL, canvas)
+                              .then((dataURL) => {
+                                eventImage = dataURL;
+                                downloadImage(
+                                  eventImage,
+                                  `${guestName}'s_invite`
+                                );
+                                clearCanvas(canvas);
+                                clearCanvas(canvas2);
+                              })
+                              .catch((error) => {
+                                console.error("Error merging images:", error);
+                              });
+                          })
+                          .catch((error) => {
+                            console.error(
+                              "Error merging image and text:",
+                              error
+                            );
+                          });
+                      } else if (shareBy === "passcode") {
+                        // share by invite code
+                        passCodeDiv = true;
+                        inviteCode = guestName + "_" + generateRandomChars();
+                      } else if (shareBy === "email") {
+                        // share by email
+                        alert(`Email sent to : ${email}`);
+                      }
+                      const response = await insertIntoGuestTable(
+                        guestName,
+                        inviteCode,
+                        eventId,
+                        gender
+                      );
+                      if (response.error === null) {
+                        guestName = ""; //reset guest name
+                        alert(
+                          "Invitation Successfully Generated. Download should start automatically."
+                        );
+                        invalidateAll();
+                      } else {
+                        alert("Error Creating Invitation");
+                      }
                     }
                   }}
                 >
@@ -510,6 +527,30 @@
               </div>
             </div>
           </div>
+        </div>
+      </Modal>
+    </div>
+  {/if}
+
+  {#if details}
+    <div transition:fade>
+      <Modal
+        bodyClass="p-2"
+        color="dark"
+        title="DETAILS"
+        bind:open={details}
+        size="sm"
+        autoclose={false}
+        class="bg-gray-700 text-white"
+      >
+        <div
+          class="pt-5 flex flex-col items-center md:justify-between text-white rounded-lg shadow-xl bg-gray-800"
+        >
+          Details will be here <br>
+          Such as Total tickets Generated <br>
+          total Male and Female <br>
+          Event Date <br>
+          Total Attended..and more
         </div>
       </Modal>
     </div>
