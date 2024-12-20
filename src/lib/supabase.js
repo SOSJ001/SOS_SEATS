@@ -64,9 +64,7 @@ export async function loadEventToTable(user_id) {
   return eventWithImages;
 }
 
-
-
-// load event to marketplace table 
+// load event to marketplace table
 export async function loadEventToMarketplaceTable(sth) {
   let { data: events, error } = await supabase
     .from("event")
@@ -105,12 +103,11 @@ export async function updateEventToTable(user_id, event_Id) {
     return [];
   }
 
-
   const Images = await SelectImagePath(events[0].imageId);
   return {
     Event: events[0],
     // @ts-ignore
-    Image: Images
+    Image: Images,
   };
 }
 
@@ -225,7 +222,12 @@ export async function addEventFunction(
 }
 
 // insert into guest table
-export async function insertIntoGuestTable(guestName, inviteCode, event_Id, IsMale) {
+export async function insertIntoGuestTable(
+  guestName,
+  inviteCode,
+  event_Id,
+  IsMale
+) {
   const response = await supabase
     .from("guest")
     .insert([
@@ -249,6 +251,33 @@ export async function loadGuestsRows(user_id) {
   return response;
 }
 
+//Scan guest invite
+export async function scanGuestInvite(inviteCode, event_Id) {
+  let response = await supabase
+    .from("guest")
+    .select("*")
+    .eq("inviteCode", inviteCode)
+    .eq("event_Id", event_Id);
+  return response;
+}
+
+//Update guest invite
+export async function updateGuestInvite(guestId) {
+  let response = await supabase
+    .from("guest")
+    .update({ verifiedTime: new Date(Date.now()), verified: true })
+    .eq("id", guestId)
+    .select();
+
+  if (!response.error) {
+    response;
+    return response;
+  } else {
+    // update time error
+    console.log(response.error.message);
+  }
+}
+
 //Delete guests
 export async function removeGuest(guest_id) {
   const { error } = await supabase.from("guest").delete().eq("id", guest_id);
@@ -256,7 +285,7 @@ export async function removeGuest(guest_id) {
 }
 
 export async function removeEvent(id) {
-const { error } = await supabase.from("event").delete().eq("id", id);
+  const { error } = await supabase.from("event").delete().eq("id", id);
   return error;
 }
 

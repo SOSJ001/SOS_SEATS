@@ -215,7 +215,13 @@
                     </ActionButton>
                   </button>
 
-                  <button class="w-full" on:click={() => (scan = true)}>
+                  <button
+                    class="w-full"
+                    on:click|stopPropagation={() => {
+                      eventId = row.Event.id;
+                      scan = true;
+                    }}
+                  >
                     <ActionButton width="full" bgColor="yellow-500">
                       <span slot="text">Scan</span>
                     </ActionButton>
@@ -325,7 +331,7 @@
         <h1>
           <!-- hi there <br /> (this is the scan modal) <br /> maintenance !! -->
         </h1>
-        <Qrscanner />
+        <Qrscanner event_Id={eventId} />
       </Modal>
     </div>
   {/if}
@@ -546,10 +552,10 @@
         <div
           class="pt-5 flex flex-col items-center md:justify-between text-white rounded-lg shadow-xl bg-gray-800"
         >
-          Details will be here <br>
-          Such as Total tickets Generated <br>
-          total Male and Female <br>
-          Event Date <br>
+          Details will be here <br />
+          Such as Total tickets Generated <br />
+          total Male and Female <br />
+          Event Date <br />
           Total Attended..and more
         </div>
       </Modal>
