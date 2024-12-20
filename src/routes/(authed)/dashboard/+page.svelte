@@ -77,71 +77,62 @@
   let guestName; //to get the name the guest
   let canvas;
   let canvas2;
-  function mergeImages(baseImageSrc, overlayImageSrc, canvasId) {
+  async function mergeImages(baseImageSrc, overlayImageSrc, canvasId) {
     const canvas = canvasId;
     const ctx = canvas.getContext("2d");
-
-    // Get the container's dimensions
-    const container = canvas.parentElement;
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
-
-    // Set the canvas dimensions to match the container
-
     // Load the base image
+    const response = await fetch("/dataUrlApi", {
+      method: "POST",
+      body: JSON.stringify({ baseImageSrc }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const { dataURL } = await response.json();
+    // console.log(dataURL,"hi")
     const baseImage = new Image();
-    baseImage.src = baseImageSrc;
-
-    baseImage.onload = () => {
-      canvas.width = baseImage.width;
-      canvas.height = baseImage.height;
-      // Scale the base image to fit the canvas
-      const scaleFactor = Math.min(
-        canvas.width / baseImage.width,
-        canvas.height / baseImage.height
-      );
-      const scaledWidth = baseImage.width * scaleFactor;
-      const scaledHeight = baseImage.height * scaleFactor;
-      const x = (canvas.width - scaledWidth) / 2;
-      const y = (canvas.height - scaledHeight) / 2;
-
-      ctx.drawImage(baseImage, x, y, scaledWidth, scaledHeight);
-
-      // Load the overlay image
-      const overlayImage = new Image();
-      overlayImage.src = overlayImageSrc;
-
-      overlayImage.onload = () => {
-        // Calculate the position and size for the overlay image, considering the scaled base image
-        let A = canvas.width - scaledWidth;
-        let B = A / 2 + scaledWidth;
-        let C = B - 270;
-
-        let a = canvas.height - scaledHeight;
-        let b = a / 2 + scaledHeight;
-        let c = b - 270;
-        const overlayX = C - 10;
-        const overlayY = c - 10;
-        const overlayWidth = 270; // Adjust as needed based on the scaled image size
-        const overlayHeight = 270; // Adjust as needed based on the scaled image size
-
-        ctx.drawImage(
-          overlayImage,
-          overlayX,
-          overlayY,
-          overlayWidth,
-          overlayHeight
-        );
+    baseImage.src = dataURL;
+    return new Promise((resolve, reject) => {
+      baseImage.onload = () => {
+        // Set canvas dimensions to match the base image
+        canvas.width = baseImage.width;
+        canvas.height = baseImage.height;
+        // Draw the base image
+        ctx.drawImage(baseImage, 0, 0);
+        // Load the overlay image
+        const overlayImage = new Image();
+        overlayImage.src = overlayImageSrc;
+        overlayImage.onload = () => {
+          // Calculate the position and size for the overlay image, considering the scaled base image
+          let A = canvas.width - baseImage.width;
+          let B = A / 2 + baseImage.width;
+          let C = B - 270;
+          let a = canvas.height - baseImage.height;
+          let b = a / 2 + baseImage.height;
+          let c = b - 270;
+          const overlayX = C - 10;
+          const overlayY = c - 10;
+          const overlayWidth = 270;
+          const overlayHeight = 270;
+          ctx.drawImage(
+            overlayImage,
+            overlayX,
+            overlayY,
+            overlayWidth,
+            overlayHeight
+          );
+          // Create a data URL representing the image
+          const dataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
+          resolve(dataURL);
+        };
+        overlayImage.onerror = (error) => {
+          reject(error);
+        };
       };
-    };
-    //     html2canvas(canvas).then((canvas)=> {
-    //   // canvas is the newly created canvas
-    //   const dataURL = canvas.toDataURL('image/png');
-    //   alert(dataURL)
-    //   // You can now use the dataURL to create an image element or download it
-    // });
-    // eventImage = canvas.toDataURL('image/png')
-    // console.log(eventImage)
+      baseImage.onerror = (error) => {
+        reject(error);
+      };
+    });
   }
 
   function mergeImageAndText(baseImageSrc, text, canvasId) {
@@ -166,9 +157,9 @@
         ctx.fillText(uppercaseText, 5, 15); // Adjust text position as needed
 
         // Create a data URL representing the image
-        const dataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
-
-        resolve(dataURL);
+        const QrDataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
+        // console.log("1", dataURL)
+        resolve(QrDataURL);
       };
 
       baseImage.onerror = (error) => {
@@ -347,12 +338,12 @@
           {#if passCodeDiv}
             <div>CODE: {inviteCode}</div>
           {:else}
-            <!-- <img
+            <img
               bind:this={qrCode}
               src={eventImage}
               class="md:h-[200px] rounded-lg"
               alt=""
-            /> -->
+            />
             <canvas bind:this={canvas}></canvas>
             <canvas bind:this={canvas2} class="hidden"></canvas>
           {/if}
@@ -467,32 +458,20 @@
                       inviteCode = guestName + "_" + generateRandomChars();
                       let qr = await generateQrImage(inviteCode);
                       // downloadImage(eventImage, `${guestName}_invitatiion`);
-
                       mergeImageAndText(qr, guestName, canvas2)
-                        .then((dataURL) => {
-                          mergeImages(eventImage, dataURL, canvas);
+                        .then((QrDataURL) => {
+                          mergeImages(eventImage, QrDataURL, canvas)
+                            .then((dataURL) => {
+                              eventImage = dataURL;
+                              downloadImage(eventImage, `${guestName}_invitatiion`);
+                            })
+                            .catch((error) => {
+                              console.error("Error merging images:", error);
+                            });
                         })
                         .catch((error) => {
                           console.error("Error merging image and text:", error);
                         });
-
-                      // html2canvas(canvas)
-                      //   .then((canvas) => {
-                      //     const dataURL = canvas.toDataURL("image/png"); // Adjust format as needed (e.g., 'image/jpeg')
-
-                      //     // Create a link element to trigger the download
-                      //     const link = document.createElement("a");
-                      //     link.href = dataURL;
-                      //     link.download = `${guestName}_invitatiion.png`; // Replace with desired filename
-                      //     document.body.appendChild(link);
-                      //     link.click();
-                      //     document.body.removeChild(link);
-                      //   })
-                      //   .catch((error) => {
-                      //     console.error("Error capturing element:", error);
-                      //   });
-
-                      alert("here");
                     } else if (shareBy === "passcode") {
                       // share by invite code
                       passCodeDiv = true;
@@ -509,7 +488,7 @@
                     );
                     if (response.error === null) {
                       guestName = ""; //reset guest name
-                      alert("Invitation Successfully Generated");
+                      // alert("Invitation Successfully Generated");
                       invalidateAll();
                     } else {
                       alert("Error Creating Invitation");
