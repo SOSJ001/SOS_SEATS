@@ -75,6 +75,16 @@ export async function generateQrImage(data) {
     return qrImage
 }
 
+//get the domain of my site
+export function getDomain() {
+  try {
+    return new URL(window.location.href).hostname;
+  } catch (error) {
+    console.error("Error getting domain:", error);
+    return null; // Or handle the error as needed
+  }
+}
+
 //function to download image
 export function downloadImage(url, filename) {
   const link = document.createElement("a");
