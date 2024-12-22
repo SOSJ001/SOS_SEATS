@@ -1,6 +1,6 @@
 <script>
   // @ts-nocheck
-  import { sessionFromDb, updatedEventsData } from "$lib/store.js";
+  import { getDomain, sessionFromDb, updatedEventsData } from "$lib/store.js";
   import { invalidateAll } from "$app/navigation";
   import Event from "$lib/components/event.svelte";
   import { downloadImage, generateRandomChars } from "$lib/store.js";
@@ -69,13 +69,13 @@
   let email;
   let totalTicketShared;
   let loadSharedTicket = () => {
-    loadEventGuestsRows(eventId).then((response)=>{
-      if(!response.error){
-        totalTicketShared = response.data.length
-      }else{
-        console.log(response.error)
+    loadEventGuestsRows(eventId).then((response) => {
+      if (!response.error) {
+        totalTicketShared = response.data.length;
+      } else {
+        console.log(response.error);
       }
-    })
+    });
   };
 
   $: {
@@ -86,14 +86,19 @@
       emailField = false;
     }
     if (shareBy === "downloadQr") {
-      guestName = "";
+      // guestName = "";
       passCodeDiv = false;
     }
   }
   let guestName; //to get the name the guest
   let canvas;
   let canvas2;
-  async function mergeImages(baseImageSrc, overlayImageSrc, canvasId) {
+  async function mergeImages(
+    baseImageSrc,
+    overlayImageSrc,
+    canvasId,
+    NameOfGuest
+  ) {
     const canvas = canvasId;
     const ctx = canvas.getContext("2d");
     // Load the base image
@@ -139,7 +144,10 @@
           );
           // Create a data URL representing the image
           const dataURL = canvas.toDataURL("image/png"); // Adjust the format as needed
-          resolve(dataURL);
+          resolve({
+            dataURL: dataURL,
+            filename: `${NameOfGuest}'s invite`,
+          });
         };
         overlayImage.onerror = (error) => {
           reject(error);
@@ -151,7 +159,7 @@
     });
   }
 
-  function mergeImageAndText(baseImageSrc, text, canvasId) {
+  async function mergeImageAndText(baseImageSrc, text, canvasId) {
     const canvas = canvasId;
     const ctx = canvas.getContext("2d");
 
@@ -246,7 +254,7 @@
                     class="w-full"
                     on:click|stopPropagation={() => {
                       eventId = row.Event.id;
-                      loadSharedTicket()
+                      loadSharedTicket();
                       details = true;
                     }}
                   >
@@ -492,23 +500,29 @@
                 <button
                   class="w-full"
                   on:click={async () => {
-                    if (!guestName) {
-                      alert("Please Enter GuestName To Share");
+                    if (!guestName || !shareBy || gender === undefined) {
+                      alert("Complete all details To Share");
+                      return;
                     } else {
                       if (shareBy === "downloadQr") {
                         // share by qr code
                         inviteCode = guestName + "_" + generateRandomChars();
+                        const currentDomain = getDomain();
+                        // alert(`${currentDomain}/event?invite=${inviteCode}`)
                         let qr = await generateQrImage(inviteCode);
-
                         mergeImageAndText(qr, guestName, canvas2)
                           .then((QrDataURL) => {
-                            mergeImages(eventImage, QrDataURL, canvas)
-                              .then((dataURL) => {
+                            mergeImages(
+                              eventImage,
+                              QrDataURL,
+                              canvas,
+                              guestName
+                            )
+                              .then(({ dataURL, filename }) => {
                                 eventImage = dataURL;
-                                downloadImage(
-                                  eventImage,
-                                  `${guestName}'s_invite`
-                                );
+                                // download the image below
+                                downloadImage(eventImage, filename);
+
                                 clearCanvas(canvas);
                                 clearCanvas(canvas2);
                               })
