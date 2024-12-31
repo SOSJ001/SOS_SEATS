@@ -660,7 +660,7 @@
                     <!-- Total Attended ends  -->
 
                     <!-- Total male and Total Female Attended -->
-                    <span>Total Male Attended</span>
+                    <span>Total Male</span>
                     <span
                       >{#await GetTotalGenderAttended(true,eventId,true)}
                         <Spinner />
@@ -668,7 +668,7 @@
                         {response.data.length} Male
                       {/await}</span
                     >
-                    <span>Total Female Attended</span>
+                    <span>Total Female</span>
                     <span
                       >{#await GetTotalGenderAttended(false,eventId,true)}
                         <Spinner />
