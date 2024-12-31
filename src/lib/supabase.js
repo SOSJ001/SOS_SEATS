@@ -259,6 +259,18 @@ export async function loadEventGuestsRows(event_id) {
   return response;
 }
 
+//get the total gender
+export async function GetGeder(IsMale, event_Id) {
+  let response = await supabase
+    .from("guest")
+    .select("*")
+    .eq("IsMale", IsMale)
+    .eq("event_Id", event_Id);
+
+  return response;
+}
+
+
 //Scan guest invite
 export async function scanGuestInvite(inviteCode, event_Id) {
   let response = await supabase

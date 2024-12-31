@@ -18,6 +18,7 @@
   import DashboardEvent from "$lib/components/DashboardEvent.svelte";
   import {
     addEventFunction,
+    GetGeder,
     insertIntoGuestTable,
     loadEventGuestsRows,
   } from "$lib/supabase.js";
@@ -26,6 +27,7 @@
   import { Tabs, TabItem } from "flowbite-svelte";
   import { base } from "$app/paths";
   import html2canvas from "html2canvas";
+  import Spinner from "$lib/components/Spinner.svelte";
 
   export let data;
   if (data.user_Id !== undefined) {
@@ -68,15 +70,15 @@
   let passCodeDiv = false;
   let email;
   let totalTicketShared;
-  let loadSharedTicket = () => {
-    loadEventGuestsRows(eventId).then((response) => {
-      if (!response.error) {
-        totalTicketShared = response.data.length;
-      } else {
-        console.log(response.error);
-      }
-    });
-  };
+  // let loadSharedTicket = () => {
+  //   loadEventGuestsRows(eventId).then((response) => {
+  //     if (!response.error) {
+  //       totalTicketShared = response.data.length;
+  //     } else {
+  //       console.log(response.error);
+  //     }
+  //   });
+  // };
 
   $: {
     // auto matic update of the variable to show the email field
@@ -254,7 +256,7 @@
                     class="w-full"
                     on:click|stopPropagation={() => {
                       eventId = row.Event.id;
-                      loadSharedTicket();
+                      // loadSharedTicket();
                       details = true;
                     }}
                   >
@@ -588,11 +590,85 @@
         <div
           class="pt-5 flex flex-col items-center md:justify-between text-white rounded-lg shadow-xl bg-gray-800"
         >
-          Total tickets = {totalTicketShared} <br />
-          Details will be here such as <br />
-          total Male and Female <br />
-          Event Date <br />
-          Total Attended..and more
+          <Tabs
+            activeClasses="bg-none p-4 text-yellow-300"
+            contentClass="bg-transparent w-full"
+          >
+            <TabItem open title="Shared" class="">
+              <div class="flex flex-col pl-5 pr-5 pb-5 w-full">
+                <div class="bg-gray-700 rounded-lg p-5">
+                  <div
+                    class="text-center w-full text-xl uppercase border-b mb-5"
+                  >
+                    Shared Details
+                  </div>
+                  <div class="grid-cols-2 grid">
+                    <!-- Total Tickets here -->
+                    <span>Total Shared </span>
+                    <span class=""
+                      >{#await loadEventGuestsRows(eventId)}
+                        <Spinner />
+                      {:then response}
+                        {response.data.length} Shared
+                      {/await}
+                    </span>
+                    <!-- Total Tickets ends  -->
+
+                    <!-- Total male and Total Female -->
+                    <span>Total Male</span>
+                    <span
+                      >{#await GetGeder(true, eventId)}
+                        <Spinner />
+                      {:then response}
+                        {response.data.length} Male
+                      {/await}</span
+                    >
+                    <span>Total Female</span>
+                    <span
+                      >{#await GetGeder(false, eventId)}
+                        <Spinner />
+                      {:then response}
+                        {response.data.length} Female
+                      {/await}</span
+                    >
+                    <!-- Male and female ends here  -->
+
+                    <!-- <div>
+                      Details will be here such as<br />
+                      
+                      Event Date <br />
+                      Total Attended..and more
+                    </div> -->
+                  </div>
+                </div>
+              </div>
+            </TabItem>
+
+            <TabItem title="Attended" class="">
+              <div class="flex flex-col pl-5 pr-5 pb-5 w-full">
+                <div class="bg-gray-700 rounded-lg p-5">
+                  Attended Details Here
+                  <div class="flex flex-row justify-between gap-5">
+                    <span>Total tickets =</span>
+                    <span
+                      >{#await loadEventGuestsRows(eventId)}
+                        <Spinner />
+                      {:then response}
+                        {response.data.length}<br />
+                      {/await}
+                    </span>
+                  </div>
+
+                  <div>
+                    Details will be here such as<br />
+                    total Male and Female <br />
+                    Event Date <br />
+                    Total Attended..and more
+                  </div>
+                </div>
+              </div>
+            </TabItem>
+          </Tabs>
         </div>
       </Modal>
     </div>
