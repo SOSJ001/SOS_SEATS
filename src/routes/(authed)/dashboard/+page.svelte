@@ -18,7 +18,9 @@
   import DashboardEvent from "$lib/components/DashboardEvent.svelte";
   import {
     addEventFunction,
-    GetGeder,
+    GetGender,
+    GetTotalAttended,
+    GetTotalGenderAttended,
     insertIntoGuestTable,
     loadEventGuestsRows,
   } from "$lib/supabase.js";
@@ -617,7 +619,7 @@
                     <!-- Total male and Total Female -->
                     <span>Total Male</span>
                     <span
-                      >{#await GetGeder(true, eventId)}
+                      >{#await GetGender(true, eventId)}
                         <Spinner />
                       {:then response}
                         {response.data.length} Male
@@ -625,20 +627,13 @@
                     >
                     <span>Total Female</span>
                     <span
-                      >{#await GetGeder(false, eventId)}
+                      >{#await GetGender(false, eventId)}
                         <Spinner />
                       {:then response}
                         {response.data.length} Female
                       {/await}</span
                     >
                     <!-- Male and female ends here  -->
-
-                    <!-- <div>
-                      Details will be here such as<br />
-                      
-                      Event Date <br />
-                      Total Attended..and more
-                    </div> -->
                   </div>
                 </div>
               </div>
@@ -647,23 +642,41 @@
             <TabItem title="Attended" class="">
               <div class="flex flex-col pl-5 pr-5 pb-5 w-full">
                 <div class="bg-gray-700 rounded-lg p-5">
-                  Attended Details Here
-                  <div class="flex flex-row justify-between gap-5">
-                    <span>Total tickets =</span>
-                    <span
-                      >{#await loadEventGuestsRows(eventId)}
+                  <div
+                    class="text-center w-full text-xl uppercase border-b mb-5"
+                  >
+                    Attended Details
+                  </div>
+                  <div class="grid-cols-2 grid">
+                    <!-- Total Attended here -->
+                    <span>Total Attended </span>
+                    <span class=""
+                      >{#await GetTotalAttended(true, eventId)}
                         <Spinner />
                       {:then response}
-                        {response.data.length}<br />
+                        {response.data.length} Attended
                       {/await}
                     </span>
-                  </div>
+                    <!-- Total Attended ends  -->
 
-                  <div>
-                    Details will be here such as<br />
-                    total Male and Female <br />
-                    Event Date <br />
-                    Total Attended..and more
+                    <!-- Total male and Total Female Attended -->
+                    <span>Total Male Attended</span>
+                    <span
+                      >{#await GetTotalGenderAttended(true,eventId,true)}
+                        <Spinner />
+                      {:then response}
+                        {response.data.length} Male
+                      {/await}</span
+                    >
+                    <span>Total Female Attended</span>
+                    <span
+                      >{#await GetTotalGenderAttended(false,eventId,true)}
+                        <Spinner />
+                      {:then response}
+                        {response.data.length} Female
+                      {/await}</span
+                    >
+                    <!-- Male and female ends here  -->
                   </div>
                 </div>
               </div>
