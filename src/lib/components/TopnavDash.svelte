@@ -21,11 +21,10 @@
 </script>
 
 <Navbar
-  navClass="px-1 py-2.5 fixed w-screen z-20 top-0 left-0 border-b bg-gray-800"
+  class="px-3 py-2.5 fixed w-screen z-20 top-0 left-0 border-b bg-gray-800"
 >
   <NavBrand href="/">
     <img src={sosSeats} class="mr-2 h-10" alt="SOS SEAT Logo" />
-    <!-- <span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">Flowbite</span> -->
   </NavBrand>
   <div class="flex md:order-2 items-center">
     <svg
