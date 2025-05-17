@@ -26,6 +26,7 @@
   "type": "module",
   "dependencies": {
     "@solana/actions": "^1.6.4",
+    "@solana/codecs-core": "^2.0.0-preview.1",
     "@solana/web3.js": "^1.95.3",
     "@supabase/supabase-js": "^2.33.1",
     "animate.css": "^4.1.1",
