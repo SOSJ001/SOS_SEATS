@@ -1028,7 +1028,7 @@
             Jennifer E.K Kargbo
           </h3>
           <p class="text-gray-300 text-center">
-            Lead writer with over 6 years of experience in content creation, writing and literature
+            Lead writer with over 7 years of experience in content creation, writing and literature
           </p>
         </div>
 
@@ -1063,7 +1063,7 @@
             Michael S.O.S Johnson
           </h3>
           <p class="text-gray-300 text-center">
-            Lead Developer with over 4 years of experience in  web development/software development.
+            Lead Developer with over 5 years of experience in  web development/software development.
           </p>
         </div>
       </div>
