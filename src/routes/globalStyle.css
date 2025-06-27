@@ -1,51 +1,128 @@
-@import url("https://fonts.googleapis.com/css2?family=Alkatra:wght@600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Alkatra:wght@400;500;600;700&display=swap");
 
 :global(body) {
-    font-family: "Roboto", "Open Sans", "Helvetica", sans-serif;
+    font-family: "Inter", "Open Sans", "Helvetica", sans-serif;
 }
+
 .fontText {
     font-family: "Alkatra", cursive;
 }
+
 #hover1 div a :hover {
     color: rgb(255, 238, 2);
 }
 
-html body{
-    background-color: black;
+html body {
+    background-color: #0F0F0F;
     color: white;
 }
 
-/* scroll bar style */
+/* Enhanced scroll bar style */
 *::-webkit-scrollbar {
-    width: 4px;
-    background-color: #f5f5f5;
-  }
+    width: 6px;
+    background-color: #1A1A1A;
+}
 
-  *::-webkit-scrollbar-thumb {
-    background-color: #ffc107;
-  }
+*::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #FFC107 0%, #FF8F00 100%);
+    border-radius: 3px;
+}
 
-  *::-webkit-scrollbar-track {
-    -webkit-box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.3);
-    box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.3);
-    background-color: #F5F5F5;
-  }
-    /* scroll bar ends */
+*::-webkit-scrollbar-track {
+    background-color: #1A1A1A;
+    border-radius: 3px;
+}
 
+*::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #FFD54F 0%, #FFC107 100%);
+}
 
-    #text ul li a {
-      color: white;
-      /* background-color: white; */
-      border-radius: 2rem;
-      padding: 7px;
-      align-items: center;
-  }
+/* Navigation styles */
+#text ul li a {
+    color: white;
+    border-radius: 0.5rem;
+    padding: 8px 12px;
+    align-items: center;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
 
-  #text ul li a:hover {
-      color: #f59e0b;
-      /* background-color: white; */
-      /* border-width: 1px;
-      border-color: #f5de0b; */
-      /* border-radius: 2rem; */
-      /* padding: 5px; */
-  }
+#text ul li a:hover {
+    color: #FFC107;
+    background-color: rgba(255, 193, 7, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Smooth transitions for all interactive elements */
+button, a, input, select {
+    transition: all 0.3s ease;
+}
+
+/* Focus styles for accessibility */
+button:focus, a:focus, input:focus, select:focus {
+    outline: 2px solid #FFC107;
+    outline-offset: 2px;
+}
+
+/* Custom selection color */
+::selection {
+    background-color: #FFC107;
+    color: #0F0F0F;
+}
+
+/* Loading animation */
+@keyframes shimmer {
+    0% {
+        background-position: -200px 0;
+    }
+    100% {
+        background-position: calc(200px + 100%) 0;
+    }
+}
+
+.shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255, 193, 7, 0.2), transparent);
+    background-size: 200px 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* Glass morphism effect */
+.glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+    background: linear-gradient(135deg, #FFC107 0%, #00BCD4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Enhanced button hover effects */
+.btn-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(255, 193, 7, 0.3);
+}
+
+/* Responsive text scaling */
+@media (max-width: 640px) {
+    .responsive-text-xl {
+        font-size: 1.125rem;
+    }
+    .responsive-text-2xl {
+        font-size: 1.5rem;
+    }
+    .responsive-text-3xl {
+        font-size: 1.875rem;
+    }
+}
+
+/* Animation delays for staggered effects */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }

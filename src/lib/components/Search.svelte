@@ -1,131 +1,199 @@
 <script>
-    let date
+  let date;
+  let eventName = "";
+  let venue = "";
+  let city = "";
+  
+  const categories = [
+    { name: "Movies", icon: "🎬" },
+    { name: "Conferences", icon: "🎤" },
+    { name: "Sports", icon: "⚽" },
+    { name: "Concerts", icon: "🎵" },
+    { name: "More Events", icon: "✨" }
+  ];
+  
+  let selectedCategory = "";
+  
+  const handleSearch = () => {
+    console.log({
+      eventName,
+      venue,
+      city,
+      date: date?.value,
+      category: selectedCategory
+    });
+  };
 </script>
 
-<div id="search" class="relative -mt-14 ">
-    <div
-        id="content"
-        class="rounded mx-auto w-3/4 bg-gradient-to-br from-stone-900 via-gray-800 to-slate-700 p-8"
-    >
-        <form class="text-left">
-            <div class="grid grid-cols-1 md:grid-cols-2 items-center">
-                <div class="grid grid-cols-1 md:text-left text-center">
-                    <span class="text-yellow-400 font-extrabold text-2xl title"
-                        >WELCOME TO S.O.S SEATS</span
-                    >
-                    <span>WHAT ARE YOU LOOKING FOR</span>
-                </div>
-                <div class=" md:mt-0 mt-5">
-                    <div
-                        class="md:grid md:grid-cols-3 flex flex-row gap-8 md:gap-0 text-medium justify-center"
-                    >
-                        <span class="">
-                            <span class="pl-1">Movie</span>
-                        </span>
-                        <span class="">
-                            <span class="pl-1">Conferences</span>
-                        </span>
-                        <span class=" w-full">
-                            <span class="pl-1">+ More Events</span>
-                        </span>
-                    </div>
-            <hr class=" w-2/3 h-2 mx-auto my-3 bg-yellow-200 border-0 rounded">
-
-                </div>
-            </div>
-            <div class="grid gap-2 mb-6 grid-cols-1 md:grid-cols-4 text-white">
-                <div class=" md:col-span-1 ">
-                    <label
-                        for="first_name"
-                        class="block mb-2 text-sm font-medium text-white"
-                        >SEARCH NOW</label
-                    >
-                    <input
-                        type="text"
-                        id="first_name"
-                        class="bg-gray-50 border text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="Event Name"
-                        required
-                    />
-                </div>
-                <div class="md:col-span-3">
-                    <div class="grid gap-2 grid-cols-1 md:grid-cols-3">
-                        <div class="md:col-span-1">
-                            <label
-                                for="venue"
-                                class="block mb-2 text-sm font-medium">Venue</label
-                            >
-                            <select
-                                name="venue"
-                                id="venue"
-                                class="bg-gray-50 border border-gray-300 text-sm text-black rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                            >
-                                <option value="">Select Venue</option>
-                                <option value="venue1">Venue 1</option>
-                                <option value="venue2">Venue 2</option>
-                                <option value="venue3">Venue 3</option>
-                            </select>
-                        </div>
-                        <div class="md:col-span-2">
-                            <div class="grid gap-2 grid-cols-2">
-                                <div>
-                                    <label for="date" class="block mb-2 text-sm font-medium"
-                                        >Date</label
-                                    >
-                                    <input
-                                    bind:this={date}
-                                        type="date"
-                                        id="date"
-                                        class="bg-gray-700 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 text-black"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label for="city" class="block mb-2 text-sm font-medium"
-                                        >City</label
-                                    >
-                                    <select
-                                        name="city"
-                                        id="city"
-                                        class="bg-gray-50 border border-gray-300 text-sm text-black rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                                    >
-                                        <option value="">Select City</option>
-                                        <option value="venue1">City 1</option>
-                                        <option value="venue2">City 2</option>
-                                        <option value="venue3">City 3</option>
-                                    </select>
-                                </div>
+<div id="search" class="relative -mt-20 z-20 px-4">
+  <div class="max-w-6xl mx-auto">
+    <!-- Enhanced search container with glass effect -->
+    <div class="glass-effect p-8 shadow-2xl">
+      <!-- Header section -->
+      <div class="text-center mb-8">
+        <h2 class="font-display text-3xl md:text-4xl font-bold text-white mb-4">
+          Welcome to <span class="text-brand-yellow">S.O.S SEATS</span>
+        </h2>
+        <p class="text-gray-300 text-lg font-body">
+          What are you looking for today?
+        </p>
+      </div>
+      
+      <!-- Category tags -->
+      <div class="flex flex-wrap justify-center gap-3 mb-8">
+        {#each categories as category}
+          <button 
+            class="category-tag {selectedCategory === category.name ? 'bg-brand-yellow text-brand-dark' : ''}"
+            on:click={() => selectedCategory = selectedCategory === category.name ? '' : category.name}
+          >
+            <span class="mr-2">{category.icon}</span>
+            {category.name}
+          </button>
+        {/each}
+      </div>
+      
+      <!-- Divider -->
+      <div class="flex items-center justify-center mb-8">
+        <div class="flex-1 h-px bg-gradient-to-r from-transparent via-brand-yellow to-transparent"></div>
+        <div class="px-4 text-brand-yellow font-medium">Search Events</div>
+        <div class="flex-1 h-px bg-gradient-to-r from-transparent via-brand-yellow to-transparent"></div>
+      </div>
+      
+      <!-- Search form -->
+      <form on:submit|preventDefault={handleSearch} class="space-y-6">
+        <!-- Main search input -->
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          <input
+            type="text"
+            bind:value={eventName}
+            class="input-field w-full pl-12 text-lg"
+            placeholder="Search for events, artists, venues..."
+          />
+        </div>
         
-                            </div>
-                        </div>
-                        
-                    </div>
-                </div>
-                
+        <!-- Filter options -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Venue selector -->
+          <div class="space-y-2">
+            <label for="venue" class="block text-sm font-medium text-gray-300">
+              Venue
+            </label>
+            <div class="relative">
+              <select
+                id="venue"
+                bind:value={venue}
+                class="input-field w-full appearance-none pr-10"
+              >
+                <option value="">Select Venue</option>
+                <option value="venue1">Madison Square Garden</option>
+                <option value="venue2">Wembley Stadium</option>
+                <option value="venue3">Sydney Opera House</option>
+                <option value="venue4">Hollywood Bowl</option>
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
             </div>
-            <button
-            on:click|preventDefault|stopPropagation={()=>{ console.log(date.value)}}
-            id="button"
-                type="submit"
-                class="p-2 font-bold text-white bg-yellow-400 hover:bg-yellow-500 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg text-lg "
-                >Search</button
+          </div>
+          
+          <!-- Date picker -->
+          <div class="space-y-2">
+            <label for="date" class="block text-sm font-medium text-gray-300">
+              Date
+            </label>
+            <input
+              bind:this={date}
+              type="date"
+              id="date"
+              class="input-field w-full"
+            />
+          </div>
+          
+          <!-- City selector -->
+          <div class="space-y-2">
+            <label for="city" class="block text-sm font-medium text-gray-300">
+              City
+            </label>
+            <div class="relative">
+              <select
+                id="city"
+                bind:value={city}
+                class="input-field w-full appearance-none pr-10"
+              >
+                <option value="">Select City</option>
+                <option value="new-york">New York</option>
+                <option value="london">London</option>
+                <option value="sydney">Sydney</option>
+                <option value="los-angeles">Los Angeles</option>
+                <option value="tokyo">Tokyo</option>
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Search button -->
+        <div class="flex justify-center pt-4">
+          <button
+            type="submit"
+            class="btn-primary text-xl px-12 py-4 group"
+          >
+            <span class="flex items-center gap-3">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+              Search Events
+              <svg class="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+              </svg>
+            </span>
+          </button>
+        </div>
+      </form>
+      
+      <!-- Quick suggestions -->
+      <div class="mt-8 text-center">
+        <p class="text-gray-400 text-sm mb-3">Popular searches:</p>
+        <div class="flex flex-wrap justify-center gap-2">
+          {#each ["Concert tickets", "Sports events", "Theater shows", "Comedy nights"] as suggestion}
+            <button 
+              class="text-xs bg-brand-dark-tertiary hover:bg-brand-yellow hover:text-brand-dark text-gray-300 px-3 py-1 rounded-full transition-all duration-200"
+              on:click={() => eventName = suggestion}
             >
-        </form>
+              {suggestion}
+            </button>
+          {/each}
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 
 <style>
-    @import url("https://fonts.googleapis.com/css2?family=Alkatra:wght@600&display=swap");
-    .title {
-        font-family: "Alkatra", cursive;
-    }
-    @media (max-width: 662px) {
-        #content {
-            width: 100%;
-        }
-    }
-    #button{
-         justify-self: center;
-         width: 100%;
-    }
+  @import url("https://fonts.googleapis.com/css2?family=Alkatra:wght@400;500;600;700&display=swap");
+  
+  /* Custom scrollbar for select elements */
+  select::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  select::-webkit-scrollbar-track {
+    background: #2A2A2A;
+  }
+  
+  select::-webkit-scrollbar-thumb {
+    background: #FFC107;
+    border-radius: 4px;
+  }
 </style>
