@@ -10,6 +10,10 @@
     color: rgb(255, 238, 2);
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 html body{
     background-color: black;
     color: white;

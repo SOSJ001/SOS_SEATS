@@ -24,6 +24,7 @@
   import { onMount } from "svelte";
   import { setupSmoothScrolling } from "$lib/utils/smoothScroll.js";
   import ScrollAnimation from "$lib/components/ScrollAnimation.svelte";
+  import ScrollToTop from "$lib/components/ScrollToTop.svelte";
 
   export let data;
   // setting the cookie to the store value
@@ -627,4 +628,7 @@
     </div>
   {/if}
   <!-- // signup Modal Ends-->
+
+  <!-- Scroll to top button -->
+  <ScrollToTop />
 </div>
