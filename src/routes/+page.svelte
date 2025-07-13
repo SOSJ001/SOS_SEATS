@@ -21,12 +21,20 @@
   import PricingSection from "$lib/components/PricingSection.svelte";
   import FooterSection from "$lib/components/FooterSection.svelte";
   import TeamSection from "$lib/components/TeamSection.svelte";
+  import { onMount } from "svelte";
+  import { setupSmoothScrolling } from "$lib/utils/smoothScroll.js";
+  import ScrollAnimation from "$lib/components/ScrollAnimation.svelte";
 
   export let data;
   // setting the cookie to the store value
   if (data.cookievar1 !== undefined) {
     sessionFromDb.set(data.cookievar1);
   }
+
+  // Setup smooth scrolling on mount
+  onMount(() => {
+    setupSmoothScrolling();
+  });
 
   let errorMessage = null;
   let login = false;
@@ -141,35 +149,67 @@
     </svelte:fragment>
   </TopNav>
   <div class="pt-10">
-    <HeroSection />
-    <KeyFeaturesSection />
-    <HowItWorksSection />
-    <TestimonialsSection />
-    <TrustBadgesSection />
-    <PricingSection />
-    <TeamSection
-      members={[
-        {
-          name: "Jennifer E.K Kargbo",
-          role: "Lead writer with over 7 years of experience in content creation, writing and literature",
-          image: jenny,
-          alt: "Team Member 1",
-        },
-        {
-          name: "Amara D. James",
-          role: "Product Manager with a knack for user experience design and project management in tech startups.",
-          image: jnice,
-          alt: "Team Member 2",
-        },
-        {
-          name: "Michael S.O.S Johnson",
-          role: "Lead Developer with over 5 years of experience in web development/software development.",
-          image: michael,
-          alt: "Team Member 3",
-        },
-      ]}
-    />
-    <FooterSection />
+    <section id="home">
+      <ScrollAnimation>
+        <HeroSection />
+      </ScrollAnimation>
+    </section>
+    <section id="features">
+      <ScrollAnimation delay={200}>
+        <KeyFeaturesSection />
+      </ScrollAnimation>
+    </section>
+    <section id="how">
+      <ScrollAnimation delay={200}>
+        <HowItWorksSection />
+      </ScrollAnimation>
+    </section>
+    <section id="testimonials">
+      <ScrollAnimation delay={200}>
+        <TestimonialsSection />
+      </ScrollAnimation>
+    </section>
+    <section id="trust">
+      <ScrollAnimation delay={200}>
+        <TrustBadgesSection />
+      </ScrollAnimation>
+    </section>
+    <section id="pricing">
+      <ScrollAnimation delay={200}>
+        <PricingSection />
+      </ScrollAnimation>
+    </section>
+    <section id="team">
+      <ScrollAnimation delay={200}>
+        <TeamSection
+          members={[
+            {
+              name: "Jennifer E.K Kargbo",
+              role: "Lead writer with over 7 years of experience in content creation, writing and literature",
+              image: jenny,
+              alt: "Team Member 1",
+            },
+            {
+              name: "Amara D. James",
+              role: "Product Manager with a knack for user experience design and project management in tech startups.",
+              image: jnice,
+              alt: "Team Member 2",
+            },
+            {
+              name: "Michael S.O.S Johnson",
+              role: "Lead Developer with over 5 years of experience in web development/software development.",
+              image: michael,
+              alt: "Team Member 3",
+            },
+          ]}
+        />
+      </ScrollAnimation>
+    </section>
+    <section id="contact">
+      <ScrollAnimation delay={200}>
+        <FooterSection />
+      </ScrollAnimation>
+    </section>
   </div>
 
   <!-- // login modal -->

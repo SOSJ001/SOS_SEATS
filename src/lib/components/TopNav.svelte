@@ -36,14 +36,12 @@
       >
     </li>
     <li>
-      <a href="#marketplace" class="hover:text-cyan-300 transition-colors"
-        >Marketplace</a
-      >
-    </li>
-    <li>
       <a href="#pricing" class="hover:text-cyan-300 transition-colors"
         >Pricing</a
       >
+    </li>
+    <li>
+      <a href="#team" class="hover:text-cyan-300 transition-colors">Team</a>
     </li>
     <li>
       <a href="#contact" class="hover:text-cyan-300 transition-colors"

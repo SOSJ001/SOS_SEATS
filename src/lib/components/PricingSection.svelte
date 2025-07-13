@@ -2,7 +2,7 @@
   // No props for now; static content
 </script>
 
-<section class="py-8 bg-transparent">
+<section id="pricing" class="py-8 bg-transparent">
   <h2
     class="text-3xl md:text-4xl font-bold text-center mb-12 bg-gradient-to-r from-[#00F5FF] via-[#9D4EDD] to-[#FF6B6B] bg-clip-text text-transparent drop-shadow-lg"
   >
