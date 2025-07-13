@@ -1,21 +1,24 @@
 <script>
-  export let members = [
+  export let michael;
+  export let jnice;
+  export let jenny;
+  let members = [
     {
       name: "Jennifer E.K Kargbo",
       role: "Lead writer with over 7 years of experience in content creation, writing and literature",
-      image: "",
+      image: jenny,
       alt: "Team Member 1",
     },
     {
       name: "Amara D. James",
       role: "Product Manager with a knack for user experience design and project management in tech startups.",
-      image: "",
+      image: jnice,
       alt: "Team Member 2",
     },
     {
       name: "Michael S.O.S Johnson",
       role: "Lead Developer with over 5 years of experience in web development/software development.",
-      image: "",
+      image: michael,
       alt: "Team Member 3",
     },
   ];

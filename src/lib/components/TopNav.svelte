@@ -1,4 +1,5 @@
 <script>
+  export let signup = false;
   // No session or mobile logic needed for desktop-first
 </script>
 
@@ -26,35 +27,35 @@
       </a>
     </li>
     <li>
-      <a href="#features" class="hover:text-cyan-300 transition-colors"
+      <a href="/#features" class="hover:text-cyan-300 transition-colors"
         >Features</a
       >
     </li>
     <li>
-      <a href="#how" class="hover:text-cyan-300 transition-colors"
+      <a href="/#how-it-works" class="hover:text-cyan-300 transition-colors"
         >How it Works</a
       >
     </li>
     <li>
-      <a href="#pricing" class="hover:text-cyan-300 transition-colors"
+      <a href="/#pricing" class="hover:text-cyan-300 transition-colors"
         >Pricing</a
       >
     </li>
     <li>
-      <a href="#team" class="hover:text-cyan-300 transition-colors">Team</a>
+      <a href="/#team" class="hover:text-cyan-300 transition-colors">Team</a>
     </li>
     <li>
-      <a href="#contact" class="hover:text-cyan-300 transition-colors"
-        >Contact</a
+      <a href="/marketplace" class="hover:text-cyan-300 transition-colors"
+        >Marketplace</a
       >
     </li>
   </ul>
   <!-- Get Started Button -->
-  <a
-    href="#get-started"
-    class="ml-8 px-6 py-2 rounded-lg font-bold text-white bg-gradient-to-r from-cyan-400 to-purple-500 shadow-md hover:from-purple-500 hover:to-cyan-400 transition-all"
+  <button
+    on:click={() => (signup = true)}
+    class="ml-8 px-6 py-2 rounded-lg font-bold text-white bg-gradient-to-r from-cyan-400 to-purple-500 shadow-md hover:from-purple-500 hover:to-cyan-400 transition-all cursor-pointer"
     style="font-family: 'Roboto Slab', serif;"
   >
     Get Started
-  </a>
+  </button>
 </nav>
