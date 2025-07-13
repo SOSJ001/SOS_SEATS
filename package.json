@@ -25,11 +25,13 @@
   },
   "type": "module",
   "dependencies": {
+    "@fontsource/roboto-slab": "^5.2.6",
     "@solana/actions": "^1.6.4",
     "@solana/codecs-core": "^2.0.0-preview.1",
     "@solana/web3.js": "^1.95.3",
     "@supabase/supabase-js": "^2.33.1",
     "animate.css": "^4.1.1",
+    "heroicons": "^2.2.0",
     "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
     "qr-code-styling": "^1.6.0-rc.1",
