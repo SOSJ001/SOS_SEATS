@@ -2,6 +2,7 @@
   import "../app.postcss";
   import "./globalStyle.css";
   import TopNav from "$lib/components/TopNav.svelte";
+  import Footer from "$lib/components/Footer.svelte";
   import { sessionFromDb } from "$lib/store";
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
@@ -133,8 +134,13 @@
 </TopNav>
 
 <!-- Main content -->
-<div class="pt-16">
-  <slot />
+<div class="pt-16 min-h-screen flex flex-col">
+  <main class="flex-1">
+    <slot />
+  </main>
+  
+  <!-- Global Footer for all routes -->
+  <Footer />
 </div>
 
 <!-- Global login modal -->

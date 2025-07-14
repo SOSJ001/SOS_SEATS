@@ -63,11 +63,11 @@
       </ScrollAnimation>
     </section>
 
-    <section id="contact">
+    <!-- <section id="contact">
       <ScrollAnimation delay={200}>
         <FooterSection />
       </ScrollAnimation>
-    </section>
+    </section> -->
   </div>
 
   <!-- Scroll to top button -->
