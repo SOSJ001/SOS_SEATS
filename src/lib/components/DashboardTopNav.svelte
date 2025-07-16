@@ -3,6 +3,7 @@
 
   export let userName = "User";
   export let walletBalance = "$1,234.56";
+  export let onMenuToggle = () => {}; // Function to toggle sidebar
 
   let showNotifications = false;
   let notifications = [
@@ -15,8 +16,23 @@
 <div
   class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between"
 >
-  <!-- Left side - can be used for breadcrumbs or page title -->
+  <!-- Left side - hamburger menu and page title -->
   <div class="flex items-center space-x-4">
+    <!-- Hamburger Menu Button (Mobile) -->
+    <button
+      on:click={onMenuToggle}
+      class="lg:hidden p-2 text-gray-300 hover:text-white transition-colors duration-200"
+      aria-label="Toggle menu"
+    >
+      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fill-rule="evenodd"
+          d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+          clip-rule="evenodd"
+        />
+      </svg>
+    </button>
+
     <h1 class="text-white text-xl font-semibold">Dashboard</h1>
   </div>
 
@@ -37,7 +53,7 @@
     </div>
 
     <!-- Notifications -->
-    <div class="relative">
+    <div class="relative hidden lg:block">
       <button
         on:click={() => (showNotifications = !showNotifications)}
         class="relative p-2 text-gray-300 hover:text-white transition-colors duration-200"
@@ -79,7 +95,7 @@
     </div>
 
     <!-- User Profile -->
-    <div class="flex items-center space-x-3">
+    <div class="hidden lg:flex items-center space-x-3">
       <div
         class="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center"
       >

@@ -1,9 +1,19 @@
 <script>
   import { page } from "$app/stores";
   import { signOutbtnFunction } from "$lib/supabase";
-  import { fade } from "svelte/transition";
+  import { fade, fly } from "svelte/transition";
+  export let onClose = undefined; // Optional close handler for mobile
+  export let userName = "User"; // User name for mobile display
+  export let walletBalance = "$1,234.56"; // Wallet balance for mobile display
 
   $: activeUrl = $page.url.pathname;
+
+  let showNotifications = false;
+  let notifications = [
+    { id: 1, message: "New ticket sold for Summer Fest", time: "2 min ago" },
+    { id: 2, message: "Guest checked in: Jane Doe", time: "1 hour ago" },
+    { id: 3, message: "Event created: Winter Gala", time: "Yesterday" },
+  ];
 
   let routes = [
     {
@@ -69,7 +79,32 @@
   };
 </script>
 
-<div class="w-64 h-screen bg-gray-900 border-r border-gray-700 flex flex-col">
+<div
+  class="w-64 h-screen bg-gray-900 border-r border-gray-700 flex flex-col relative"
+>
+  <!-- Close button for mobile -->
+  {#if onClose}
+    <button
+      class="absolute top-4 right-4 z-50 p-2 rounded-full bg-gray-800 text-gray-300 hover:text-white lg:hidden"
+      on:click={onClose}
+      aria-label="Close sidebar"
+    >
+      <svg
+        class="w-6 h-6"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M6 18L18 6M6 6l12 12"
+        />
+      </svg>
+    </button>
+  {/if}
+
   <!-- Logo Section -->
   <div class="p-6 border-b border-gray-700">
     <div class="flex items-center space-x-3">
@@ -102,6 +137,69 @@
       </a>
     {/each}
   </nav>
+
+  <!-- Mobile User Profile & Notifications -->
+  <div class="lg:hidden p-4 border-t border-gray-700 space-y-4">
+    <!-- User Profile -->
+    <div class="flex items-center space-x-3 p-3 bg-gray-800 rounded-lg">
+      <div
+        class="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center"
+      >
+        <span class="text-white font-semibold text-sm">
+          {userName.charAt(0).toUpperCase()}
+        </span>
+      </div>
+      <div class="flex-1">
+        <p class="text-white font-medium text-sm">Hi, {userName}</p>
+        <p class="text-gray-400 text-xs">{walletBalance}</p>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="relative">
+      <button
+        on:click={() => (showNotifications = !showNotifications)}
+        class="flex items-center w-full p-3 text-gray-300 hover:text-white transition-colors duration-200 bg-gray-800 rounded-lg"
+      >
+        <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"
+          />
+        </svg>
+        <span class="font-medium">Notifications</span>
+        {#if notifications.length > 0}
+          <span
+            class="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+          >
+            {notifications.length}
+          </span>
+        {/if}
+      </button>
+
+      {#if showNotifications}
+        <div
+          class="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
+          transition:fly={{ y: 10, duration: 200 }}
+        >
+          <div class="p-3 border-b border-gray-700">
+            <h3 class="text-white font-semibold text-sm">
+              Recent Notifications
+            </h3>
+          </div>
+          <div class="max-h-32 overflow-y-auto">
+            {#each notifications as notification}
+              <div
+                class="p-3 border-b border-gray-700 last:border-b-0 hover:bg-gray-700 transition-colors duration-200"
+              >
+                <p class="text-gray-300 text-xs">{notification.message}</p>
+                <p class="text-gray-500 text-xs mt-1">{notification.time}</p>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+    </div>
+  </div>
 
   <!-- Settings -->
   <div class="p-4 border-t border-gray-700">
