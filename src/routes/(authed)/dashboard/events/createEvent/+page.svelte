@@ -4,7 +4,7 @@
 
   onMount(() => {
     // Redirect to step 1 when the page loads
-    // goto("/dashboard/events/createEvent/step1");
+    goto("/dashboard/events/createEvent/step1");
   });
 </script>
 
