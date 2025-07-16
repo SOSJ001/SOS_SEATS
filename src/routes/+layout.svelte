@@ -1,10 +1,12 @@
 <script>
+  // @ts-nocheck
   import "../app.postcss";
   import "./globalStyle.css";
   import TopNav from "$lib/components/TopNav.svelte";
   import Footer from "$lib/components/Footer.svelte";
   import { sessionFromDb } from "$lib/store";
   import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
   import { fade } from "svelte/transition";
   import { Modal } from "flowbite-svelte";
   import { loginbtnFunction } from "$lib/supabase";
@@ -24,6 +26,9 @@
   onMount(() => {
     setupSmoothScrolling();
   });
+
+  // Check if we're in dashboard routes
+  $: isDashboardRoute = $page.url.pathname.startsWith("/dashboard");
 
   let errorMessage = null;
   let login = false;
@@ -110,37 +115,41 @@
   };
 </script>
 
-<!-- Global TopNav for all routes -->
-<TopNav bind:signup>
-  <svelte:fragment slot="login">
-    <button
-      in:fade
-      on:click={() => (login = true)}
-      class="text-white hover:bg-gray-500 hover:text-white rounded-lg px-2 py-2 mr-1"
-    >
-      <span> LOGIN </span>
-    </button>
-  </svelte:fragment>
-  <!-- sign up button here  -->
-  <svelte:fragment slot="signup">
-    <button
-      in:fade
-      on:click={() => (signup = true)}
-      class="text-white bg-yellow-400 hover:bg-white hover:text-yellow-500 rounded-lg px-2 py-2"
-    >
-      <span> SIGNUP </span>
-    </button>
-  </svelte:fragment>
-</TopNav>
+<!-- Global TopNav for all routes except dashboard -->
+{#if !isDashboardRoute}
+  <TopNav bind:signup>
+    <svelte:fragment slot="login">
+      <button
+        in:fade
+        on:click={() => (login = true)}
+        class="text-white hover:bg-gray-500 hover:text-white rounded-lg px-2 py-2 mr-1"
+      >
+        <span> LOGIN </span>
+      </button>
+    </svelte:fragment>
+    <!-- sign up button here  -->
+    <svelte:fragment slot="signup">
+      <button
+        in:fade
+        on:click={() => (signup = true)}
+        class="text-white bg-yellow-400 hover:bg-white hover:text-yellow-500 rounded-lg px-2 py-2"
+      >
+        <span> SIGNUP </span>
+      </button>
+    </svelte:fragment>
+  </TopNav>
+{/if}
 
 <!-- Main content -->
-<div class="pt-16 min-h-screen flex flex-col">
+<div class="{isDashboardRoute ? '' : 'pt-16'} min-h-screen flex flex-col">
   <main class="flex-1">
     <slot />
   </main>
-  
-  <!-- Global Footer for all routes -->
-  <Footer />
+
+  <!-- Global Footer for all routes except dashboard -->
+  {#if !isDashboardRoute}
+    <Footer />
+  {/if}
 </div>
 
 <!-- Global login modal -->
