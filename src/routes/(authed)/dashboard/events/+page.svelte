@@ -260,11 +260,13 @@
 </div>
 
 <!-- Floating Action Button -->
-<button
-  class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center justify-center"
+<a
+  href="/dashboard/events/createEvent"
+  class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-teal-500 to-teal-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center justify-center group"
+  title="Create New Event"
 >
   <svg
-    class="w-6 h-6 text-white"
+    class="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-200"
     fill="none"
     stroke="currentColor"
     viewBox="0 0 24 24"
@@ -276,4 +278,4 @@
       d="M12 4v16m8-8H4"
     />
   </svg>
-</button>
+</a>
