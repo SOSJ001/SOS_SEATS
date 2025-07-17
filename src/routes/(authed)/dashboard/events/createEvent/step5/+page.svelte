@@ -1,9 +1,61 @@
-<script>
+<script lang="ts">
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
   import { onMount } from "svelte";
+  import StepperProgress from "$lib/components/StepperProgress.svelte";
 
-  let eventData = {};
+  interface EventData {
+    // Step 1 data
+    name?: string;
+    date?: string;
+    time?: string;
+    location?: string;
+    description?: string;
+    
+    // Step 2 data
+    category?: string;
+    tags?: string[];
+    image?: File | string;
+    organizer?: string;
+    contactEmail?: string;
+    website?: string;
+    socialMedia?: {
+      facebook: string;
+      twitter: string;
+      instagram: string;
+    };
+    
+    // Step 3 data
+    ticketTypes?: Array<{
+      name: string;
+      price: string | number;
+      quantity: string | number;
+      description: string;
+      benefits: string[];
+    }>;
+    
+    // Step 4 data
+    seatingType?: string;
+    audienceType?: string;
+    eventVisibility?: string;
+    totalCapacity?: string | number;
+    venueLayout?: {
+      sections: Array<{
+        name: string;
+        capacity: string | number;
+        price: string | number;
+        description: string;
+      }>;
+      hasSeatingChart: boolean;
+    };
+    seatingOptions?: {
+      allowSeatSelection: boolean;
+      maxSeatsPerOrder: string | number;
+      reservedSeating: boolean;
+    };
+  }
+
+  let eventData: EventData = {};
   let isPublishing = false;
   let publishSuccess = false;
 
@@ -15,7 +67,7 @@
     }
   });
 
-  function formatDate(dateString) {
+  function formatDate(dateString: string | undefined): string {
     if (!dateString) return "Not set";
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -26,14 +78,14 @@
     });
   }
 
-  function formatTime(timeString) {
+  function formatTime(timeString: string | undefined): string {
     if (!timeString) return "Not set";
     return timeString;
   }
 
-  function formatPrice(price) {
+  function formatPrice(price: string | number | undefined): string {
     if (!price) return "Free";
-    return `$${parseFloat(price).toFixed(2)}`;
+    return `$${parseFloat(price.toString()).toFixed(2)}`;
   }
 
   async function publishEvent() {
@@ -66,275 +118,286 @@
     goto("/dashboard/events/createEvent/step4");
   }
 
-  function editStep(step) {
+  function editStep(step: number) {
     goto(`/dashboard/events/createEvent/step${step}`);
   }
 </script>
 
-<div class="max-w-4xl mx-auto p-6" in:fade={{ duration: 300 }}>
-  <!-- Progress Bar -->
-  <div class="mb-8">
-    <div class="flex items-center justify-between mb-2">
-      <h2 class="text-2xl font-bold text-white">Create Event</h2>
-      <span class="text-gray-400">Step 5 of 5</span>
-    </div>
-    <div class="w-full bg-gray-700 rounded-full h-2">
-      <div class="bg-teal-400 h-2 rounded-full" style="width: 100%"></div>
-    </div>
+<div class="max-w-6xl mx-auto p-6" in:fade={{ duration: 300 }}>
+  <!-- Title -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">Create New Event</h1>
   </div>
 
-  <!-- Step Title -->
-  <div class="mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Review & Publish</h1>
-    <p class="text-gray-400">
-      Review all the details before publishing your event.
-    </p>
-  </div>
+  <!-- Stepper Progress -->
+  <StepperProgress currentStep={5} />
 
   {#if publishSuccess}
-    <div
-      class="bg-green-800 border border-green-600 rounded-lg p-6 text-center"
-    >
-      <svg
-        class="w-16 h-16 text-green-400 mx-auto mb-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-        ></path>
+    <div class="bg-green-800 border border-green-600 rounded-lg p-6 text-center">
+      <svg class="w-16 h-16 text-green-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
       </svg>
-      <h3 class="text-2xl font-bold text-white mb-2">
-        Event Published Successfully!
-      </h3>
-      <p class="text-green-200">
-        Your event is now live and ready for ticket sales.
-      </p>
+      <h3 class="text-2xl font-bold text-white mb-2">Event Published Successfully!</h3>
+      <p class="text-green-200">Your event is now live and ready for ticket sales.</p>
     </div>
   {:else}
-    <!-- Review Sections -->
-    <div class="space-y-6">
-      <!-- Basic Information -->
-      <div class="bg-gray-800 rounded-lg p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-semibold text-white">Basic Information</h3>
+    <!-- Review Content -->
+    <div class="space-y-8">
+      <!-- Step 1: Basic Information -->
+      <div class="bg-gray-800 rounded-xl p-8">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold text-white">Basic Information</h2>
           <button
             on:click={() => editStep(1)}
-            class="text-teal-400 hover:text-teal-300 text-sm"
+            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
           >
-            Edit
+            Edit Step 1
           </button>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p class="text-gray-400 text-sm">Event Name</p>
-            <p class="text-white font-medium">{eventData.name || "Not set"}</p>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-400">Event Name:</span>
+            <span class="text-white font-medium">{eventData.name || "Not set"}</span>
           </div>
-          <div>
-            <p class="text-gray-400 text-sm">Date & Time</p>
-            <p class="text-white font-medium">
-              {formatDate(eventData.date)} at {formatTime(eventData.time)}
-            </p>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-400">Date & Time:</span>
+            <span class="text-white font-medium">
+              {eventData.date ? formatDate(eventData.date) : "Not set"}, {eventData.time ? formatTime(eventData.time) : "Not set"}
+            </span>
           </div>
-          <div>
-            <p class="text-gray-400 text-sm">Location</p>
-            <p class="text-white font-medium">
-              {eventData.location || "Not set"}
-            </p>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-400">Venue:</span>
+            <span class="text-white font-medium">{eventData.location || "Not set"}</span>
           </div>
-          <div>
-            <p class="text-gray-400 text-sm">Description</p>
-            <p class="text-white font-medium">
-              {eventData.description || "No description"}
-            </p>
+          <div class="flex justify-between items-start">
+            <span class="text-gray-400">Description:</span>
+            <span class="text-white font-medium max-w-md text-right">
+              {eventData.description || "Not set"}
+            </span>
           </div>
         </div>
       </div>
 
-      <!-- Event Details -->
-      <div class="bg-gray-800 rounded-lg p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-semibold text-white">Event Details</h3>
+      <!-- Step 2: Event Details -->
+      <div class="bg-gray-800 rounded-xl p-8">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold text-white">Event Details</h2>
           <button
             on:click={() => editStep(2)}
-            class="text-teal-400 hover:text-teal-300 text-sm"
+            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
           >
-            Edit
-          </button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p class="text-gray-400 text-sm">Category</p>
-            <p class="text-white font-medium">
-              {eventData.category || "Not set"}
-            </p>
-          </div>
-          <div>
-            <p class="text-gray-400 text-sm">Organizer</p>
-            <p class="text-white font-medium">
-              {eventData.organizer || "Not set"}
-            </p>
-          </div>
-          <div>
-            <p class="text-gray-400 text-sm">Contact Email</p>
-            <p class="text-white font-medium">
-              {eventData.contactEmail || "Not set"}
-            </p>
-          </div>
-          <div>
-            <p class="text-gray-400 text-sm">Website</p>
-            <p class="text-white font-medium">
-              {eventData.website || "Not set"}
-            </p>
-          </div>
-        </div>
-        {#if eventData.tags && eventData.tags.length > 0}
-          <div class="mt-4">
-            <p class="text-gray-400 text-sm mb-2">Tags</p>
-            <div class="flex flex-wrap gap-2">
-              {#each eventData.tags as tag}
-                <span
-                  class="px-3 py-1 bg-teal-500 text-white text-sm rounded-full"
-                  >{tag}</span
-                >
-              {/each}
-            </div>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Ticket Types -->
-      <div class="bg-gray-800 rounded-lg p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-semibold text-white">Ticket Types</h3>
-          <button
-            on:click={() => editStep(3)}
-            class="text-teal-400 hover:text-teal-300 text-sm"
-          >
-            Edit
+            Edit Step 2
           </button>
         </div>
         <div class="space-y-4">
-          {#each eventData.ticketTypes || [] as ticket}
-            <div class="p-4 bg-gray-700 rounded-lg">
-              <div class="flex justify-between items-start">
-                <div>
-                  <h4 class="font-medium text-white">{ticket.name}</h4>
-                  <p class="text-gray-400 text-sm">{ticket.description}</p>
-                </div>
-                <div class="text-right">
-                  <p class="text-white font-semibold">
-                    {formatPrice(ticket.price)}
-                  </p>
-                  <p class="text-gray-400 text-sm">
-                    {ticket.quantity} available
-                  </p>
-                </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <span class="text-gray-400 text-sm">Category:</span>
+              <p class="text-white font-medium">{eventData.category || "Not set"}</p>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Organizer:</span>
+              <p class="text-white font-medium">{eventData.organizer || "Not set"}</p>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Contact Email:</span>
+              <p class="text-white font-medium">{eventData.contactEmail || "Not set"}</p>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Website:</span>
+              <p class="text-white font-medium">{eventData.website || "Not set"}</p>
+            </div>
+          </div>
+          
+          {#if eventData.tags && eventData.tags.length > 0}
+            <div>
+              <span class="text-gray-400 text-sm">Tags:</span>
+              <div class="flex flex-wrap gap-2 mt-1">
+                {#each eventData.tags as tag}
+                  <span class="px-3 py-1 bg-teal-500 text-white text-sm rounded-full">{tag}</span>
+                {/each}
               </div>
             </div>
-          {/each}
+          {/if}
+
+          <div>
+            <span class="text-gray-400 text-sm">Event Image:</span>
+            <div class="mt-2">
+              {#if eventData.image}
+                <div class="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center">
+                  <svg class="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+              {:else}
+                <span class="text-gray-500 text-sm">No image uploaded</span>
+              {/if}
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Seating & Capacity -->
-      <div class="bg-gray-800 rounded-lg p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-semibold text-white">Seating & Capacity</h3>
+      <!-- Step 3: Ticket Settings -->
+      <div class="bg-gray-800 rounded-xl p-8">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold text-white">Ticket Settings</h2>
           <button
-            on:click={() => editStep(4)}
-            class="text-teal-400 hover:text-teal-300 text-sm"
+            on:click={() => editStep(3)}
+            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
           >
-            Edit
+            Edit Step 3
           </button>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p class="text-gray-400 text-sm">Seating Type</p>
-            <p class="text-white font-medium capitalize">
-              {eventData.seatingType || "Not set"}
-            </p>
+        <div class="space-y-4">
+          {#if eventData.ticketTypes && eventData.ticketTypes.length > 0}
+            {#each eventData.ticketTypes as ticket}
+              <div class="p-4 bg-gray-700 rounded-lg">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h4 class="font-medium text-white">{ticket.name}</h4>
+                    <p class="text-gray-400 text-sm">{ticket.description}</p>
+                    {#if ticket.benefits && ticket.benefits.length > 0}
+                      <div class="mt-2">
+                        <span class="text-gray-400 text-xs">Benefits:</span>
+                        <ul class="text-gray-300 text-xs mt-1">
+                          {#each ticket.benefits as benefit}
+                            <li>• {benefit}</li>
+                          {/each}
+                        </ul>
+                      </div>
+                    {/if}
+                  </div>
+                  <div class="text-right">
+                    <p class="text-white font-semibold">{formatPrice(ticket.price)}</p>
+                    <p class="text-gray-400 text-sm">{ticket.quantity} available</p>
+                  </div>
+                </div>
+              </div>
+            {/each}
+          {:else}
+            <p class="text-gray-400">No ticket types configured</p>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Step 4: Seating & Capacity -->
+      <div class="bg-gray-800 rounded-xl p-8">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold text-white">Seating & Capacity</h2>
+          <button
+            on:click={() => editStep(4)}
+            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
+          >
+            Edit Step 4
+          </button>
+        </div>
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <span class="text-gray-400 text-sm">Seating Type:</span>
+              <p class="text-white font-medium capitalize">{eventData.seatingType?.replace("-", " ") || "Not set"}</p>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Total Capacity:</span>
+              <p class="text-white font-medium">{eventData.totalCapacity || "Not set"}</p>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Audience Type:</span>
+              <p class="text-white font-medium capitalize">{eventData.audienceType?.replace("-", " ") || "Not set"}</p>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Event Visibility:</span>
+              <p class="text-white font-medium capitalize">{eventData.eventVisibility?.replace("-", " ") || "Not set"}</p>
+            </div>
           </div>
-          <div>
-            <p class="text-gray-400 text-sm">Total Capacity</p>
-            <p class="text-white font-medium">
-              {eventData.totalCapacity || "Not set"}
-            </p>
+
+          {#if eventData.seatingOptions}
+            <div class="border-t border-gray-700 pt-4">
+              <h4 class="text-white font-medium mb-2">Seating Options</h4>
+              <div class="space-y-2">
+                <div class="flex items-center">
+                  <span class="text-gray-400 text-sm">Max Seats Per Order:</span>
+                  <span class="text-white font-medium ml-2">{eventData.seatingOptions.maxSeatsPerOrder}</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="text-gray-400 text-sm">Allow Seat Selection:</span>
+                  <span class="text-white font-medium ml-2">{eventData.seatingOptions.allowSeatSelection ? "Yes" : "No"}</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="text-gray-400 text-sm">Reserved Seating:</span>
+                  <span class="text-white font-medium ml-2">{eventData.seatingOptions.reservedSeating ? "Yes" : "No"}</span>
+                </div>
+              </div>
+            </div>
+          {/if}
+
+          {#if eventData.venueLayout?.sections && eventData.venueLayout.sections.length > 0}
+            <div class="border-t border-gray-700 pt-4">
+              <h4 class="text-white font-medium mb-3">Venue Sections</h4>
+              <div class="space-y-2">
+                {#each eventData.venueLayout.sections as section}
+                  <div class="p-3 bg-gray-700 rounded-lg">
+                    <div class="flex justify-between items-center">
+                      <div>
+                        <h5 class="font-medium text-white">{section.name}</h5>
+                        <p class="text-gray-400 text-sm">{section.description}</p>
+                      </div>
+                      <div class="text-right">
+                        <p class="text-white font-medium">{formatPrice(section.price)}</p>
+                        <p class="text-gray-400 text-sm">Capacity: {section.capacity}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- 3D Ticket Mockup Preview -->
+      <div class="bg-gray-700 rounded-xl p-6">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <img 
+              src={eventData.image ? "/src/lib/assets/explosion.png" : "/src/lib/assets/explosion.png"} 
+              alt="Event Preview" 
+              class="w-full h-48 object-cover rounded-lg"
+            />
           </div>
-          <div>
-            <p class="text-gray-400 text-sm">Max Seats Per Order</p>
-            <p class="text-white font-medium">
-              {eventData.seatingOptions?.maxSeatsPerOrder || "4"}
-            </p>
-          </div>
-          <div>
-            <p class="text-gray-400 text-sm">Seat Selection</p>
-            <p class="text-white font-medium">
-              {eventData.seatingOptions?.allowSeatSelection
-                ? "Enabled"
-                : "Disabled"}
-            </p>
+          <div class="flex-1 ml-6 text-center">
+            <h3 class="text-lg font-semibold text-white mb-2">3D Ticket Mockup</h3>
+            <p class="text-gray-400">Preview</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Publish Button -->
-    <div class="mt-8 text-center">
+    <!-- Action Buttons -->
+    <div class="flex justify-between items-center mt-8">
+      <button
+        on:click={prevStep}
+        class="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
+      >
+        Previous: Audience
+      </button>
+
       <button
         on:click={publishEvent}
         disabled={isPublishing}
-        class="px-8 py-4 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="px-8 py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
       >
         {#if isPublishing}
           <div class="flex items-center justify-center">
-            <svg
-              class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             Publishing Event...
           </div>
         {:else}
           Publish Event
         {/if}
-      </button>
-    </div>
-  {/if}
-
-  <!-- Navigation Buttons -->
-  {#if !publishSuccess}
-    <div class="flex justify-between mt-8">
-      <button
-        on:click={prevStep}
-        class="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
-      >
-        Previous
-      </button>
-
-      <button
-        on:click={() => goto("/dashboard/events")}
-        class="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
-      >
-        Cancel
       </button>
     </div>
   {/if}

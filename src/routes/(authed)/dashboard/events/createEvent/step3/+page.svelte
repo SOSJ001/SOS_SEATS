@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
   import { onMount } from "svelte";
+  import StepperProgress from "$lib/components/StepperProgress.svelte";
 
   let eventData = {
     ticketTypes: [
@@ -10,9 +11,9 @@
         price: "",
         quantity: "",
         description: "",
-        benefits: []
-      }
-    ]
+        benefits: [],
+      },
+    ],
   };
 
   let errors = {};
@@ -34,32 +35,35 @@
         price: "",
         quantity: "",
         description: "",
-        benefits: []
-      }
+        benefits: [],
+      },
     ];
   }
 
   function removeTicketType(index) {
     if (eventData.ticketTypes.length > 1) {
-      eventData.ticketTypes = eventData.ticketTypes.filter((_, i) => i !== index);
+      eventData.ticketTypes = eventData.ticketTypes.filter(
+        (_, i) => i !== index
+      );
     }
   }
 
   function addBenefit(ticketIndex) {
     eventData.ticketTypes[ticketIndex].benefits = [
       ...eventData.ticketTypes[ticketIndex].benefits,
-      ""
+      "",
     ];
   }
 
   function removeBenefit(ticketIndex, benefitIndex) {
-    eventData.ticketTypes[ticketIndex].benefits = 
-      eventData.ticketTypes[ticketIndex].benefits.filter((_, i) => i !== benefitIndex);
+    eventData.ticketTypes[ticketIndex].benefits = eventData.ticketTypes[
+      ticketIndex
+    ].benefits.filter((_, i) => i !== benefitIndex);
   }
 
   function validateStep() {
     errors = {};
-    
+
     eventData.ticketTypes.forEach((ticket, index) => {
       if (!ticket.name.trim()) {
         errors[`ticket${index}Name`] = "Ticket name is required";
@@ -88,30 +92,31 @@
   }
 </script>
 
-<div class="max-w-4xl mx-auto p-6" in:fade={{ duration: 300 }}>
-  <!-- Progress Bar -->
-  <div class="mb-8">
-    <div class="flex items-center justify-between mb-2">
-      <h2 class="text-2xl font-bold text-white">Create Event</h2>
-      <span class="text-gray-400">Step 3 of 5</span>
-    </div>
-    <div class="w-full bg-gray-700 rounded-full h-2">
-      <div class="bg-teal-400 h-2 rounded-full" style="width: 60%"></div>
-    </div>
+<div class="max-w-6xl mx-auto p-6" in:fade={{ duration: 300 }}>
+  <!-- Title -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">Create New Event</h1>
   </div>
+
+  <!-- Stepper Progress -->
+  <StepperProgress currentStep={3} />
 
   <!-- Step Title -->
   <div class="mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Ticket Types & Pricing</h1>
-    <p class="text-gray-400">Set up different ticket tiers and pricing for your event.</p>
+    <h2 class="text-3xl font-bold text-white mb-2">Ticket Types & Pricing</h2>
+    <p class="text-gray-400">
+      Set up different ticket tiers and pricing for your event.
+    </p>
   </div>
 
   <!-- Ticket Types -->
   <div class="space-y-6">
     {#each eventData.ticketTypes as ticket, ticketIndex}
-      <div class="bg-gray-800 rounded-lg p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-semibold text-white">Ticket Type {ticketIndex + 1}</h3>
+      <div class="bg-gray-800 rounded-xl p-8">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-semibold text-white">
+            Ticket Type {ticketIndex + 1}
+          </h3>
           {#if eventData.ticketTypes.length > 1}
             <button
               on:click={() => removeTicketType(ticketIndex)}
@@ -131,11 +136,17 @@
             <input
               type="text"
               bind:value={ticket.name}
-              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[`ticket${ticketIndex}Name`] ? 'border-red-500' : ''}"
+              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
+                `ticket${ticketIndex}Name`
+              ]
+                ? 'border-red-500'
+                : ''}"
               placeholder="e.g., General Admission, VIP, Early Bird"
             />
             {#if errors[`ticket${ticketIndex}Name`]}
-              <p class="text-red-400 text-sm mt-1">{errors[`ticket${ticketIndex}Name`]}</p>
+              <p class="text-red-400 text-sm mt-1">
+                {errors[`ticket${ticketIndex}Name`]}
+              </p>
             {/if}
           </div>
 
@@ -149,11 +160,17 @@
               bind:value={ticket.price}
               min="0"
               step="0.01"
-              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[`ticket${ticketIndex}Price`] ? 'border-red-500' : ''}"
+              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
+                `ticket${ticketIndex}Price`
+              ]
+                ? 'border-red-500'
+                : ''}"
               placeholder="0.00"
             />
             {#if errors[`ticket${ticketIndex}Price`]}
-              <p class="text-red-400 text-sm mt-1">{errors[`ticket${ticketIndex}Price`]}</p>
+              <p class="text-red-400 text-sm mt-1">
+                {errors[`ticket${ticketIndex}Price`]}
+              </p>
             {/if}
           </div>
         </div>
@@ -168,11 +185,17 @@
               type="number"
               bind:value={ticket.quantity}
               min="1"
-              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[`ticket${ticketIndex}Quantity`] ? 'border-red-500' : ''}"
+              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
+                `ticket${ticketIndex}Quantity`
+              ]
+                ? 'border-red-500'
+                : ''}"
               placeholder="100"
             />
             {#if errors[`ticket${ticketIndex}Quantity`]}
-              <p class="text-red-400 text-sm mt-1">{errors[`ticket${ticketIndex}Quantity`]}</p>
+              <p class="text-red-400 text-sm mt-1">
+                {errors[`ticket${ticketIndex}Quantity`]}
+              </p>
             {/if}
           </div>
 
@@ -201,14 +224,14 @@
                 <input
                   type="text"
                   bind:value={ticket.benefits[benefitIndex]}
-                  class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
-                  placeholder="e.g., Priority seating, Free drinks"
+                  class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"
+                  placeholder="e.g., Priority seating, Meet & greet"
                 />
                 <button
                   on:click={() => removeBenefit(ticketIndex, benefitIndex)}
                   class="px-3 py-2 text-red-400 hover:text-red-300"
                 >
-                  Remove
+                  ×
                 </button>
               </div>
             {/each}
@@ -224,12 +247,14 @@
     {/each}
 
     <!-- Add Ticket Type Button -->
-    <button
-      on:click={addTicketType}
-      class="w-full p-4 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:text-teal-400 hover:border-teal-400 transition-colors duration-200"
-    >
-      + Add Another Ticket Type
-    </button>
+    <div class="text-center">
+      <button
+        on:click={addTicketType}
+        class="px-6 py-3 border-2 border-dashed border-gray-600 text-gray-400 rounded-lg hover:border-teal-400 hover:text-teal-400 transition-colors duration-200"
+      >
+        + Add Another Ticket Type
+      </button>
+    </div>
   </div>
 
   <!-- Navigation Buttons -->
@@ -240,12 +265,12 @@
     >
       Previous
     </button>
-    
+
     <button
       on:click={nextStep}
-      class="px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200"
+      class="px-8 py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 font-medium"
     >
       Next Step
     </button>
   </div>
-</div> 
+</div>

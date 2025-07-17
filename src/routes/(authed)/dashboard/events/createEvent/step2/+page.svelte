@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
   import { onMount } from "svelte";
+  import StepperProgress from "$lib/components/StepperProgress.svelte";
 
   let eventData = {
     category: "",
@@ -92,28 +93,25 @@
   }
 </script>
 
-<div class="max-w-4xl mx-auto p-6" in:fade={{ duration: 300 }}>
-  <!-- Progress Bar -->
-  <div class="mb-8">
-    <div class="flex items-center justify-between mb-2">
-      <h2 class="text-2xl font-bold text-white">Create Event</h2>
-      <span class="text-gray-400">Step 2 of 5</span>
-    </div>
-    <div class="w-full bg-gray-700 rounded-full h-2">
-      <div class="bg-teal-400 h-2 rounded-full" style="width: 40%"></div>
-    </div>
+<div class="max-w-6xl mx-auto p-6" in:fade={{ duration: 300 }}>
+  <!-- Title -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">Create New Event</h1>
   </div>
+
+  <!-- Stepper Progress -->
+  <StepperProgress currentStep={2} />
 
   <!-- Step Title -->
   <div class="mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Event Details</h1>
+    <h2 class="text-3xl font-bold text-white mb-2">Event Details</h2>
     <p class="text-gray-400">
       Add more details to help people discover your event.
     </p>
   </div>
 
   <!-- Form -->
-  <div class="bg-gray-800 rounded-lg p-6 space-y-6">
+  <div class="bg-gray-800 rounded-xl p-8 space-y-6">
     <!-- Category -->
     <div>
       <label
@@ -207,16 +205,15 @@
               stroke-linejoin="round"
             />
           </svg>
-          <p class="mt-2 text-sm text-gray-400">Click to upload an image</p>
-          <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+          <p class="mt-2 text-sm text-gray-400">
+            Click to upload an image or drag and drop
+          </p>
+          <p class="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 10MB</p>
         </label>
       </div>
-      {#if eventData.image}
-        <p class="text-teal-400 text-sm mt-2">✓ {eventData.image.name}</p>
-      {/if}
     </div>
 
-    <!-- Organizer Info -->
+    <!-- Organizer Information -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
         <label
@@ -263,8 +260,11 @@
 
     <!-- Website -->
     <div>
-      <label for="website" class="block text-sm font-medium text-gray-300 mb-2">
-        Website (Optional)
+      <label
+        for="website"
+        class="block text-sm font-medium text-gray-300 mb-2"
+      >
+        Website
       </label>
       <input
         id="website"
@@ -273,6 +273,60 @@
         class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
         placeholder="https://example.com"
       />
+    </div>
+
+    <!-- Social Media -->
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-4">
+        Social Media Links
+      </label>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label
+            for="facebook"
+            class="block text-xs font-medium text-gray-400 mb-1"
+          >
+            Facebook
+          </label>
+          <input
+            id="facebook"
+            type="url"
+            bind:value={eventData.socialMedia.facebook}
+            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"
+            placeholder="Facebook URL"
+          />
+        </div>
+        <div>
+          <label
+            for="twitter"
+            class="block text-xs font-medium text-gray-400 mb-1"
+          >
+            Twitter
+          </label>
+          <input
+            id="twitter"
+            type="url"
+            bind:value={eventData.socialMedia.twitter}
+            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"
+            placeholder="Twitter URL"
+          />
+        </div>
+        <div>
+          <label
+            for="instagram"
+            class="block text-xs font-medium text-gray-400 mb-1"
+          >
+            Instagram
+          </label>
+          <input
+            id="instagram"
+            type="url"
+            bind:value={eventData.socialMedia.instagram}
+            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"
+            placeholder="Instagram URL"
+          />
+        </div>
+      </div>
     </div>
   </div>
 
@@ -287,7 +341,7 @@
 
     <button
       on:click={nextStep}
-      class="px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200"
+      class="px-8 py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 font-medium"
     >
       Next Step
     </button>

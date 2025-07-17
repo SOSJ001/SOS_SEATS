@@ -1,6 +1,7 @@
 <script>
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
+  import StepperProgress from "$lib/components/StepperProgress.svelte";
 
   let eventData = {
     name: "",
@@ -44,28 +45,25 @@
   }
 </script>
 
-<div class="max-w-4xl mx-auto p-6" in:fade={{ duration: 300 }}>
-  <!-- Progress Bar -->
-  <div class="mb-8">
-    <div class="flex items-center justify-between mb-2">
-      <h2 class="text-2xl font-bold text-white">Create Event</h2>
-      <span class="text-gray-400">Step 1 of 5</span>
-    </div>
-    <div class="w-full bg-gray-700 rounded-full h-2">
-      <div class="bg-teal-400 h-2 rounded-full" style="width: 20%"></div>
-    </div>
+<div class="max-w-6xl mx-auto p-6" in:fade={{ duration: 300 }}>
+  <!-- Title -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">Create New Event</h1>
   </div>
+
+  <!-- Stepper Progress -->
+  <StepperProgress currentStep={1} />
 
   <!-- Step Title -->
   <div class="mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Basic Event Information</h1>
+    <h2 class="text-3xl font-bold text-white mb-2">Basic Event Information</h2>
     <p class="text-gray-400">
       Let's start with the essential details about your event.
     </p>
   </div>
 
   <!-- Form -->
-  <div class="bg-gray-800 rounded-lg p-6 space-y-6">
+  <div class="bg-gray-800 rounded-xl p-8 space-y-6">
     <!-- Event Name -->
     <div>
       <label for="name" class="block text-sm font-medium text-gray-300 mb-2">
@@ -173,7 +171,7 @@
 
     <button
       on:click={nextStep}
-      class="px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200"
+      class="px-8 py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 font-medium"
     >
       Next Step
     </button>
