@@ -1,244 +1,100 @@
-<script>
-  //@ts-nocheck
-  import { onMount, onDestroy } from "svelte";
-  import { Html5Qrcode } from "html5-qrcode";
-  import ActionButton from "./ActionButton.svelte";
-  import { scanGuestInvite, updateGuestInvite } from "$lib/supabase";
-  import { fade } from "svelte/transition";
-  import Spinner from "./Spinner.svelte";
-  export let event_Id;
-  let qrCodeScanner;
-  let cameraId;
-  let scanResult = "";
-  let isScanning = false;
-  let guestDetails = false;
-  let guestName = "Michael S.O.S Johnson";
-  let checkedIn = false;
-  let gender = true;
-  let disabled = true;
-  let guestId = 0;
-  let on = false;
-  let loading = false;
-  let InvalidInvite = false;
-  let timeUsed = "";
-  let updateSearchReasult = () => {
-    let dialogResult = confirm(`Check-in ${guestName} ?`);
-    loading = true;
-    try {
-      if (dialogResult) {
-        updateGuestInvite(guestId).then((response) => {
-          if (response.error) {
-            console.log("here");
-            alert("Error checking in !!!");
-          } else {
-            // console.log(response)
-            // after status has been updated
-            if (response.data[0].verified) {
-              disabled = true;
-              checkedIn = true;
-            }
-          }
-        });
-      }
-    } catch (error) {
-      alert(error.errorMessage);
-    } finally {
-      loading = false;
-    }
-  };
+<script lang="ts">
+  export let isScanning: boolean = false;
+  export let onScan: (result: string) => void = () => {};
 
-  let searchScanResult = () => {
-    scanGuestInvite(scanResult, event_Id).then((response) => {
-      loading = true;
-      try {
-        if (!response.error) {
-          // if there is no error
-          if (!response.data[0].verified) {
-            // if the invite is not yet checked-in
-            guestDetails = true;
-            disabled = false;
-            guestName = response.data[0].guestName;
-            gender = response.data[0].IsMale;
-            guestId = gender = response.data[0].id;
-          } else {
-            console.log(response);
-            const date = new Date(response.data[0].verifiedTime);
-            timeUsed = date.toLocaleDateString("en-US", {
-              month: "2-digit",
-              day: "2-digit",
-              year: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            });
-            checkedIn = false;
-            InvalidInvite = true;
-            guestDetails = true;
-          }
-        } else {
-          alert("Error Connection");
-        }
-      } catch (error) {
-        console.log(error.errorMessage);
-      } finally {
-        loading = false;
-      }
-    });
-  };
+  let scannerContainer: HTMLDivElement;
 
-  const startScanner = async () => {
-    try {
-      const devices = await Html5Qrcode.getCameras();
-      if (devices && devices.length) {
-        cameraId = devices[0].id;
-        on = !on;
-        qrCodeScanner
-          .start(
-            { facingMode: "environment" }, // Use facingMode for better compatibility
-            {
-              fps: 10, // Optional, frames per second for the scanner
-              qrbox: 350, // Optional, QR scanning box width
-              disableFlip: true, // Important for iOS devices
-            },
-            (decodedText, decodedResult) => {
-              // Handle the result
-              scanResult = decodedText; //scan result
-              isScanning = false;
-              qrCodeScanner.stop();
-              searchScanResult();
-              // console.log(`Decoded Text: ${decodedText}`);
-            },
-            (errorMessage) => {
-              // parse error, ignore it.
-            }
-          )
-          .then(() => {
-            isScanning = true;
-          })
-          .catch((err) => {
-            console.error(`Unable to start scanning, error: ${err}`);
-          });
-      }
-    } catch (err) {
-      console.error(`Error getting cameras: ${err}`);
-    }
-  };
+  // Simulate QR code scanning for demo purposes
+  function simulateScan() {
+    if (!isScanning) return;
 
-  const stopScanner = () => {
-    if (on) {
-      on = !on;
-      qrCodeScanner
-        .stop()
-        .then(() => {
-          isScanning = false;
-        })
-        .catch((err) => {
-          console.error(`Error stopping scanner: ${err}`);
-        });
-    }
-  };
+    // Simulate scanning delay
+    setTimeout(() => {
+      const sampleResults = [
+        "ticket_123_alice_johnson_vip",
+        "ticket_456_bob_williams_ga",
+        "ticket_789_charlie_brown_vip",
+      ];
+      const randomResult =
+        sampleResults[Math.floor(Math.random() * sampleResults.length)];
+      onScan(randomResult);
+    }, 2000);
+  }
 
-  onMount(() => {
-    qrCodeScanner = new Html5Qrcode("qr-reader");
-  });
-
-  onDestroy(() => {
-    stopScanner();
-  });
+  // Start scanning when component mounts
+  $: if (isScanning) {
+    simulateScan();
+  }
 </script>
 
-{#if guestDetails}
-  <div transition:fade class="px-5 text-lg flex-wrap w-full">
-    <div class="w-full text-center text-2xl border-b mb-2 pb-2">
-      GUEST DETAILS
-    </div>
-    <p>
-      <span class="text-gray-400">GuestName:</span>
-      <span class="pl-2">{guestName}</span>
-    </p>
-    <p>
-      <span class="text-gray-400">Gender:</span>
-      <span class="pl-2">{gender ? "Male" : "Female"}</span>
-    </p>
-    <p>
-      <span class="text-gray-400">Status:</span>
-      {#if checkedIn}
-        <span class="pl-2">Checked-In ✅</span>
-      {:else if InvalidInvite}
-        <span class="pl-2 text-red-400">🚩 Invalid...Used at {timeUsed}</span>
-      {:else}
-        <span class="pl-2 text-yellow-300">Not Checked-In 👀</span>
-      {/if}
-    </p>
-    <div class="flex border-t pt-3 flex-row gap-5 m-3">
-      <!-- Check in button -->
-      <button
-        {disabled}
-        class="w-full text-sm"
-        on:click|stopPropagation={() => {
-          loading = true;
-          updateSearchReasult();
-          loading = false;
-        }}
-      >
-        <ActionButton width="full" bgColor="green-500">
-          <span slot="text"
-            >{#if loading}<Spinner />{/if} Check In Now</span
-          >
-        </ActionButton>
-      </button>
-
-      <!-- cancel check in button -->
-      <button
-        {disabled}
-        class="w-full text-sm"
-        on:click|stopPropagation={() => {
-          disabled = false;
-          guestDetails = false;
-        }}
-      >
-        <ActionButton width="full" bgColor="red-500">
-          <span slot="text">Check In Later</span>
-        </ActionButton>
-      </button>
-    </div>
-  </div>
-{/if}
-{#if !guestDetails}
-  <div id="qr-reader"></div>
-{/if}
-
-{#if isScanning}
-  <button class="w-full" on:click={stopScanner} disabled={!isScanning}>
-    <ActionButton width="full" bgColor="yellow-500">
-      <span slot="text">Stop Scanner</span>
-    </ActionButton>
-  </button>
-{:else}
-  <button
-    class="w-full"
-    on:click={() => {
-      checkedIn = false;
-      loading = true;
-      guestDetails = false;
-      startScanner();
-      loading = false;
-    }}
-    disabled={isScanning}
+<div class="flex flex-col items-center justify-center">
+  <!-- QR Scanner View -->
+  <div
+    bind:this={scannerContainer}
+    class="relative w-80 h-80 bg-gray-800 border-2 border-cyan-400 rounded-lg overflow-hidden shadow-lg"
+    style="box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);"
   >
-    <ActionButton width="full" bgColor="yellow-500">
-      <span slot="text"
-        >{#if loading}<Spinner />{/if} Start Scanner</span
-      >
-    </ActionButton>
-  </button>
-{/if}
+    <!-- Glowing particles effect -->
+    <div class="absolute inset-0 pointer-events-none">
+      <div
+        class="absolute top-4 left-4 w-2 h-2 bg-cyan-400 rounded-full animate-pulse"
+        style="animation-delay: 0s;"
+      ></div>
+      <div
+        class="absolute top-8 right-8 w-1 h-1 bg-cyan-400 rounded-full animate-pulse"
+        style="animation-delay: 0.5s;"
+      ></div>
+      <div
+        class="absolute bottom-8 left-8 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"
+        style="animation-delay: 1s;"
+      ></div>
+      <div
+        class="absolute bottom-4 right-4 w-1 h-1 bg-cyan-400 rounded-full animate-pulse"
+        style="animation-delay: 1.5s;"
+      ></div>
+      <div
+        class="absolute top-1/2 left-1/4 w-1 h-1 bg-cyan-400 rounded-full animate-pulse"
+        style="animation-delay: 0.8s;"
+      ></div>
+      <div
+        class="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"
+        style="animation-delay: 1.2s;"
+      ></div>
+    </div>
 
-<style>
-  #qr-reader {
-    width: 300px;
-    height: 230px;
-    border: 1px solid #ccc;
-    margin: 20px auto;
-  }
-</style>
+    <!-- Camera view placeholder -->
+    <div class="absolute inset-0 flex items-center justify-center">
+      <div class="text-center">
+        <svg
+          class="w-16 h-16 mx-auto text-gray-400 mb-4"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        <p class="text-gray-400 text-sm">
+          {isScanning ? "Scanning..." : "Position QR code in frame"}
+        </p>
+      </div>
+    </div>
+
+    <!-- Scanning animation overlay -->
+    {#if isScanning}
+      <div
+        class="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/10 to-transparent animate-pulse"
+      ></div>
+    {/if}
+  </div>
+
+  <!-- Scan button -->
+  <button
+    on:click={() => (isScanning = !isScanning)}
+    class="mt-6 px-8 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+  >
+    {isScanning ? "Stop Scanning" : "Start Scanning"}
+  </button>
+</div>
