@@ -1,6 +1,7 @@
-<script>
+<script lang="ts">
   import { fade, fly } from "svelte/transition";
   import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
 
   let activeTab = "all";
   let searchQuery = "";
@@ -63,7 +64,7 @@
     ],
   };
 
-  function formatCurrency(amount) {
+  function formatCurrency(amount: number) {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
@@ -92,6 +93,13 @@
     }
 
     return filtered;
+  }
+
+  function editEvent() {
+    // Navigate to the edit event route with the event ID
+    // For now, using a placeholder ID - you would get this from your actual event data
+    const eventId = "123"; // Replace with actual event ID
+    goto(`/dashboard/events/editEvent?id=${eventId}`);
   }
 </script>
 
@@ -276,6 +284,7 @@
         <h2 class="text-xl font-bold text-white mb-4">Event Actions</h2>
         <div class="space-y-3">
           <button
+            on:click={editEvent}
             class="w-full bg-gradient-to-r from-teal-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-opacity duration-200 flex items-center justify-center"
           >
             <svg
