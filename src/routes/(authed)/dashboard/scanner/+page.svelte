@@ -1,6 +1,6 @@
 <script lang="ts">
   import EventSelector from "$lib/components/EventSelector.svelte";
-  import QRScanner from "$lib/components/QRScanner.svelte";
+  import QRScanner from "$lib/components/Qrscanner.svelte";
   import ScanResult from "$lib/components/ScanResult.svelte";
   import ScanHistory from "$lib/components/ScanHistory.svelte";
   import { onMount } from "svelte";
