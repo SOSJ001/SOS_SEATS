@@ -156,17 +156,45 @@
   function stopScanning() {
     isScanning = false;
   }
+
+  // Animation states
+  let isLoaded = false;
+  let showScanner = false;
+  let showHistory = false;
+
+  onMount(() => {
+    // Trigger entrance animations
+    setTimeout(() => {
+      isLoaded = true;
+    }, 100);
+
+    setTimeout(() => {
+      showScanner = true;
+    }, 300);
+
+    setTimeout(() => {
+      showHistory = true;
+    }, 500);
+  });
 </script>
 
 <div class="min-h-screen bg-gray-900 text-white">
   <!-- Header -->
-  <div class="mb-8">
+  <div
+    class="mb-8 transition-all duration-1000 transform {isLoaded
+      ? 'translate-y-0 opacity-100'
+      : 'translate-y-8 opacity-0'}"
+  >
     <h1 class="text-3xl font-bold text-white mb-2">QR Code Scanner</h1>
     <p class="text-gray-400">Scan tickets and verify guest entry</p>
   </div>
 
   <!-- Main Content Grid -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+  <div
+    class="grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all duration-1000 transform {showScanner
+      ? 'translate-y-0 opacity-100'
+      : 'translate-y-8 opacity-0'}"
+  >
     <!-- Left Column - Scanner Controls -->
     <div class="lg:col-span-2 space-y-6">
       <!-- Event Selector -->
@@ -204,7 +232,11 @@
     </div>
 
     <!-- Right Column - Scan History -->
-    <div class="lg:col-span-1">
+    <div
+      class="lg:col-span-1 transition-all duration-1000 transform {showHistory
+        ? 'translate-x-0 opacity-100'
+        : 'translate-x-8 opacity-0'}"
+    >
       <ScanHistory {scanHistory} />
     </div>
   </div>
