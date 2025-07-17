@@ -224,11 +224,12 @@
             >
               {event.primaryAction}
             </button>
-            <button
-              class="flex-1 border {event.secondaryActionColor} py-2 px-4 rounded-lg font-medium transition-all duration-200"
+            <a
+              href="/dashboard/events/eventDetails"
+              class="flex-1 border {event.secondaryActionColor} py-2 px-4 rounded-lg font-medium transition-all duration-200 hover:bg-gray-700 text-center"
             >
               {event.secondaryAction}
-            </button>
+            </a>
           </div>
         </div>
       </div>
