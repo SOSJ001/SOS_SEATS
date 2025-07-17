@@ -2,9 +2,11 @@
   import { fade, fly } from "svelte/transition";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
+  import ShareEventModal from "$lib/components/ShareEventModal.svelte";
 
   let activeTab = "all";
   let searchQuery = "";
+  let showShareModal = false;
   let eventData = {
     title: "Neon Night Rave",
     date: "December 31, 2024",
@@ -100,6 +102,14 @@
     // For now, using a placeholder ID - you would get this from your actual event data
     const eventId = "123"; // Replace with actual event ID
     goto(`/dashboard/events/editEvent?id=${eventId}`);
+  }
+
+  function openShareModal() {
+    showShareModal = true;
+  }
+
+  function closeShareModal() {
+    showShareModal = false;
   }
 </script>
 
@@ -303,6 +313,7 @@
             Edit Event
           </button>
           <button
+            on:click={openShareModal}
             class="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 transition-colors duration-200 flex items-center justify-center"
           >
             <svg
@@ -513,3 +524,10 @@
     </div>
   </div>
 </div>
+
+<!-- Share Event Modal -->
+<ShareEventModal
+  event={eventData}
+  isOpen={showShareModal}
+  on:close={closeShareModal}
+/>
