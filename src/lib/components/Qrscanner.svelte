@@ -90,11 +90,10 @@
     {/if}
   </div>
 
-  <!-- Scan button -->
-  <button
-    on:click={() => (isScanning = !isScanning)}
-    class="mt-6 px-8 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-  >
-    {isScanning ? "Stop Scanning" : "Start Scanning"}
-  </button>
+  <!-- Scan status indicator -->
+  <div class="mt-6 text-center">
+    <p class="text-gray-400 text-sm">
+      {isScanning ? "Scanning in progress..." : "Ready to scan"}
+    </p>
+  </div>
 </div>
