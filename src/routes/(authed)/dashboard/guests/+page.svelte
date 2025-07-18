@@ -233,8 +233,8 @@
         />
       </svg>
       Export CSV
-    </button>
-    <button
+                </button>
+                <button
       on:click={exportPDF}
       class="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 flex items-center gap-2"
     >
@@ -252,9 +252,9 @@
         />
       </svg>
       Export PDF
-    </button>
+                </button>
   </div>
-
+  
   <!-- Floating Action Button -->
   <button
     on:click={addNewGuest}
