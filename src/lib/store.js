@@ -1,8 +1,24 @@
 //@ts-nocheck
-import { writable, readable } from "svelte/store";
-import { toDataURL, } from "qrcode";
-export let sessionFromDb = writable(null);
-export let updatedEventsData = writable([])
+import { writable } from "svelte/store";
+import { toDataURL } from "qrcode";
+
+export const sessionFromDb = writable(null);
+
+// Wallet store
+export const walletStore = writable({
+  connected: false,
+  address: "",
+  available: [],
+  error: "",
+  selectedWallet: "",
+  // Functions will be set by the provider
+  connect: null,
+  connectToSpecific: null,
+  disconnect: null,
+  refreshWallets: null,
+});
+
+export let updatedEventsData = writable([]);
 
 // export function createQrCode(data, image, width, height) {
 //   const qrCode = new QRCodeStyling({
@@ -71,8 +87,8 @@ export function generateUniqueFilename() {
 
 // generate qr code and returnthe image
 export async function generateQrImage(data) {
-    const qrImage = toDataURL(data)    
-    return qrImage
+  const qrImage = toDataURL(data);
+  return qrImage;
 }
 
 //get the domain of my site

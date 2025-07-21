@@ -14,6 +14,7 @@
   import Spinner from "$lib/components/Spinner.svelte";
   import { onMount } from "svelte";
   import { setupSmoothScrolling } from "$lib/utils/smoothScroll.js";
+  import SolanaWalletProvider from "$lib/components/SolanaWalletProvider.svelte";
 
   export let data;
 
@@ -141,16 +142,18 @@
 {/if}
 
 <!-- Main content -->
-<div class="{isDashboardRoute ? '' : 'pt-16'} min-h-screen flex flex-col">
-  <main class="flex-1">
-    <slot />
-  </main>
+<SolanaWalletProvider>
+  <div class="{isDashboardRoute ? '' : 'pt-16'} min-h-screen flex flex-col">
+    <main class="flex-1">
+      <slot />
+    </main>
 
-  <!-- Global Footer for all routes except dashboard -->
-  {#if !isDashboardRoute}
-    <Footer />
-  {/if}
-</div>
+    <!-- Global Footer for all routes except dashboard -->
+    {#if !isDashboardRoute}
+      <Footer />
+    {/if}
+  </div>
+</SolanaWalletProvider>
 
 <!-- Global login modal -->
 {#if login}

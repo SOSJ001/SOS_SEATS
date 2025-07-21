@@ -1,4 +1,6 @@
 <script>
+  import WalletConnectButton from "./WalletConnectButton.svelte";
+
   export let signup = false;
 
   let mobileMenuOpen = false;
@@ -61,6 +63,11 @@
     </li>
   </ul>
 
+  <!-- Desktop Wallet Connect Button -->
+  <div class="hidden md:block ml-4">
+    <WalletConnectButton />
+  </div>
+
   <!-- Desktop Get Started Button -->
   <button
     on:click={() => (signup = true)}
@@ -70,41 +77,49 @@
     Get Started
   </button>
 
-  <!-- Mobile Hamburger Button -->
-  <button
-    on:click={toggleMobileMenu}
-    class="md:hidden p-2 text-white hover:text-cyan-300 transition-all duration-300 ease-in-out"
-    aria-label="Toggle mobile menu"
-  >
-    <svg
-      class="w-6 h-6 transition-transform duration-300"
-      class:rotate-90={mobileMenuOpen}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
+  <!-- Mobile Right Side - Wallet Button and Hamburger -->
+  <div class="md:hidden flex items-center space-x-2">
+    <!-- Mobile Wallet Connect Button -->
+    <div class="mr-2">
+      <WalletConnectButton />
+    </div>
+
+    <!-- Mobile Hamburger Button -->
+    <button
+      on:click={toggleMobileMenu}
+      class="p-2 text-white hover:text-cyan-300 transition-all duration-300 ease-in-out"
+      aria-label="Toggle mobile menu"
     >
-      {#if mobileMenuOpen}
-        <!-- X icon when menu is open -->
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M6 18L18 6M6 6l12 12"
-          class="transition-all duration-300"
-        ></path>
-      {:else}
-        <!-- Hamburger icon when menu is closed -->
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M4 6h16M4 12h16M4 18h16"
-          class="transition-all duration-300"
-        ></path>
-      {/if}
-    </svg>
-  </button>
+      <svg
+        class="w-6 h-6 transition-transform duration-300"
+        class:rotate-90={mobileMenuOpen}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {#if mobileMenuOpen}
+          <!-- X icon when menu is open -->
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+            class="transition-all duration-300"
+          ></path>
+        {:else}
+          <!-- Hamburger icon when menu is closed -->
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"
+            class="transition-all duration-300"
+          ></path>
+        {/if}
+      </svg>
+    </button>
+  </div>
 </nav>
 
 <!-- Mobile Menu Overlay -->
