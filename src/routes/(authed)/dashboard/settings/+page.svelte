@@ -79,10 +79,6 @@
   }
 </script>
 
-<svelte:head>
-  <title>Settings - EventFlow</title>
-</svelte:head>
-
 <div class="min-h-screen bg-gray-900 text-white p-4 sm:p-6">
   <!-- Header -->
   <div

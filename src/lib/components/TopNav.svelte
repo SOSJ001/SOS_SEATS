@@ -3,6 +3,8 @@
   import { web3UserStore, activeSectionStore } from "$lib/store";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
+  import { slide, fade, scale } from "svelte/transition";
+  import { quintOut } from "svelte/easing";
 
   export let signup = false;
 
@@ -106,7 +108,7 @@
 </script>
 
 <nav
-  class="fixed top-0 left-0 w-full px-4 sm:px-8 py-3 flex items-center justify-between bg-[#18191c] shadow-sm rounded-b-xl z-50"
+  class="fixed top-0 left-0 w-full px-4 sm:px-8 py-3 flex items-center justify-between bg-[#18191c] shadow-sm rounded-b-xl z-50 transition-all duration-500 ease-out"
 >
   <!-- Logo -->
   <div
@@ -118,7 +120,7 @@
 
   <!-- Desktop Nav Links -->
   <ul
-    class="hidden md:flex items-center space-x-6 lg:space-x-8 font-semibold text-white"
+    class="hidden md:flex items-center space-x-6 lg:space-x-8 font-semibold text-white transition-all duration-500 ease-out"
     style="font-family: 'Roboto Slab', serif;"
   >
     <li>
@@ -194,13 +196,19 @@
     </li>
     <!-- Dashboard Link - Only show when authenticated -->
     {#if isAuthenticated}
-      <li>
+      <li
+        in:slide={{ duration: 400, easing: quintOut, axis: "x" }}
+        out:slide={{ duration: 300, easing: quintOut, axis: "x" }}
+        class="overflow-hidden"
+      >
         <a
           href="/dashboard"
-          class="transition-colors duration-300 {getSectionColor(
+          class="transition-all duration-300 transform hover:scale-105 {getSectionColor(
             'dashboard',
             activeSection === 'dashboard'
           )}"
+          in:fade={{ duration: 200, delay: 100 }}
+          out:fade={{ duration: 150 }}
         >
           Dashboard
         </a>
@@ -209,18 +217,22 @@
   </ul>
 
   <!-- Desktop Wallet Connect Button -->
-  <div class="hidden md:block ml-4">
+  <div
+    class="hidden md:block ml-4 transition-all duration-300 ease-out"
+    class:animate-slideInFromRight={isAuthenticated}
+  >
     <WalletConnectButton />
   </div>
 
   <!-- Desktop Get Started Button -->
-  <button
+  <!-- <button
     on:click={() => (signup = true)}
     class="hidden md:block ml-6 lg:ml-8 px-4 lg:px-6 py-2 rounded-lg font-bold text-white bg-gradient-to-r from-cyan-400 to-purple-500 shadow-md hover:from-purple-500 hover:to-cyan-400 transition-all cursor-pointer"
     style="font-family: 'Roboto Slab', serif;"
+    class:animate-scaleIn={isAuthenticated}
   >
     Get Started
-  </button>
+  </button> -->
 
   <!-- Mobile Right Side - Wallet Button and Hamburger -->
   <div class="md:hidden flex items-center space-x-2">
@@ -314,7 +326,7 @@
 
     <!-- Mobile Nav Links -->
     <nav class="flex-1 px-6 py-8">
-      <ul class="space-y-6">
+      <ul class="space-y-6 transition-all duration-500 ease-out">
         {#each [{ id: "home", text: "Home", delay: 0 }, { id: "features", text: "Features", delay: 100 }, { id: "how-it-works", text: "How it Works", delay: 200 }, { id: "pricing", text: "Pricing", delay: 300 }, { id: "team", text: "Team", delay: 400 }] as item, index}
           <li
             class="transform transition-all duration-500 ease-out"
@@ -357,33 +369,32 @@
             Marketplace
           </a>
         </li>
-
-        <!-- Dashboard Link - Only show when authenticated -->
-        {#if isAuthenticated}
-          <li
-            class="transform transition-all duration-500 ease-out"
-            class:translate-x-0={mobileMenuOpen}
-            class:translate-x-full={!mobileMenuOpen}
-            style="transition-delay: 600ms;"
-          >
-            <a
-              href="/dashboard"
-              on:click={closeMobileMenu}
-              class="block text-lg font-semibold transition-all duration-300 py-2 border-b border-gray-700 hover:pl-2 {getSectionColor(
-                'dashboard',
-                activeSection === 'dashboard'
-              )}"
-              style="font-family: 'Roboto Slab', serif;"
-            >
-              Dashboard
-            </a>
-          </li>
-        {/if}
       </ul>
     </nav>
 
+    <!-- Mobile Dashboard Button -->
+    {#if isAuthenticated}
+      <div
+        class="p-6 border-t border-gray-700 transform transition-all duration-500 ease-out"
+        class:translate-y-0={mobileMenuOpen}
+        class:translate-y-full={!mobileMenuOpen}
+        style="transition-delay: 600ms;"
+      >
+        <a
+          href="/dashboard"
+          on:click={closeMobileMenu}
+          class="w-full px-6 py-3 rounded-lg font-bold text-white bg-gradient-to-r from-cyan-400 to-purple-500 shadow-md hover:from-purple-500 hover:to-cyan-400 transition-all duration-300 cursor-pointer hover:scale-105 hover:shadow-lg block text-center"
+          style="font-family: 'Roboto Slab', serif;"
+          in:scale={{ duration: 300, delay: 200 }}
+          out:scale={{ duration: 200 }}
+        >
+          Dashboard
+        </a>
+      </div>
+    {/if}
+
     <!-- Mobile Get Started Button -->
-    <div
+    <!-- <div
       class="p-6 border-t border-gray-700 transform transition-all duration-500 ease-out"
       class:translate-y-0={mobileMenuOpen}
       class:translate-y-full={!mobileMenuOpen}
@@ -399,7 +410,7 @@
       >
         Get Started
       </button>
-    </div>
+    </div> -->
   </div>
 </div>
 
@@ -424,11 +435,77 @@
     }
   }
 
+  @keyframes slideInFromRight {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
   .animate-fadeIn {
     animation: fadeIn 0.3s ease-out;
   }
 
   .animate-slideInLeft {
     animation: slideInLeft 0.5s ease-out;
+  }
+
+  .animate-slideInFromRight {
+    animation: slideInFromRight 0.4s ease-out;
+  }
+
+  .animate-scaleIn {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  /* Smooth transition for navigation items when dashboard appears */
+  nav ul li {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Dashboard link specific animations */
+  nav ul li:has(a[href="/dashboard"]) {
+    animation: slideInFromRight 0.4s ease-out;
+  }
+
+  /* Dashboard link glow effect */
+  nav ul li:has(a[href="/dashboard"]) a {
+    position: relative;
+    overflow: hidden;
+  }
+
+  nav ul li:has(a[href="/dashboard"]) a::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(34, 197, 94, 0.2),
+      transparent
+    );
+    transition: left 0.5s ease-out;
+  }
+
+  nav ul li:has(a[href="/dashboard"]) a:hover::before {
+    left: 100%;
   }
 </style>
