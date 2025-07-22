@@ -15,6 +15,7 @@
   import { onMount } from "svelte";
   import { setupSmoothScrolling } from "$lib/utils/smoothScroll.js";
   import SolanaWalletProvider from "$lib/components/SolanaWalletProvider.svelte";
+  import ScrollObserver from "$lib/components/ScrollObserver.svelte";
 
   export let data;
 
@@ -143,6 +144,8 @@
 
 <!-- Main content -->
 <SolanaWalletProvider>
+<!-- Scroll Observer for navigation highlighting -->
+<ScrollObserver />
 <div class="{isDashboardRoute ? '' : 'pt-16'} min-h-screen flex flex-col">
   <main class="flex-1">
     <slot />

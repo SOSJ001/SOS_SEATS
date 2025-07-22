@@ -1,9 +1,32 @@
-<script>
+<script lang="ts">
   import WalletConnectButton from "./WalletConnectButton.svelte";
+  import { web3UserStore, activeSectionStore } from "$lib/store";
+  import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
 
   export let signup = false;
 
   let mobileMenuOpen = false;
+  let isAuthenticated = false;
+  let web3User = null;
+  let activeSection = "home";
+  let currentPath = "";
+
+  // Subscribe to Web3 authentication state
+  web3UserStore.subscribe((data) => {
+    isAuthenticated = data.isAuthenticated;
+    web3User = data.user;
+  });
+
+  // Subscribe to active section
+  activeSectionStore.subscribe((section) => {
+    activeSection = section;
+  });
+
+  // Subscribe to page to get current path
+  page.subscribe(($page) => {
+    currentPath = $page.url.pathname;
+  });
 
   function toggleMobileMenu() {
     mobileMenuOpen = !mobileMenuOpen;
@@ -11,6 +34,74 @@
 
   function closeMobileMenu() {
     mobileMenuOpen = false;
+  }
+
+  // Smooth scroll to section
+  function scrollToSection(sectionId: string) {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  }
+
+  // Smart navigation - navigate to home page and scroll to section, or just scroll if already on home
+  async function handleSectionClick(sectionId: string) {
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      // If not on home page, navigate to home page first
+      await goto(`/#${sectionId}`);
+    } else {
+      // If already on home page, just scroll
+      scrollToSection(sectionId);
+    }
+  }
+
+  // Get section color based on active state
+  function getSectionColor(sectionId: string, isActive: boolean) {
+    if (!isActive) return "text-white hover:text-cyan-300";
+
+    // Different colors for different sections based on UI color scheme
+    switch (sectionId) {
+      case "home":
+        return "text-cyan-300"; // Cyan for home
+      case "features":
+        return "text-purple-400"; // Purple for features
+      case "how-it-works":
+        return "text-pink-400"; // Pink for how it works
+      case "pricing":
+        return "text-yellow-400"; // Yellow for pricing
+      case "team":
+        return "text-red-400"; // Red for team
+      case "marketplace":
+        return "text-blue-400"; // Blue for marketplace
+      case "dashboard":
+        return "text-green-400"; // Green for dashboard
+      default:
+        return "text-cyan-300";
+    }
+  }
+
+  // Get underline color based on active state
+  function getUnderlineColor(sectionId: string, isActive: boolean) {
+    if (!isActive) return "bg-transparent";
+
+    switch (sectionId) {
+      case "home":
+        return "bg-gradient-to-r from-cyan-400 to-purple-500";
+      case "features":
+        return "bg-gradient-to-r from-purple-400 to-pink-500";
+      case "how-it-works":
+        return "bg-gradient-to-r from-pink-400 to-red-500";
+      case "pricing":
+        return "bg-gradient-to-r from-yellow-400 to-orange-500";
+      case "team":
+        return "bg-gradient-to-r from-red-400 to-pink-500";
+      case "marketplace":
+        return "bg-gradient-to-r from-blue-400 to-cyan-500";
+      case "dashboard":
+        return "bg-gradient-to-r from-green-400 to-emerald-500";
+      default:
+        return "bg-gradient-to-r from-cyan-400 to-purple-500";
+    }
   }
 </script>
 
@@ -31,36 +122,90 @@
     style="font-family: 'Roboto Slab', serif;"
   >
     <li>
-      <a href="/" class="relative text-cyan-300">
+      <button
+        on:click={() => handleSectionClick("home")}
+        class="relative transition-colors duration-300 {getSectionColor(
+          'home',
+          activeSection === 'home'
+        )}"
+      >
         Home
         <span
-          class="absolute left-0 -bottom-1 w-full h-1 bg-gradient-to-r from-cyan-400 to-purple-500 rounded transition-all"
+          class="absolute left-0 -bottom-1 w-full h-1 rounded transition-all duration-300 {getUnderlineColor(
+            'home',
+            activeSection === 'home'
+          )}"
         ></span>
+      </button>
+    </li>
+    <li>
+      <button
+        on:click={() => handleSectionClick("features")}
+        class="transition-colors duration-300 {getSectionColor(
+          'features',
+          activeSection === 'features'
+        )}"
+      >
+        Features
+      </button>
+    </li>
+    <li>
+      <button
+        on:click={() => handleSectionClick("how-it-works")}
+        class="transition-colors duration-300 {getSectionColor(
+          'how-it-works',
+          activeSection === 'how-it-works'
+        )}"
+      >
+        How it Works
+      </button>
+    </li>
+    <li>
+      <button
+        on:click={() => handleSectionClick("pricing")}
+        class="transition-colors duration-300 {getSectionColor(
+          'pricing',
+          activeSection === 'pricing'
+        )}"
+      >
+        Pricing
+      </button>
+    </li>
+    <li>
+      <button
+        on:click={() => handleSectionClick("team")}
+        class="transition-colors duration-300 {getSectionColor(
+          'team',
+          activeSection === 'team'
+        )}"
+      >
+        Team
+      </button>
+    </li>
+    <li>
+      <a
+        href="/marketplace"
+        class="transition-colors duration-300 {currentPath === '/marketplace'
+          ? 'text-blue-400'
+          : 'text-white hover:text-cyan-300'}"
+      >
+        Marketplace
       </a>
     </li>
-    <li>
-      <a href="/#features" class="hover:text-cyan-300 transition-colors"
-        >Features</a
-      >
-    </li>
-    <li>
-      <a href="/#how-it-works" class="hover:text-cyan-300 transition-colors"
-        >How it Works</a
-      >
-    </li>
-    <li>
-      <a href="/#pricing" class="hover:text-cyan-300 transition-colors"
-        >Pricing</a
-      >
-    </li>
-    <li>
-      <a href="/#team" class="hover:text-cyan-300 transition-colors">Team</a>
-    </li>
-    <li>
-      <a href="/marketplace" class="hover:text-cyan-300 transition-colors"
-        >Marketplace</a
-      >
-    </li>
+    <!-- Dashboard Link - Only show when authenticated -->
+    {#if isAuthenticated}
+      <li>
+        <a
+          href="/dashboard"
+          class="transition-colors duration-300 {getSectionColor(
+            'dashboard',
+            activeSection === 'dashboard'
+          )}"
+        >
+          Dashboard
+        </a>
+      </li>
+    {/if}
   </ul>
 
   <!-- Desktop Wallet Connect Button -->
@@ -170,23 +315,70 @@
     <!-- Mobile Nav Links -->
     <nav class="flex-1 px-6 py-8">
       <ul class="space-y-6">
-        {#each [{ href: "/", text: "Home", delay: 0 }, { href: "/#features", text: "Features", delay: 100 }, { href: "/#how-it-works", text: "How it Works", delay: 200 }, { href: "/#pricing", text: "Pricing", delay: 300 }, { href: "/#team", text: "Team", delay: 400 }, { href: "/marketplace", text: "Marketplace", delay: 500 }] as item, index}
+        {#each [{ id: "home", text: "Home", delay: 0 }, { id: "features", text: "Features", delay: 100 }, { id: "how-it-works", text: "How it Works", delay: 200 }, { id: "pricing", text: "Pricing", delay: 300 }, { id: "team", text: "Team", delay: 400 }] as item, index}
           <li
             class="transform transition-all duration-500 ease-out"
             class:translate-x-0={mobileMenuOpen}
             class:translate-x-full={!mobileMenuOpen}
             style="transition-delay: {item.delay}ms;"
           >
-            <a
-              href={item.href}
-              on:click={closeMobileMenu}
-              class="block text-lg font-semibold text-white hover:text-cyan-300 transition-all duration-300 py-2 border-b border-gray-700 hover:border-cyan-400 hover:pl-2"
+            <button
+              on:click={() => {
+                handleSectionClick(item.id);
+                closeMobileMenu();
+              }}
+              class="block text-lg font-semibold transition-all duration-300 py-2 border-b border-gray-700 hover:pl-2 w-full text-left {getSectionColor(
+                item.id,
+                activeSection === item.id
+              )}"
               style="font-family: 'Roboto Slab', serif;"
             >
               {item.text}
-            </a>
+            </button>
           </li>
         {/each}
+
+        <!-- Marketplace Link -->
+        <li
+          class="transform transition-all duration-500 ease-out"
+          class:translate-x-0={mobileMenuOpen}
+          class:translate-x-full={!mobileMenuOpen}
+          style="transition-delay: 500ms;"
+        >
+          <a
+            href="/marketplace"
+            on:click={closeMobileMenu}
+            class="block text-lg font-semibold transition-all duration-300 py-2 border-b border-gray-700 hover:pl-2 {currentPath ===
+            '/marketplace'
+              ? 'text-blue-400'
+              : 'text-white hover:text-cyan-300'}"
+            style="font-family: 'Roboto Slab', serif;"
+          >
+            Marketplace
+          </a>
+        </li>
+
+        <!-- Dashboard Link - Only show when authenticated -->
+        {#if isAuthenticated}
+          <li
+            class="transform transition-all duration-500 ease-out"
+            class:translate-x-0={mobileMenuOpen}
+            class:translate-x-full={!mobileMenuOpen}
+            style="transition-delay: 600ms;"
+          >
+            <a
+              href="/dashboard"
+              on:click={closeMobileMenu}
+              class="block text-lg font-semibold transition-all duration-300 py-2 border-b border-gray-700 hover:pl-2 {getSectionColor(
+                'dashboard',
+                activeSection === 'dashboard'
+              )}"
+              style="font-family: 'Roboto Slab', serif;"
+            >
+              Dashboard
+            </a>
+          </li>
+        {/if}
       </ul>
     </nav>
 
