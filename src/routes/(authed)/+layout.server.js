@@ -7,7 +7,7 @@ export function load({ cookies }) {
   if (!valid) {
     console.log("No valid session found");
     // Uncomment the line below to redirect unauthenticated users
-    // throw redirect(302, '/');
+    throw redirect(302, '/');
   }
 
   return { user_Id, sessionType };
