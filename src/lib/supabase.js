@@ -429,8 +429,8 @@ export async function checkWalletExists(walletAddress) {
 // Create new Web3 user
 export async function createWeb3User(
   walletAddress,
-  username = null,
-  displayName = null
+  username = undefined,
+  displayName = undefined
 ) {
   try {
     const { data, error } = await supabase.rpc("create_web3_user", {
@@ -547,6 +547,90 @@ export async function getWeb3UserProfile(walletAddress) {
     return { success: true, user: data, error: null };
   } catch (error) {
     console.error("Error in getWeb3UserProfile:", error);
+    return { success: false, user: null, error: error.message };
+  }
+}
+
+// ===== WEB3 SESSION MANAGEMENT FUNCTIONS =====
+
+// Create Web3 session (sets cookie via API)
+export async function createWeb3Session(walletAddress, userData) {
+  try {
+    const sessionData = {
+      type: 'web3',
+      wallet_address: walletAddress,
+      user: userData,
+      created_at: new Date().toISOString()
+    };
+
+    const response = await fetch("/web3LoginApi", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ sessionData }),
+    });
+
+    if (response.ok) {
+      // Update the session store to match traditional auth
+      sessionFromDb.set(userData.id);
+      return { success: true, error: null };
+    } else {
+      const error = await response.text();
+      return { success: false, error };
+    }
+  } catch (error) {
+    console.error("Error creating Web3 session:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Clear Web3 session
+export async function clearWeb3Session() {
+  try {
+    const response = await fetch("/web3LogoutApi", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.ok) {
+      // Clear the session store
+      sessionFromDb.set(null);
+      return { success: true, error: null };
+    } else {
+      const error = await response.text();
+      return { success: false, error };
+    }
+  } catch (error) {
+    console.error("Error clearing Web3 session:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Verify Web3 session on page load
+export async function verifyWeb3Session() {
+  try {
+    const response = await fetch("/web3VerifyApi", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.valid && data.user) {
+        // Update session store
+        sessionFromDb.set(data.user.id);
+        return { success: true, user: data.user, error: null };
+      }
+    }
+    
+    return { success: false, user: null, error: "Invalid session" };
+  } catch (error) {
+    console.error("Error verifying Web3 session:", error);
     return { success: false, user: null, error: error.message };
   }
 }

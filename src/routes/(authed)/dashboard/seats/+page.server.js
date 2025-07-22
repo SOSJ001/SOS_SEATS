@@ -2,9 +2,31 @@
 import { orderHistory } from "$lib/supabase.js";
 export async function load({ parent, cookies }) {
   //getting the usr id
-  let COOKIE_DATA = cookies.get("userSession");
-  COOKIE_DATA = JSON.parse(COOKIE_DATA);
-  const user_Id = COOKIE_DATA?.id;
+  let userSession = cookies.get("userSession");
+  let web3Session = cookies.get("web3Session");
+  let user_Id = null;
+
+  // Check traditional session first
+  if (userSession) {
+    try {
+      const sessionData = JSON.parse(userSession);
+      user_Id = sessionData.id;
+    } catch (error) {
+      console.error('Error parsing traditional session:', error);
+    }
+  }
+  
+  // Check Web3 session if no traditional session
+  if (!user_Id && web3Session) {
+    try {
+      const sessionData = JSON.parse(web3Session);
+      if (sessionData.type === 'web3' && sessionData.user) {
+        user_Id = sessionData.user.id;
+      }
+    } catch (error) {
+      console.error('Error parsing Web3 session:', error);
+    }
+  }
 
   const [{ EventTableResult }, historyData_] = await Promise.all([
     parent(),

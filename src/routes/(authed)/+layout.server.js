@@ -1,15 +1,14 @@
 import { redirect } from "@sveltejs/kit";
+import { validateSession } from "$lib/sessionUtils.js";
 
 export function load({ cookies }) {
-    let COOKIE_DATA = cookies.get('userSession')
-    if (COOKIE_DATA === undefined || COOKIE_DATA === null) {
-        // throw redirect(302, '/')  
-        console.log('No cookie data found')
-    } else {
-        console.log('Cookie data found')
-        COOKIE_DATA = JSON.parse(COOKIE_DATA)
-    }
-    // @ts-ignore
-    const user_Id = COOKIE_DATA?.id
-    return {user_Id}
+  const { valid, user_Id, sessionType } = validateSession(cookies);
+
+  if (!valid) {
+    console.log("No valid session found");
+    // Uncomment the line below to redirect unauthenticated users
+    // throw redirect(302, '/');
+  }
+
+  return { user_Id, sessionType };
 }

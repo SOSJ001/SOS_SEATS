@@ -6,18 +6,12 @@
     checkWalletExists,
     createWeb3User,
     recordWeb3SignIn,
+    createWeb3Session,
+    clearWeb3Session,
+    verifyWeb3Session,
   } from "$lib/supabase.js";
 
   const network = clusterApiUrl("devnet"); // You can change this to 'mainnet-beta' for production
-
-  // Type declarations for wallet objects
-  declare global {
-    interface Window {
-      solana?: any;
-      solflare?: any;
-      backpack?: any;
-    }
-  }
 
   // Simple wallet detection and connection
   let walletConnected = false;
@@ -32,10 +26,242 @@
   let isLoading = false;
   let authError: string | null = null;
 
-  onMount(() => {
+  onMount(async () => {
     // Check for available wallets
     checkAvailableWallets();
+
+    // Set up wallet connection state listeners
+    setupWalletListeners();
+
+    // Implement hybrid approach: try auto-connect if session exists, else clear session
+    await handleSessionAndWalletSync();
   });
+
+  // Set up listeners for wallet connection state changes
+  function setupWalletListeners() {
+    // Phantom wallet listeners
+    if (
+      typeof window !== "undefined" &&
+      (window as any).solana &&
+      (window as any).solana.isPhantom
+    ) {
+      (window as any).solana.on("connect", () => {
+        console.log("🔗 Phantom wallet connected");
+        // Don't auto-authenticate here, let the user do it manually
+      });
+
+      (window as any).solana.on("disconnect", () => {
+        console.log("🔌 Phantom wallet disconnected");
+        // Clear session when wallet is disconnected
+        handleWalletDisconnect();
+      });
+
+      (window as any).solana.on("accountChanged", (publicKey: any) => {
+        console.log("🔄 Phantom account changed:", publicKey?.toString());
+        if (publicKey) {
+          // Account changed, update wallet address
+          walletAddress = publicKey.toString();
+          updateStore();
+        } else {
+          // Account cleared, handle as disconnect
+          handleWalletDisconnect();
+        }
+      });
+    }
+
+    // Solflare wallet listeners
+    if (typeof window !== "undefined" && (window as any).solflare) {
+      (window as any).solflare.on("connect", () => {
+        console.log("🔗 Solflare wallet connected");
+      });
+
+      (window as any).solflare.on("disconnect", () => {
+        console.log("🔌 Solflare wallet disconnected");
+        handleWalletDisconnect();
+      });
+
+      (window as any).solflare.on("accountChanged", (publicKey: any) => {
+        console.log("🔄 Solflare account changed:", publicKey?.toString());
+        if (publicKey) {
+          walletAddress = publicKey.toString();
+          updateStore();
+        } else {
+          handleWalletDisconnect();
+        }
+      });
+    }
+
+    // Backpack wallet listeners
+    if (typeof window !== "undefined" && (window as any).backpack) {
+      (window as any).backpack.on("connect", () => {
+        console.log("🔗 Backpack wallet connected");
+      });
+
+      (window as any).backpack.on("disconnect", () => {
+        console.log("🔌 Backpack wallet disconnected");
+        handleWalletDisconnect();
+      });
+
+      (window as any).backpack.on("accountChanged", (publicKey: any) => {
+        console.log("🔄 Backpack account changed:", publicKey?.toString());
+        if (publicKey) {
+          walletAddress = publicKey.toString();
+          updateStore();
+        } else {
+          handleWalletDisconnect();
+        }
+      });
+    }
+  }
+
+  // Handle wallet disconnect (called when wallet is disconnected externally)
+  async function handleWalletDisconnect() {
+    console.log("🔌 Handling external wallet disconnect...");
+
+    // Clear wallet state
+    walletConnected = false;
+    walletAddress = "";
+    connectionError = "";
+    selectedWallet = "";
+
+    // Clear Web3 session since wallet is no longer connected
+    await signOutWeb3();
+
+    updateStore();
+    console.log("✅ External wallet disconnect handled");
+  }
+
+  // Hybrid approach: Try auto-connect if session exists, else clear session
+  async function handleSessionAndWalletSync() {
+    try {
+      console.log("🔄 Starting session and wallet sync...");
+
+      // First, check if we have a Web3 session
+      const sessionResult = await verifyWeb3Session();
+
+      if (sessionResult.success && sessionResult.user) {
+        console.log("✅ Web3 session found, attempting wallet auto-connect...");
+
+        // Try to auto-connect to the wallet
+        const autoConnectResult = await attemptWalletAutoConnect();
+
+        if (autoConnectResult.success) {
+          // Wallet connected successfully, restore session state
+          console.log(
+            "✅ Wallet auto-connect successful, restoring session..."
+          );
+          isAuthenticated = true;
+          web3User = sessionResult.user;
+          walletConnected = true;
+          walletAddress = autoConnectResult.walletAddress || "";
+          selectedWallet = autoConnectResult.walletName || "";
+          authError = null;
+          updateStore();
+          console.log("✅ Session and wallet state restored successfully");
+        } else {
+          // Auto-connect failed, clear the session
+          console.log("❌ Wallet auto-connect failed, clearing session...");
+          await clearWeb3Session();
+          isAuthenticated = false;
+          web3User = null;
+          walletConnected = false;
+          walletAddress = "";
+          selectedWallet = "";
+          authError = null;
+          updateStore();
+          console.log("✅ Session cleared due to wallet unavailability");
+        }
+      } else {
+        console.log("ℹ️ No valid Web3 session found");
+      }
+    } catch (error) {
+      console.error("❌ Error in session and wallet sync:", error);
+      // Clear session on any error
+      await clearWeb3Session();
+      isAuthenticated = false;
+      web3User = null;
+      updateStore();
+    }
+  }
+
+  // Attempt to auto-connect to available wallets
+  async function attemptWalletAutoConnect() {
+    try {
+      // Try Phantom first (most common)
+      if (
+        typeof window !== "undefined" &&
+        (window as any).solana &&
+        (window as any).solana.isPhantom
+      ) {
+        try {
+          console.log("🔄 Attempting Phantom auto-connect...");
+          const response = await (window as any).solana.connect({
+            onlyIfTrusted: true,
+          });
+          if (response && response.publicKey) {
+            console.log("✅ Phantom auto-connect successful");
+            return {
+              success: true,
+              walletAddress: response.publicKey.toString(),
+              walletName: "Phantom",
+            };
+          }
+        } catch (error) {
+          console.log(
+            "ℹ️ Phantom auto-connect failed (expected if not previously connected)"
+          );
+        }
+      }
+
+      // Try Solflare
+      if (typeof window !== "undefined" && (window as any).solflare) {
+        try {
+          console.log("🔄 Attempting Solflare auto-connect...");
+          // Solflare doesn't have onlyIfTrusted, but we can try to get the public key
+          if ((window as any).solflare.isConnected) {
+            const publicKey = (window as any).solflare.publicKey;
+            if (publicKey) {
+              console.log("✅ Solflare auto-connect successful");
+              return {
+                success: true,
+                walletAddress: publicKey.toString(),
+                walletName: "Solflare",
+              };
+            }
+          }
+        } catch (error) {
+          console.log("ℹ️ Solflare auto-connect failed");
+        }
+      }
+
+      // Try Backpack
+      if (typeof window !== "undefined" && (window as any).backpack) {
+        try {
+          console.log("🔄 Attempting Backpack auto-connect...");
+          // Backpack doesn't have onlyIfTrusted, but we can try to get the public key
+          if ((window as any).backpack.isConnected) {
+            const publicKey = (window as any).backpack.publicKey;
+            if (publicKey) {
+              console.log("✅ Backpack auto-connect successful");
+              return {
+                success: true,
+                walletAddress: publicKey.toString(),
+                walletName: "Backpack",
+              };
+            }
+          }
+        } catch (error) {
+          console.log("ℹ️ Backpack auto-connect failed");
+        }
+      }
+
+      console.log("❌ No wallet auto-connect successful");
+      return { success: false };
+    } catch (error) {
+      console.error("❌ Error in wallet auto-connect:", error);
+      return { success: false };
+    }
+  }
 
   function checkAvailableWallets() {
     availableWallets = [];
@@ -95,78 +321,102 @@
   // Web3 Authentication Functions
   async function authenticateWallet(
     walletAddress: string,
-    username?: string | null,
-    displayName?: string | null
+    username?: string,
+    displayName?: string
   ) {
-    console.log('🔐 Starting authentication for wallet:', walletAddress);
+    console.log("🔐 Starting authentication for wallet:", walletAddress);
     isLoading = true;
     authError = null;
     updateStore();
 
     try {
       // Check if wallet exists
-      console.log('🔍 Checking if wallet exists...');
+      console.log("🔍 Checking if wallet exists...");
       const walletCheck = await checkWalletExists(walletAddress);
-      console.log('Wallet check result:', walletCheck);
+      console.log("Wallet check result:", walletCheck);
+
+      let userData = null;
 
       if (walletCheck.exists && walletCheck.user) {
         // User exists, record sign in
-        console.log('👤 User exists, recording sign in...');
+        console.log("👤 User exists, recording sign in...");
         const signInResult = await recordWeb3SignIn(walletAddress);
-        console.log('Sign in result:', signInResult);
+        console.log("Sign in result:", signInResult);
         if (signInResult.success) {
-          isAuthenticated = true;
-          web3User = signInResult.user;
-          authError = null;
-          console.log('✅ Sign in successful');
+          userData = signInResult.user;
+          console.log("✅ Sign in successful");
         } else {
           authError = signInResult.error || "Failed to sign in";
-          console.log('❌ Sign in failed:', authError);
+          console.log("❌ Sign in failed:", authError);
         }
       } else {
         // User doesn't exist, create new account
-        console.log('🆕 User doesn\'t exist, needs username:', !username);
+        console.log("🆕 User doesn't exist, needs username:", !username);
         if (!username) {
           authError = "Username required for new account";
           isLoading = false;
           updateStore();
-          console.log('📝 Returning needsUsername: true');
+          console.log("📝 Returning needsUsername: true");
           return { success: false, needsUsername: true };
         }
 
-        console.log('👤 Creating new user...');
+        console.log("👤 Creating new user...");
         const createResult = await createWeb3User(
           walletAddress,
-          username,
-          displayName
+          username as any,
+          displayName as any
         );
-        console.log('Create user result:', createResult);
+        console.log("Create user result:", createResult);
         if (createResult.success) {
-          isAuthenticated = true;
-          web3User = createResult.user;
-          authError = null;
-          console.log('✅ User created successfully');
+          userData = createResult.user;
+          console.log("✅ User created successfully");
         } else {
           authError = createResult.error || "Failed to create account";
-          console.log('❌ User creation failed:', authError);
+          console.log("❌ User creation failed:", authError);
+        }
+      }
+
+      // If authentication was successful, create session
+      if (userData) {
+        console.log("🔐 Creating Web3 session...");
+        const sessionResult = await createWeb3Session(walletAddress, userData);
+        if (sessionResult.success) {
+          isAuthenticated = true;
+          web3User = userData;
+          authError = null;
+          console.log("✅ Web3 session created successfully");
+        } else {
+          authError = sessionResult.error || "Failed to create session";
+          console.log("❌ Session creation failed:", authError);
         }
       }
     } catch (error: any) {
       authError = error.message || "Authentication failed";
-      console.log('❌ Authentication error:', error);
+      console.log("❌ Authentication error:", error);
     }
 
     isLoading = false;
     updateStore();
-    console.log('🔐 Authentication complete. Success:', isAuthenticated, 'Error:', authError);
+    console.log(
+      "🔐 Authentication complete. Success:",
+      isAuthenticated,
+      "Error:",
+      authError
+    );
     return { success: isAuthenticated, needsUsername: false };
   }
 
-  function signOutWeb3() {
+  async function signOutWeb3() {
+    console.log("🚪 Signing out from Web3...");
+    // Clear Web3 session cookie
+    await clearWeb3Session();
+
+    // Clear local state
     isAuthenticated = false;
     web3User = null;
     authError = null;
     updateStore();
+    console.log("✅ Web3 sign out complete");
   }
 
   async function updateWeb3Profile(walletAddress: string, updates: any) {
@@ -247,6 +497,9 @@
   }
 
   function disconnectWallet() {
+    console.log("🔌 Disconnecting wallet...");
+
+    // Disconnect from wallet extensions
     if (typeof window !== "undefined" && (window as any).solana) {
       (window as any).solana.disconnect();
     }
@@ -257,15 +510,17 @@
       (window as any).backpack.disconnect();
     }
 
+    // Clear wallet state
     walletConnected = false;
     walletAddress = "";
     connectionError = "";
     selectedWallet = "";
 
-    // Also sign out from Web3
+    // Also sign out from Web3 (this will clear the session)
     signOutWeb3();
 
     updateStore();
+    console.log("✅ Wallet disconnect complete");
   }
 </script>
 

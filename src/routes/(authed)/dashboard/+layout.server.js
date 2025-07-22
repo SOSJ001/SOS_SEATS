@@ -1,11 +1,15 @@
 //@ts-nocheck
 import { loadEventToTable } from "$lib/supabase";
+import { parseSession } from "$lib/sessionUtils.js";
 
 export async function load({ cookies }) {
-  let COOKIE_DATA = cookies.get("userSession");
-  if (COOKIE_DATA) COOKIE_DATA = JSON.parse(COOKIE_DATA);
-  const user_Id = COOKIE_DATA?.id;
-  const userName = COOKIE_DATA.user_metadata.userName;
+  const { user_Id, userName, sessionType } = parseSession(cookies);
+
+  if (!user_Id) {
+    console.log('No valid session found for dashboard');
+    return { EventTableResult: [], user_Id: null, userName: null, sessionType: null };
+  }
+
   const EventTableResult = await loadEventToTable(user_Id);
-  return { EventTableResult, user_Id, userName };
+  return { EventTableResult, user_Id, userName, sessionType };
 }
