@@ -30,6 +30,7 @@
   let previousWalletConnected = false;
   let hasShownConnectionToast = false;
   let isConnectingFromModal = false;
+  let currentConnectionSession = null;
 
   // Watch for wallet connection changes and show appropriate toasts
   $: if (walletConnected !== previousWalletConnected) {
@@ -39,6 +40,9 @@
       !hasShownConnectionToast &&
       !isConnectingFromModal
     ) {
+      // Create a unique session ID for this connection
+      currentConnectionSession = Date.now();
+
       // Wallet just connected successfully (but not from modal selection)
       showToast(
         "success",
@@ -50,6 +54,7 @@
       // Reset the flag when wallet disconnects
       hasShownConnectionToast = false;
       isConnectingFromModal = false;
+      currentConnectionSession = null;
     }
     previousWalletConnected = walletConnected;
   }
@@ -93,6 +98,9 @@
     if (!walletAddress || !web3Data?.authenticate) return;
 
     try {
+      // Set flag to prevent connection toast during authentication
+      hasShownConnectionToast = true;
+
       const authResult = await web3Data.authenticate(walletAddress);
 
       if (authResult?.needsUsername) {
