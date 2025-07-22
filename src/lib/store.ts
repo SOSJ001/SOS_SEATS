@@ -1,4 +1,3 @@
-//@ts-nocheck
 import { writable } from "svelte/store";
 import { toDataURL } from "qrcode";
 
@@ -8,14 +7,26 @@ export const sessionFromDb = writable(null);
 export const walletStore = writable({
   connected: false,
   address: "",
-  available: [],
+  available: [] as string[],
   error: "",
   selectedWallet: "",
   // Functions will be set by the provider
-  connect: null,
-  connectToSpecific: null,
-  disconnect: null,
-  refreshWallets: null,
+  connect: null as any,
+  connectToSpecific: null as any,
+  disconnect: null as any,
+  refreshWallets: null as any,
+});
+
+// Web3 User store
+export const web3UserStore = writable({
+  isAuthenticated: false,
+  user: null as any,
+  isLoading: false,
+  error: null as string | null,
+  // Functions will be set by the provider
+  authenticate: null as any,
+  signOut: null as any,
+  updateProfile: null as any,
 });
 
 export let updatedEventsData = writable([]);

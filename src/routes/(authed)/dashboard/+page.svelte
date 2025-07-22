@@ -1,6 +1,6 @@
 <script>
   // @ts-nocheck
-  import { getDomain, sessionFromDb, updatedEventsData } from "$lib/store.js";
+  import { getDomain, sessionFromDb, updatedEventsData } from "$lib/store";
   import { invalidateAll } from "$app/navigation";
   import DashboardOverview from "$lib/components/DashboardOverview.svelte";
   import DashboardRecentActivity from "$lib/components/DashboardRecentActivity.svelte";

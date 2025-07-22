@@ -1,13 +1,16 @@
 <script lang="ts">
-  import { walletStore } from "$lib/store.js";
+  import { walletStore, web3UserStore } from "$lib/store";
   import WalletSelectionModal from "./WalletSelectionModal.svelte";
+  import UsernameSetupModal from "./UsernameSetupModal.svelte";
 
   let walletConnected = false;
   let walletAddress = "";
   let availableWallets: string[] = [];
   let connectionError = "";
   let showWalletModal = false;
+  let showUsernameModal = false;
   let walletData: any = null;
+  let web3Data: any = null;
 
   // Subscribe to wallet store
   walletStore.subscribe((data) => {
@@ -16,6 +19,11 @@
     walletAddress = data.address || "";
     availableWallets = data.available || [];
     connectionError = data.error || "";
+  });
+
+  // Subscribe to Web3 user store
+  web3UserStore.subscribe((data) => {
+    web3Data = data;
   });
 
   async function handleWalletAction() {
@@ -36,13 +44,50 @@
       // If result is false and multiple wallets are available, show modal
       if (result === false && availableWallets.length > 1) {
         showWalletModal = true;
+      } else if (result && typeof result === "object" && result.needsUsername) {
+        // Wallet connected but needs username setup
+        showUsernameModal = true;
+      } else if (result === true && walletAddress) {
+        // Wallet connected successfully, now authenticate with Web3
+        await handleWeb3Authentication();
       }
     }
   }
 
-  function handleWalletSelection(event: CustomEvent) {
+  async function handleWeb3Authentication() {
+    if (!walletAddress || !web3Data?.authenticate) return;
+
+    try {
+      const authResult = await web3Data.authenticate(walletAddress);
+
+      if (authResult?.needsUsername) {
+        // Show username setup modal
+        showUsernameModal = true;
+      }
+    } catch (error) {
+      console.error("Web3 authentication error:", error);
+    }
+  }
+
+  function handleUsernameSetup(event: CustomEvent) {
+    const { username, displayName } = event.detail;
+
+    if (walletAddress && web3Data?.authenticate) {
+      web3Data.authenticate(walletAddress, username, displayName);
+    }
+
+    showUsernameModal = false;
+  }
+
+  async function handleWalletSelection(event: CustomEvent) {
     const { wallet } = event.detail;
-    walletData?.connectToSpecific?.(wallet);
+    showWalletModal = false;
+
+    const result = await walletData?.connectToSpecific?.(wallet);
+
+    if (result && typeof result === "object" && result.needsUsername) {
+      showUsernameModal = true;
+    }
   }
 </script>
 
@@ -98,7 +143,7 @@
             stroke-linecap="round"
             stroke-linejoin="round"
             stroke-width="2"
-            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
           />
         </svg>
         <span class="text-xs md:text-sm">Connect</span>
@@ -123,6 +168,14 @@
   bind:show={showWalletModal}
   {availableWallets}
   on:select={handleWalletSelection}
+/>
+
+<UsernameSetupModal
+  bind:show={showUsernameModal}
+  {walletAddress}
+  isLoading={web3Data?.isLoading || false}
+  on:submit={handleUsernameSetup}
+  on:close={() => (showUsernameModal = false)}
 />
 
 <style>

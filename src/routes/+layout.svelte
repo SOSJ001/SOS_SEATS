@@ -143,16 +143,16 @@
 
 <!-- Main content -->
 <SolanaWalletProvider>
-  <div class="{isDashboardRoute ? '' : 'pt-16'} min-h-screen flex flex-col">
-    <main class="flex-1">
-      <slot />
-    </main>
+<div class="{isDashboardRoute ? '' : 'pt-16'} min-h-screen flex flex-col">
+  <main class="flex-1">
+    <slot />
+  </main>
 
-    <!-- Global Footer for all routes except dashboard -->
-    {#if !isDashboardRoute}
-      <Footer />
-    {/if}
-  </div>
+  <!-- Global Footer for all routes except dashboard -->
+  {#if !isDashboardRoute}
+    <Footer />
+  {/if}
+</div>
 </SolanaWalletProvider>
 
 <!-- Global login modal -->

@@ -1,11 +1,17 @@
 // @ts-nocheck
 import { createClient } from "@supabase/supabase-js";
 import { sessionFromDb } from "$lib/store";
-import { generateUniqueFilename } from "$lib/store.js";
-export const supabase = createClient(
-  "https://qwoklzpfoblqmnategny.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2tsenBmb2JscW1uYXRlZ255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTIzMDYxMDksImV4cCI6MjAwNzg4MjEwOX0.BktZ0VzqqY5Wn8wjXfgIKBMdNauNx5-ZChMOnw9vbcs"
-);
+import { generateUniqueFilename } from "$lib/store";
+
+// Get environment variables
+const supabaseUrl =
+  import.meta.env.VITE_SUPABASE_URL ||
+  "https://qwoklzpfoblqmnategny.supabase.co";
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2tsenBmb2JscW1uYXRlZ255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTIzMDYxMDksImV4cCI6MjAwNzg4MjEwOX0.BktZ0VzqqY5Wn8wjXfgIKBMdNauNx5-ZChMOnw9vbcs";
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 //sign up function
 export async function createAccount(email, password, userName, name) {
@@ -385,4 +391,162 @@ export async function signTransactionKey(user_id) {
     .select("*")
     .eq("user_id", user_id);
   return response;
+}
+
+// ===== WEB3 AUTHENTICATION FUNCTIONS =====
+
+// Check if wallet exists in database
+export async function checkWalletExists(walletAddress) {
+  try {
+    const { data, error } = await supabase.rpc("check_wallet_exists", {
+      wallet_address_param: walletAddress,
+    });
+
+    if (error) {
+      console.error("Error checking wallet:", error);
+      return { exists: false, user: null, error: error.message };
+    }
+
+    if (data && data.length > 0 && data[0].exists) {
+      return {
+        exists: true,
+        user: {
+          id: data[0].user_id,
+          username: data[0].username,
+          display_name: data[0].display_name,
+        },
+        error: null,
+      };
+    }
+
+    return { exists: false, user: null, error: null };
+  } catch (error) {
+    console.error("Error in checkWalletExists:", error);
+    return { exists: false, user: null, error: error.message };
+  }
+}
+
+// Create new Web3 user
+export async function createWeb3User(
+  walletAddress,
+  username = null,
+  displayName = null
+) {
+  try {
+    const { data, error } = await supabase.rpc("create_web3_user", {
+      wallet_address_param: walletAddress,
+      username_param: username,
+      display_name_param: displayName,
+    });
+
+    if (error) {
+      console.error("Error creating Web3 user:", error);
+      return { success: false, user: null, error: error.message };
+    }
+
+    if (data && data.length > 0 && data[0].success) {
+      return {
+        success: true,
+        user: {
+          id: data[0].user_id,
+          username: data[0].username,
+        },
+        error: null,
+      };
+    }
+
+    return {
+      success: false,
+      user: null,
+      error: data?.[0]?.message || "Failed to create user",
+    };
+  } catch (error) {
+    console.error("Error in createWeb3User:", error);
+    return { success: false, user: null, error: error.message };
+  }
+}
+
+// Record Web3 sign in
+export async function recordWeb3SignIn(walletAddress) {
+  try {
+    const { data, error } = await supabase.rpc("record_web3_sign_in", {
+      wallet_address_param: walletAddress,
+    });
+
+    if (error) {
+      console.error("Error recording sign in:", error);
+      return { success: false, user: null, error: error.message };
+    }
+
+    if (data && data.length > 0 && data[0].success) {
+      return {
+        success: true,
+        user: {
+          id: data[0].user_id,
+          username: data[0].username,
+        },
+        error: null,
+      };
+    }
+
+    return { success: false, user: null, error: "Failed to record sign in" };
+  } catch (error) {
+    console.error("Error in recordWeb3SignIn:", error);
+    return { success: false, user: null, error: error.message };
+  }
+}
+
+// Update Web3 user profile
+export async function updateWeb3UserProfile(
+  walletAddress,
+  username = null,
+  displayName = null,
+  avatarUrl = null
+) {
+  try {
+    const { data, error } = await supabase.rpc("update_web3_user_profile", {
+      wallet_address_param: walletAddress,
+      username_param: username,
+      display_name_param: displayName,
+      avatar_url_param: avatarUrl,
+    });
+
+    if (error) {
+      console.error("Error updating profile:", error);
+      return { success: false, error: error.message };
+    }
+
+    if (data && data.length > 0 && data[0].success) {
+      return { success: true, error: null };
+    }
+
+    return {
+      success: false,
+      error: data?.[0]?.message || "Failed to update profile",
+    };
+  } catch (error) {
+    console.error("Error in updateWeb3UserProfile:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Get Web3 user profile
+export async function getWeb3UserProfile(walletAddress) {
+  try {
+    const { data, error } = await supabase
+      .from("web3_user_profiles")
+      .select("*")
+      .eq("wallet_address", walletAddress)
+      .single();
+
+    if (error) {
+      console.error("Error getting profile:", error);
+      return { success: false, user: null, error: error.message };
+    }
+
+    return { success: true, user: data, error: null };
+  } catch (error) {
+    console.error("Error in getWeb3UserProfile:", error);
+    return { success: false, user: null, error: error.message };
+  }
 }
