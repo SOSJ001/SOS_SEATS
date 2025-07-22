@@ -135,3 +135,55 @@ export function generateRandomChars() {
 
   return result;
 }
+
+// Global toast store
+export const toastStore = writable({
+  toasts: [] as Array<{
+    id: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    description: string;
+    duration: number;
+    show: boolean;
+  }>
+});
+
+// Toast actions
+export const showToast = (type: 'success' | 'error' | 'warning' | 'info', title: string, description: string, duration = 6000) => {
+  const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+  
+  toastStore.update(state => ({
+    toasts: [...state.toasts, {
+      id,
+      type,
+      title,
+      description,
+      duration,
+      show: true
+    }]
+  }));
+  
+  // Auto-remove toast after duration
+  setTimeout(() => {
+    removeToast(id);
+  }, duration);
+};
+
+export const hideToast = (id: string) => {
+  toastStore.update(state => ({
+    toasts: state.toasts.map(toast => 
+      toast.id === id ? { ...toast, show: false } : toast
+    )
+  }));
+  
+  // Remove from array after animation
+  setTimeout(() => {
+    removeToast(id);
+  }, 300);
+};
+
+export const removeToast = (id: string) => {
+  toastStore.update(state => ({
+    toasts: state.toasts.filter(toast => toast.id !== id)
+  }));
+};

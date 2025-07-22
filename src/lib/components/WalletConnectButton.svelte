@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { walletStore, web3UserStore } from "$lib/store";
+  import { walletStore, web3UserStore, showToast } from "$lib/store";
   import WalletSelectionModal from "./WalletSelectionModal.svelte";
   import UsernameSetupModal from "./UsernameSetupModal.svelte";
 
@@ -26,8 +26,43 @@
     web3Data = data;
   });
 
+  // Track previous wallet connection state to detect changes
+  let previousWalletConnected = false;
+  let hasShownConnectionToast = false;
+  let isConnectingFromModal = false;
+
+  // Watch for wallet connection changes and show appropriate toasts
+  $: if (walletConnected !== previousWalletConnected) {
+    if (
+      walletConnected &&
+      walletAddress &&
+      !hasShownConnectionToast &&
+      !isConnectingFromModal
+    ) {
+      // Wallet just connected successfully (but not from modal selection)
+      showToast(
+        "success",
+        "Wallet Connected!",
+        `Successfully connected to ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+      );
+      hasShownConnectionToast = true;
+    } else if (!walletConnected) {
+      // Reset the flag when wallet disconnects
+      hasShownConnectionToast = false;
+      isConnectingFromModal = false;
+    }
+    previousWalletConnected = walletConnected;
+  }
+
   async function handleWalletAction() {
     if (walletConnected) {
+      // Show disconnect toast before disconnecting
+      showToast(
+        "info",
+        "Wallet Disconnected",
+        "Your wallet has been disconnected successfully."
+      );
+
       walletData?.disconnect?.();
     } else {
       // If no wallets are detected, try to refresh the wallet list
@@ -63,9 +98,22 @@
       if (authResult?.needsUsername) {
         // Show username setup modal
         showUsernameModal = true;
+      } else if (authResult?.success) {
+        // Authentication successful - show success toast
+        showToast(
+          "success",
+          "Authentication Successful!",
+          "Your wallet has been authenticated and you're now logged in."
+        );
       }
     } catch (error) {
       console.error("Web3 authentication error:", error);
+      // Show error toast
+      showToast(
+        "error",
+        "Authentication Failed",
+        "Failed to authenticate your wallet. Please try again."
+      );
     }
   }
 
@@ -74,7 +122,30 @@
 
     if (walletAddress && web3Data?.authenticate) {
       web3Data.authenticate(walletAddress, username, displayName);
+
+      // Show success toast for username setup
+      showToast(
+        "success",
+        "Account Created!",
+        `Welcome ${username}! Your account has been created successfully.`
+      );
     }
+
+    showUsernameModal = false;
+  }
+
+  function handleUsernameCancel() {
+    // Auto-disconnect wallet when user cancels username setup
+    if (walletData?.disconnect) {
+      walletData.disconnect();
+    }
+
+    // Show toast notification
+    showToast(
+      "info",
+      "Wallet Disconnected",
+      "Wallet was disconnected because username setup was cancelled. Please complete the setup to use your wallet."
+    );
 
     showUsernameModal = false;
   }
@@ -83,11 +154,26 @@
     const { wallet } = event.detail;
     showWalletModal = false;
 
+    // Set flag to prevent duplicate toast from reactive statement
+    isConnectingFromModal = true;
+
     const result = await walletData?.connectToSpecific?.(wallet);
 
     if (result && typeof result === "object" && result.needsUsername) {
       showUsernameModal = true;
+    } else if (result === true) {
+      // Show success toast for modal selection
+      showToast(
+        "success",
+        "Wallet Connected!",
+        `Successfully connected to ${wallet}`
+      );
     }
+
+    // Reset the flag after a short delay
+    setTimeout(() => {
+      isConnectingFromModal = false;
+    }, 100);
   }
 </script>
 
@@ -176,6 +262,7 @@
   isLoading={web3Data?.isLoading || false}
   on:submit={handleUsernameSetup}
   on:close={() => (showUsernameModal = false)}
+  on:cancel={handleUsernameCancel}
 />
 
 <style>

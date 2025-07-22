@@ -51,6 +51,8 @@
       displayName = "";
       error = "";
       dispatch("close");
+      // Dispatch cancel event to notify parent that user closed without submitting
+      dispatch("cancel");
     }
   }
 

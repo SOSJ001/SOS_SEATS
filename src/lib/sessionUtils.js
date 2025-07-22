@@ -60,3 +60,4 @@ export function validateSession(cookies) {
     sessionType,
   };
 }
+ 

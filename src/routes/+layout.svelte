@@ -16,6 +16,7 @@
   import { setupSmoothScrolling } from "$lib/utils/smoothScroll.js";
   import SolanaWalletProvider from "$lib/components/SolanaWalletProvider.svelte";
   import ScrollObserver from "$lib/components/ScrollObserver.svelte";
+  import ToastContainer from "$lib/components/ToastContainer.svelte";
 
   export let data;
 
@@ -119,43 +120,23 @@
 
 <!-- Global TopNav for all routes except dashboard -->
 {#if !isDashboardRoute}
-  <TopNav bind:signup>
-    <svelte:fragment slot="login">
-      <button
-        in:fade
-        on:click={() => (login = true)}
-        class="text-white hover:bg-gray-500 hover:text-white rounded-lg px-2 py-2 mr-1"
-      >
-        <span> LOGIN </span>
-      </button>
-    </svelte:fragment>
-    <!-- sign up button here  -->
-    <svelte:fragment slot="signup">
-      <button
-        in:fade
-        on:click={() => (signup = true)}
-        class="text-white bg-yellow-400 hover:bg-white hover:text-yellow-500 rounded-lg px-2 py-2"
-      >
-        <span> SIGNUP </span>
-      </button>
-    </svelte:fragment>
-  </TopNav>
+  <TopNav bind:signup />
 {/if}
 
 <!-- Main content -->
 <SolanaWalletProvider>
-<!-- Scroll Observer for navigation highlighting -->
-<ScrollObserver />
-<div class="{isDashboardRoute ? '' : 'pt-16'} min-h-screen flex flex-col">
-  <main class="flex-1">
-    <slot />
-  </main>
+  <!-- Scroll Observer for navigation highlighting -->
+  <ScrollObserver />
+  <div class="{isDashboardRoute ? '' : 'pt-16'} min-h-screen flex flex-col">
+    <main class="flex-1">
+      <slot />
+    </main>
 
-  <!-- Global Footer for all routes except dashboard -->
-  {#if !isDashboardRoute}
-    <Footer />
-  {/if}
-</div>
+    <!-- Global Footer for all routes except dashboard -->
+    {#if !isDashboardRoute}
+      <Footer />
+    {/if}
+  </div>
 </SolanaWalletProvider>
 
 <!-- Global login modal -->
@@ -545,6 +526,9 @@
     </Modal>
   </div>
 {/if}
+
+<!-- Global Toast Container -->
+<ToastContainer position="bottom-right" />
 
 <style>
   :global(body) {
