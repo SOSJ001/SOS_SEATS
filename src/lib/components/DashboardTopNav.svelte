@@ -3,7 +3,6 @@
   import WalletConnectButton from "./WalletConnectButton.svelte";
 
   export let userName = "User";
-  export let walletBalance = "$1,234.56";
   export let onMenuToggle = () => {}; // Function to toggle sidebar
 
   let showNotifications = false;

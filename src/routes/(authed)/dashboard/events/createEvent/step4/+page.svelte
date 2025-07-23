@@ -5,8 +5,9 @@
   import StepperProgress from "$lib/components/StepperProgress.svelte";
 
   let eventData: any = {
-    audienceType: "all-ages", // all-ages, 18-plus, 21-plus, family, corporate, students
-    eventVisibility: "public", // public, private, invite-only
+    // Event settings for database
+    audience_type: "all-ages", // Database: TEXT DEFAULT 'all-ages'
+    event_visibility: "public", // Database: TEXT DEFAULT 'public'
   };
 
   let errors: Record<string, string> = {};
@@ -66,12 +67,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.audienceType}
+            bind:group={eventData.audience_type}
             value="all-ages"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audienceType ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audience_type ===
             'all-ages'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -97,12 +98,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.audienceType}
+            bind:group={eventData.audience_type}
             value="18-plus"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audienceType ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audience_type ===
             '18-plus'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -128,12 +129,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.audienceType}
+            bind:group={eventData.audience_type}
             value="21-plus"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audienceType ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audience_type ===
             '21-plus'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -159,12 +160,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.audienceType}
+            bind:group={eventData.audience_type}
             value="family"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audienceType ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audience_type ===
             'family'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -190,12 +191,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.audienceType}
+            bind:group={eventData.audience_type}
             value="corporate"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audienceType ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audience_type ===
             'corporate'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -221,12 +222,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.audienceType}
+            bind:group={eventData.audience_type}
             value="students"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audienceType ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.audience_type ===
             'students'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -260,12 +261,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.eventVisibility}
+            bind:group={eventData.event_visibility}
             value="public"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.eventVisibility ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.event_visibility ===
             'public'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -296,12 +297,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.eventVisibility}
+            bind:group={eventData.event_visibility}
             value="private"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.eventVisibility ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.event_visibility ===
             'private'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -327,12 +328,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.eventVisibility}
+            bind:group={eventData.event_visibility}
             value="invite-only"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.eventVisibility ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.event_visibility ===
             'invite-only'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"

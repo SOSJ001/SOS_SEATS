@@ -1,17 +1,33 @@
 <script>
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
+  import { onMount } from "svelte";
   import StepperProgress from "$lib/components/StepperProgress.svelte";
 
   let eventData = {
-    name: "",
-    date: "",
-    time: "",
-    location: "",
-    description: "",
+    // Basic event information for database
+    name: "", // Database: TEXT NOT NULL
+    date: "", // Database: DATE NOT NULL
+    time: "", // Database: TIME NOT NULL
+    location: "", // Database: TEXT NOT NULL
+    venue_address: "", // Database: TEXT (optional)
+    description: "", // Database: TEXT (optional)
   };
 
   let errors = {};
+
+  onMount(() => {
+    // Load data from localStorage if returning from other steps
+    const savedData = localStorage.getItem("eventCreationData");
+    if (savedData) {
+      const parsed = JSON.parse(savedData);
+      console.log("Step1 - Loading saved data:", parsed);
+      console.log("Step1 - Current eventData before merge:", eventData);
+      // Merge saved data with current eventData, preserving existing structure
+      eventData = { ...eventData, ...parsed };
+      console.log("Step1 - Final eventData after merge:", eventData);
+    }
+  });
 
   function validateStep() {
     errors = {};
@@ -34,10 +50,17 @@
 
   function nextStep() {
     if (validateStep()) {
-      // Save to localStorage or store
+      // Save to localStorage before navigating
+      console.log("Step1 - Saving data:", eventData);
       localStorage.setItem("eventCreationData", JSON.stringify(eventData));
       goto("/dashboard/events/createEvent/step2");
     }
+  }
+
+  function prevStep() {
+    // Save current data before going back
+    localStorage.setItem("eventCreationData", JSON.stringify(eventData));
+    goto("/dashboard/events");
   }
 
   function goBack() {
@@ -142,6 +165,23 @@
       {/if}
     </div>
 
+    <!-- Venue Address -->
+    <div>
+      <label
+        for="venue_address"
+        class="block text-sm font-medium text-gray-300 mb-2"
+      >
+        Venue Address
+      </label>
+      <input
+        id="venue_address"
+        type="text"
+        bind:value={eventData.venue_address}
+        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+        placeholder="Enter full venue address (optional)"
+      />
+    </div>
+
     <!-- Description -->
     <div>
       <label
@@ -163,7 +203,7 @@
   <!-- Navigation Buttons -->
   <div class="flex justify-between mt-8">
     <button
-      on:click={goBack}
+      on:click={prevStep}
       class="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
     >
       Cancel

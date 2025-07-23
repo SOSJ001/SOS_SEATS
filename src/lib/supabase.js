@@ -557,10 +557,10 @@ export async function getWeb3UserProfile(walletAddress) {
 export async function createWeb3Session(walletAddress, userData) {
   try {
     const sessionData = {
-      type: 'web3',
+      type: "web3",
       wallet_address: walletAddress,
       user: userData,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
 
     const response = await fetch("/web3LoginApi", {
@@ -627,10 +627,513 @@ export async function verifyWeb3Session() {
         return { success: true, user: data.user, error: null };
       }
     }
-    
+
     return { success: false, user: null, error: "Invalid session" };
   } catch (error) {
     console.error("Error verifying Web3 session:", error);
     return { success: false, user: null, error: error.message };
+  }
+}
+
+// =====================================================
+// NEW EVENT MANAGEMENT FUNCTIONS FOR UPDATED SCHEMA
+// =====================================================
+
+// Create a new event with all details using the new schema
+export async function createEventWithDetails(eventData, userId) {
+  try {
+    const {
+      name,
+      description,
+      date,
+      time,
+      location,
+      venue_address,
+      category,
+      tags,
+      organizer,
+      contact_email,
+      website,
+      social_media,
+      image_id,
+      is_free_event,
+      seating_type,
+      total_capacity,
+      audience_type,
+      event_visibility,
+      ticket_types,
+      venue_sections,
+      seating_options,
+    } = eventData;
+
+    const { data, error } = await supabase.rpc("create_event_with_details", {
+      p_user_id: userId,
+      p_name: name,
+      p_description: description,
+      p_date: date,
+      p_time: time,
+      p_location: location,
+      p_venue_address: venue_address,
+      p_category: category,
+      p_tags: tags,
+      p_organizer: organizer,
+      p_contact_email: contact_email,
+      p_website: website,
+      p_social_media: social_media,
+      p_image_id: image_id,
+      p_is_free_event: is_free_event,
+      p_seating_type: seating_type,
+      p_total_capacity: total_capacity,
+      p_audience_type: audience_type,
+      p_event_visibility: event_visibility,
+      p_ticket_types: ticket_types,
+      p_venue_sections: venue_sections,
+      p_seating_options: seating_options,
+    });
+
+    if (error) {
+      console.error("Error creating event:", error);
+      return { success: false, error: error.message };
+    }
+
+    return {
+      success: true,
+      event_id: data[0].event_id,
+      message: data[0].message,
+    };
+  } catch (error) {
+    console.error("Error in createEventWithDetails:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Load events for a user using the new schema
+export async function loadUserEvents(userId, sessionType = 'traditional') {
+  try {
+    console.log(`Loading events for user: ${userId}, session type: ${sessionType}`);
+    
+    let eventsQuery = supabase
+      .from("events")
+      .select(
+        `
+        *,
+        ticket_types(*),
+        venue_sections(*),
+        seating_options(*)
+      `
+      )
+      .order("created_at", { ascending: false });
+
+    // Handle different user types
+    if (sessionType === 'web3') {
+      // For Web3 users, we need to join with web3_users table
+      eventsQuery = eventsQuery.eq("user_id", userId);
+    } else {
+      // For traditional users, use the user_id directly
+      eventsQuery = eventsQuery.eq("user_id", userId);
+    }
+
+    const { data: events, error } = await eventsQuery;
+    
+    console.log(`Found ${events?.length || 0} events for user ${userId}`);
+    if (error) {
+      console.error("Supabase error:", error);
+    }
+
+    if (error) {
+      console.error("Error loading user events:", error);
+      return [];
+    }
+
+    // Load images separately for each event that has an image_id
+    const eventsWithImages = await Promise.all(
+      events.map(async (event) => {
+        if (event.image_id) {
+          try {
+            const { data: imageData, error: imageError } = await supabase
+              .from("images")
+              .select("*")
+              .eq("id", event.image_id)
+              .single();
+
+            if (!imageError && imageData) {
+              return { ...event, image: imageData };
+            }
+          } catch (imageError) {
+            console.error("Error loading image for event:", imageError);
+          }
+        }
+        return event;
+      })
+    );
+
+    return eventsWithImages;
+  } catch (error) {
+    console.error("Error in loadUserEvents:", error);
+    return [];
+  }
+}
+
+// Get event statistics
+export async function getEventStatistics(eventId) {
+  try {
+    const { data, error } = await supabase.rpc("get_event_statistics", {
+      p_event_id: eventId,
+    });
+
+    if (error) {
+      console.error("Error getting event statistics:", error);
+      return null;
+    }
+
+    return data[0];
+  } catch (error) {
+    console.error("Error in getEventStatistics:", error);
+    return null;
+  }
+}
+
+// Update event status
+export async function updateEventStatus(eventId, status) {
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .update({
+        status: status,
+        published_at: status === "published" ? new Date().toISOString() : null,
+      })
+      .eq("id", eventId)
+      .select();
+
+    if (error) {
+      console.error("Error updating event status:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data[0] };
+  } catch (error) {
+    console.error("Error in updateEventStatus:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Add guest to event
+export async function addGuestToEvent(eventId, guestData) {
+  try {
+    const { data, error } = await supabase
+      .from("guests")
+      .insert([
+        {
+          event_id: eventId,
+          ticket_type_id: guestData.ticket_type_id,
+          venue_section_id: guestData.venue_section_id,
+          first_name: guestData.first_name,
+          last_name: guestData.last_name,
+          email: guestData.email,
+          phone: guestData.phone,
+          wallet_address: guestData.wallet_address,
+          ticket_number: guestData.ticket_number,
+          seat_number: guestData.seat_number,
+          status: guestData.status || "pending",
+          special_requirements: guestData.special_requirements,
+        },
+      ])
+      .select();
+
+    if (error) {
+      console.error("Error adding guest:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data[0] };
+  } catch (error) {
+    console.error("Error in addGuestToEvent:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Check in guest
+export async function checkInGuest(guestId, checkInLocation = null) {
+  try {
+    const { data, error } = await supabase.rpc("check_in_guest", {
+      p_guest_id: guestId,
+      p_check_in_location: checkInLocation,
+    });
+
+    if (error) {
+      console.error("Error checking in guest:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: data[0].success, message: data[0].message };
+  } catch (error) {
+    console.error("Error in checkInGuest:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Load guests for an event
+export async function loadEventGuests(eventId) {
+  try {
+    const { data: guests, error } = await supabase
+      .from("guests")
+      .select(
+        `
+        *,
+        ticket_types(name, price),
+        venue_sections(name, price)
+      `
+      )
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error loading event guests:", error);
+      return [];
+    }
+
+    return guests;
+  } catch (error) {
+    console.error("Error in loadEventGuests:", error);
+    return [];
+  }
+}
+
+// Create order
+export async function createOrder(orderData) {
+  try {
+    const { data, error } = await supabase
+      .from("orders")
+      .insert([
+        {
+          event_id: orderData.event_id,
+          buyer_id: orderData.buyer_id,
+          buyer_wallet_address: orderData.buyer_wallet_address,
+          buyer_email: orderData.buyer_email,
+          buyer_name: orderData.buyer_name,
+          order_number: orderData.order_number,
+          total_amount: orderData.total_amount,
+          currency: orderData.currency || "USD",
+          payment_method: orderData.payment_method,
+          payment_status: orderData.payment_status || "pending",
+          transaction_hash: orderData.transaction_hash,
+          order_status: orderData.order_status || "pending",
+        },
+      ])
+      .select();
+
+    if (error) {
+      console.error("Error creating order:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data[0] };
+  } catch (error) {
+    console.error("Error in createOrder:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Add order items
+export async function addOrderItems(orderId, items) {
+  try {
+    const orderItems = items.map((item) => ({
+      order_id: orderId,
+      ticket_type_id: item.ticket_type_id,
+      venue_section_id: item.venue_section_id,
+      guest_id: item.guest_id,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total_price: item.total_price,
+    }));
+
+    const { data, error } = await supabase
+      .from("order_items")
+      .insert(orderItems)
+      .select();
+
+    if (error) {
+      console.error("Error adding order items:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error in addOrderItems:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Load user orders
+export async function loadUserOrders(userId, walletAddress = null) {
+  try {
+    let query = supabase
+      .from("orders")
+      .select(
+        `
+        *,
+        events(name, date, location),
+        order_items(
+          *,
+          ticket_types(name, price),
+          venue_sections(name, price),
+          guests(first_name, last_name, email)
+        )
+      `
+      )
+      .order("created_at", { ascending: false });
+
+    if (userId) {
+      query = query.eq("buyer_id", userId);
+    } else if (walletAddress) {
+      query = query.eq("buyer_wallet_address", walletAddress);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error loading user orders:", error);
+      return [];
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in loadUserOrders:", error);
+    return [];
+  }
+}
+
+// Upload event image with new schema
+export async function uploadEventImageNew(imageFile, userId) {
+  try {
+    const fileName = `events/${userId}/${generateUniqueFilename()}_${
+      imageFile.name
+    }`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("event_images")
+      .upload(fileName, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Error uploading image:", uploadError);
+      return { success: false, error: uploadError.message };
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from("event_images")
+      .getPublicUrl(fileName);
+
+    // Save image record to database
+    const { data: imageData, error: imageError } = await supabase
+      .from("images")
+      .insert([
+        {
+          user_id: userId,
+          file_name: fileName,
+          file_path: urlData.publicUrl,
+          file_size: imageFile.size,
+          mime_type: imageFile.type,
+          is_public: true,
+        },
+      ])
+      .select();
+
+    if (imageError) {
+      console.error("Error saving image record:", imageError);
+      return { success: false, error: imageError.message };
+    }
+
+    return { success: true, image_id: imageData[0].id, url: urlData.publicUrl };
+  } catch (error) {
+    console.error("Error in uploadEventImageNew:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Generate ticket number
+export async function generateTicketNumber() {
+  try {
+    const { data, error } = await supabase.rpc("generate_ticket_number");
+
+    if (error) {
+      console.error("Error generating ticket number:", error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in generateTicketNumber:", error);
+    return null;
+  }
+}
+
+// Get event by ID with all related data
+export async function getEventById(eventId) {
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select(
+        `
+        *,
+        ticket_types(*),
+        venue_sections(*),
+        seating_options(*),
+        images(*)
+      `
+      )
+      .eq("id", eventId)
+      .single();
+
+    if (error) {
+      console.error("Error getting event:", error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in getEventById:", error);
+    return null;
+  }
+}
+
+// Update event
+export async function updateEvent(eventId, updateData) {
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .update(updateData)
+      .eq("id", eventId)
+      .select();
+
+    if (error) {
+      console.error("Error updating event:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data[0] };
+  } catch (error) {
+    console.error("Error in updateEvent:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Delete event
+export async function deleteEvent(eventId) {
+  try {
+    const { error } = await supabase.from("events").delete().eq("id", eventId);
+
+    if (error) {
+      console.error("Error deleting event:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error in deleteEvent:", error);
+    return { success: false, error: error.message };
   }
 }

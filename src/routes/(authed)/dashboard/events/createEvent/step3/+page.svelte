@@ -5,30 +5,40 @@
   import StepperProgress from "$lib/components/StepperProgress.svelte";
 
   let eventData: any = {
-    isFreeEvent: false, // New field for free event toggle
-    ticketTypes: [
+    // Event-level fields for database
+    is_free_event: false, // Database field name
+    seating_type: "general", // Database field name: general, assigned, mixed
+    total_capacity: null, // Database field name - will be converted to integer
+
+    // Ticket types for database
+    ticket_types: [
       {
         name: "General Admission",
-        price: "",
-        quantity: "",
         description: "",
-        benefits: [],
+        price: 0.0, // Database: DECIMAL(10,2)
+        quantity: null, // Database: INTEGER
+        benefits: [], // Database: TEXT[]
       },
     ],
-    seatingType: "general", // general, assigned, mixed
-    totalCapacity: "",
-    venueLayout: {
-      sections: [],
-      hasSeatingChart: false,
-    },
-    seatingOptions: {
-      allowSeatSelection: false,
-      maxSeatsPerOrder: "4",
-      reservedSeating: false,
+
+    // Venue sections for database
+    venue_sections: [], // Database: separate table
+
+    // Seating options for database
+    seating_options: {
+      allow_seat_selection: false, // Database field name
+      max_seats_per_order: 4, // Database: INTEGER
+      reserved_seating: false, // Database field name
+      has_seating_chart: false, // Database field name
     },
   };
 
   let errors: Record<string, string> = {};
+
+  // Reactive statement to handle free event changes
+  $: if (eventData.is_free_event !== undefined) {
+    handleFreeEventToggle();
+  }
 
   onMount(() => {
     // Load data from previous steps
@@ -40,99 +50,116 @@
   });
 
   function addTicketType() {
-    eventData.ticketTypes = [
-      ...eventData.ticketTypes,
+    eventData.ticket_types = [
+      ...eventData.ticket_types,
       {
         name: "",
-        price: eventData.isFreeEvent ? "0" : "", // Set price to 0 for free events
-        quantity: "",
         description: "",
-        benefits: [],
+        price: eventData.is_free_event ? 0.0 : 0.0, // Database: DECIMAL(10,2)
+        quantity: null, // Database: INTEGER
+        benefits: [], // Database: TEXT[]
       },
     ];
   }
 
   function removeTicketType(index: number) {
-    if (eventData.ticketTypes.length > 1) {
-      eventData.ticketTypes = eventData.ticketTypes.filter(
+    if (eventData.ticket_types.length > 1) {
+      eventData.ticket_types = eventData.ticket_types.filter(
         (ticket: any, i: number) => i !== index
       );
     }
   }
 
   function addBenefit(ticketIndex: number) {
-    eventData.ticketTypes[ticketIndex].benefits = [
-      ...eventData.ticketTypes[ticketIndex].benefits,
+    eventData.ticket_types[ticketIndex].benefits = [
+      ...eventData.ticket_types[ticketIndex].benefits,
       "",
     ];
   }
 
   function removeBenefit(ticketIndex: number, benefitIndex: number) {
-    eventData.ticketTypes[ticketIndex].benefits = eventData.ticketTypes[
+    eventData.ticket_types[ticketIndex].benefits = eventData.ticket_types[
       ticketIndex
     ].benefits.filter((benefit: any, i: number) => i !== benefitIndex);
   }
 
   function addSection() {
-    eventData.venueLayout.sections = [
-      ...eventData.venueLayout.sections,
+    eventData.venue_sections = [
+      ...eventData.venue_sections,
       {
         name: "",
-        capacity: "",
-        price: eventData.isFreeEvent ? "0" : "", // Set price to 0 for free events
         description: "",
+        capacity: null, // Database: INTEGER
+        price: eventData.is_free_event ? 0.0 : 0.0, // Database: DECIMAL(10,2)
+        seating_chart_data: null, // Database: JSONB
       },
     ];
   }
 
   function removeSection(index: number) {
-    eventData.venueLayout.sections = eventData.venueLayout.sections.filter(
+    eventData.venue_sections = eventData.venue_sections.filter(
       (section: any, i: number) => i !== index
     );
   }
 
   // Handle free event toggle
   function handleFreeEventToggle() {
-    eventData.isFreeEvent = !eventData.isFreeEvent;
-    
     // Update all existing ticket prices
-    eventData.ticketTypes.forEach((ticket: any) => {
-      ticket.price = eventData.isFreeEvent ? "0" : "";
+    eventData.ticket_types.forEach((ticket: any) => {
+      ticket.price = eventData.is_free_event ? 0.0 : 0.0;
     });
-    
+
     // Update all existing section prices
-    eventData.venueLayout.sections.forEach((section: any) => {
-      section.price = eventData.isFreeEvent ? "0" : "";
+    eventData.venue_sections.forEach((section: any) => {
+      section.price = eventData.is_free_event ? 0.0 : 0.0;
     });
   }
 
   function validateStep() {
     errors = {};
 
-    eventData.ticketTypes.forEach((ticket: any, index: number) => {
+    // Validate ticket types
+    eventData.ticket_types.forEach((ticket: any, index: number) => {
       if (!ticket.name.trim()) {
         errors[`ticket${index}Name`] = "Ticket name is required";
       }
-      if (!eventData.isFreeEvent) {
-        if (!ticket.price || parseFloat(ticket.price) < 0) {
+      if (!eventData.is_free_event) {
+        if (ticket.price === null || ticket.price < 0) {
           errors[`ticket${index}Price`] = "Valid price is required";
         }
       }
-      if (!ticket.quantity || parseInt(ticket.quantity) <= 0) {
+      if (ticket.quantity === null || ticket.quantity <= 0) {
         errors[`ticket${index}Quantity`] = "Valid quantity is required";
       }
     });
 
-    if (!eventData.totalCapacity || parseInt(eventData.totalCapacity) <= 0) {
+    // Validate total capacity
+    if (eventData.total_capacity === null || eventData.total_capacity <= 0) {
       errors.totalCapacity = "Valid total capacity is required";
     }
 
+    // Validate venue sections for assigned seating
     if (
-      eventData.seatingType === "assigned" &&
-      eventData.venueLayout.sections.length === 0
+      eventData.seating_type === "assigned" &&
+      eventData.venue_sections.length === 0
     ) {
       errors.sections = "At least one section is required for assigned seating";
     }
+
+    // Validate venue sections if they exist
+    eventData.venue_sections.forEach((section: any, index: number) => {
+      if (!section.name.trim()) {
+        errors[`section${index}Name`] = "Section name is required";
+      }
+      if (section.capacity === null || section.capacity <= 0) {
+        errors[`section${index}Capacity`] = "Valid capacity is required";
+      }
+      if (!eventData.is_free_event) {
+        if (section.price === null || section.price < 0) {
+          errors[`section${index}Price`] = "Valid price is required";
+        }
+      }
+    });
 
     return Object.keys(errors).length === 0;
   }
@@ -183,9 +210,8 @@
         <label class="flex items-center">
           <input
             type="radio"
-            bind:group={eventData.isFreeEvent}
+            bind:group={eventData.is_free_event}
             value={true}
-            on:change={handleFreeEventToggle}
             class="w-4 h-4 text-teal-400 bg-gray-700 border-gray-600 focus:ring-teal-400 focus:ring-2"
           />
           <span class="ml-2 text-gray-300">Yes</span>
@@ -193,9 +219,8 @@
         <label class="flex items-center">
           <input
             type="radio"
-            bind:group={eventData.isFreeEvent}
+            bind:group={eventData.is_free_event}
             value={false}
-            on:change={handleFreeEventToggle}
             class="w-4 h-4 text-teal-400 bg-gray-700 border-gray-600 focus:ring-teal-400 focus:ring-2"
           />
           <span class="ml-2 text-gray-300">No</span>
@@ -203,13 +228,13 @@
       </div>
     </div>
 
-    {#each eventData.ticketTypes as ticket, ticketIndex}
+    {#each eventData.ticket_types as ticket, ticketIndex}
       <div class="bg-gray-800 rounded-xl p-8">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-xl font-semibold text-white">
             Ticket Type {ticketIndex + 1}
           </h3>
-          {#if eventData.ticketTypes.length > 1}
+          {#if eventData.ticket_types.length > 1}
             <button
               on:click={() => removeTicketType(ticketIndex)}
               class="text-red-400 hover:text-red-300"
@@ -245,20 +270,22 @@
           <!-- Price -->
           <div>
             <label class="block text-sm font-medium text-gray-300 mb-2">
-              Price {eventData.isFreeEvent ? '(Free)' : '($) *'}
+              Price {eventData.is_free_event ? "(Free)" : "($) *"}
             </label>
             <input
               type="number"
               bind:value={ticket.price}
               min="0"
               step="0.01"
-              disabled={eventData.isFreeEvent}
+              disabled={eventData.is_free_event}
               class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
                 `ticket${ticketIndex}Price`
               ]
                 ? 'border-red-500'
-                : ''} {eventData.isFreeEvent ? 'opacity-50 cursor-not-allowed' : ''}"
-              placeholder={eventData.isFreeEvent ? "0.00" : "0.00"}
+                : ''} {eventData.is_free_event
+                ? 'opacity-50 cursor-not-allowed'
+                : ''}"
+              placeholder={eventData.is_free_event ? "0.00" : "0.00"}
             />
             {#if errors[`ticket${ticketIndex}Price`]}
               <p class="text-red-400 text-sm mt-1">
@@ -363,12 +390,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.seatingType}
+            bind:group={eventData.seating_type}
             value="general"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.seatingType ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.seating_type ===
             'general'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -392,12 +419,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.seatingType}
+            bind:group={eventData.seating_type}
             value="assigned"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.seatingType ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.seating_type ===
             'assigned'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -425,12 +452,12 @@
         <label class="relative">
           <input
             type="radio"
-            bind:group={eventData.seatingType}
+            bind:group={eventData.seating_type}
             value="mixed"
             class="sr-only"
           />
           <div
-            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.seatingType ===
+            class="p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200 {eventData.seating_type ===
             'mixed'
               ? 'border-teal-400 bg-teal-400 bg-opacity-10'
               : 'border-gray-600 hover:border-gray-500'}"
@@ -469,7 +496,7 @@
         <input
           id="totalCapacity"
           type="number"
-          bind:value={eventData.totalCapacity}
+          bind:value={eventData.total_capacity}
           min="1"
           class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.totalCapacity
             ? 'border-red-500'
@@ -491,7 +518,7 @@
         <input
           id="maxSeatsPerOrder"
           type="number"
-          bind:value={eventData.seatingOptions.maxSeatsPerOrder}
+          bind:value={eventData.seating_options.max_seats_per_order}
           min="1"
           max="10"
           class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
@@ -506,7 +533,7 @@
         <input
           id="allowSeatSelection"
           type="checkbox"
-          bind:checked={eventData.seatingOptions.allowSeatSelection}
+          bind:checked={eventData.seating_options.allow_seat_selection}
           class="w-4 h-4 text-teal-400 bg-gray-700 border-gray-600 rounded focus:ring-teal-400 focus:ring-2"
         />
         <label
@@ -521,7 +548,7 @@
         <input
           id="reservedSeating"
           type="checkbox"
-          bind:checked={eventData.seatingOptions.reservedSeating}
+          bind:checked={eventData.seating_options.reserved_seating}
           class="w-4 h-4 text-teal-400 bg-gray-700 border-gray-600 rounded focus:ring-teal-400 focus:ring-2"
         />
         <label
@@ -534,7 +561,7 @@
     </div>
 
     <!-- Venue Sections (for assigned seating) -->
-    {#if eventData.seatingType === "assigned"}
+    {#if eventData.seating_type === "assigned"}
       <div>
         <div class="flex justify-between items-center mb-4">
           <label class="block text-sm font-medium text-gray-300">
@@ -548,9 +575,9 @@
           </button>
         </div>
 
-        {#if eventData.venueLayout.sections.length > 0}
+        {#if eventData.venue_sections.length > 0}
           <div class="space-y-4">
-            {#each eventData.venueLayout.sections as section, sectionIndex}
+            {#each eventData.venue_sections as section, sectionIndex}
               <div class="p-4 bg-gray-700 rounded-lg">
                 <div class="flex justify-between items-center mb-4">
                   <h4 class="font-medium text-white">
@@ -592,16 +619,18 @@
 
                   <div>
                     <label class="block text-xs font-medium text-gray-400 mb-1">
-                      Price {eventData.isFreeEvent ? '(Free)' : '($)'}
+                      Price {eventData.is_free_event ? "(Free)" : "($)"}
                     </label>
                     <input
                       type="number"
                       bind:value={section.price}
                       min="0"
                       step="0.01"
-                      disabled={eventData.isFreeEvent}
-                      class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm {eventData.isFreeEvent ? 'opacity-50 cursor-not-allowed' : ''}"
-                      placeholder={eventData.isFreeEvent ? "0.00" : "50.00"}
+                      disabled={eventData.is_free_event}
+                      class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm {eventData.is_free_event
+                        ? 'opacity-50 cursor-not-allowed'
+                        : ''}"
+                      placeholder={eventData.is_free_event ? "0.00" : "50.00"}
                     />
                   </div>
 

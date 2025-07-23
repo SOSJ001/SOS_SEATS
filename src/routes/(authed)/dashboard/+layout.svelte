@@ -7,7 +7,6 @@
 
   // Set user data for the top navigation
   let userName = data.userName || "User";
-  let walletBalance = "$1,234.56"; // This could come from data or be calculated
 
   // Sidebar state for mobile
   let sidebarOpen = false;
@@ -22,20 +21,23 @@
 <div class="flex h-screen bg-gray-900">
   <!-- Sidebar (desktop) -->
   <div class="hidden lg:block">
-    <DashboardSidebar {userName} {walletBalance} />
+    <DashboardSidebar {userName} />
   </div>
 
   <!-- Sidebar Drawer (mobile) -->
   {#if sidebarOpen}
     <div class="fixed inset-0 z-40 flex lg:hidden">
-      <div
+      <button
+        type="button"
         class="fixed inset-0 bg-black bg-opacity-40"
         on:click={closeSidebar}
-      ></div>
+        on:keydown={(e) => e.key === 'Escape' && closeSidebar()}
+        aria-label="Close sidebar"
+      ></button>
       <div
         class="relative w-64 h-full bg-gray-900 border-r border-gray-700 z-50 animate-slide-in-left"
       >
-        <DashboardSidebar {userName} {walletBalance} onClose={closeSidebar} />
+        <DashboardSidebar {userName} onClose={closeSidebar} />
       </div>
     </div>
   {/if}
@@ -43,7 +45,7 @@
   <!-- Main Content Area -->
   <div class="flex-1 flex flex-col overflow-hidden">
     <!-- Top Navigation -->
-    <DashboardTopNav {userName} {walletBalance} onMenuToggle={toggleSidebar} />
+    <DashboardTopNav {userName} onMenuToggle={toggleSidebar} />
 
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto bg-gray-900 p-6">

@@ -93,21 +93,36 @@
     isPublishing = true;
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Prepare form data
+      const formData = new FormData();
+      formData.append("eventData", JSON.stringify(eventData));
 
-      // Here you would typically send the data to your backend
-      console.log("Publishing event:", eventData);
+      // Add image if exists
+      if (eventData.image && eventData.image instanceof File) {
+        formData.append("image", eventData.image);
+      }
 
-      // Clear localStorage
-      localStorage.removeItem("eventCreationData");
+      // Send to API
+      const response = await fetch("/createEventApi", {
+        method: "POST",
+        body: formData,
+      });
 
-      publishSuccess = true;
+      const result = await response.json();
 
-      // Redirect to events page after a short delay
-      setTimeout(() => {
-        goto("/dashboard/events");
-      }, 2000);
+      if (result.success) {
+        // Clear localStorage
+        localStorage.removeItem("eventCreationData");
+        publishSuccess = true;
+
+        // Redirect to events page after a short delay
+        setTimeout(() => {
+          goto("/dashboard/events");
+        }, 2000);
+      } else {
+        console.error("Error publishing event:", result.error);
+        // You might want to show an error message to the user here
+      }
     } catch (error) {
       console.error("Error publishing event:", error);
     } finally {
@@ -298,7 +313,9 @@
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold text-white">Ticket Types</h3>
             {#if eventData.isFreeEvent}
-              <span class="px-3 py-1 bg-green-500 text-white text-sm rounded-full">
+              <span
+                class="px-3 py-1 bg-green-500 text-white text-sm rounded-full"
+              >
                 Free Event
               </span>
             {/if}
@@ -458,14 +475,18 @@
       <div class="bg-gray-700 rounded-xl p-6">
         <div class="flex items-center justify-between">
           <div class="flex-1">
-            <img 
-              src={eventData.image ? "/src/lib/assets/explosion.png" : "/src/lib/assets/explosion.png"} 
-              alt="Event Preview" 
+            <img
+              src={eventData.image
+                ? "/src/lib/assets/explosion.png"
+                : "/src/lib/assets/explosion.png"}
+              alt="Event Preview"
               class="w-full h-48 object-cover rounded-lg"
             />
           </div>
           <div class="flex-1 ml-6 text-center">
-            <h3 class="text-lg font-semibold text-white mb-2">3D Ticket Mockup</h3>
+            <h3 class="text-lg font-semibold text-white mb-2">
+              3D Ticket Mockup
+            </h3>
             <p class="text-gray-400">Preview</p>
           </div>
         </div>
@@ -488,9 +509,25 @@
       >
         {#if isPublishing}
           <div class="flex items-center justify-center">
-            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg
+              class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
             Publishing Event...
           </div>

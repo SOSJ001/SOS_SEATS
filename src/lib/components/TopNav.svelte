@@ -281,10 +281,13 @@
 
 <!-- Mobile Menu Overlay -->
 {#if mobileMenuOpen}
-  <div
+  <button
+    type="button"
     class="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden animate-fadeIn"
     on:click={closeMobileMenu}
-  ></div>
+    on:keydown={(e) => e.key === "Escape" && closeMobileMenu()}
+    aria-label="Close mobile menu"
+  ></button>
 {/if}
 
 <!-- Mobile Menu -->

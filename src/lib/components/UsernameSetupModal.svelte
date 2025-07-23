@@ -72,9 +72,12 @@
 </script>
 
 {#if show}
-  <div
+  <button
+    type="button"
     class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
     on:click={handleBackdropClick}
+    on:keydown={(e) => e.key === 'Escape' && handleClose()}
+    aria-label="Close modal"
     transition:fade={{ duration: 200 }}
   >
     <div
@@ -225,5 +228,5 @@
         </div>
       </div>
     </div>
-  </div>
+  </button>
 {/if}
