@@ -642,6 +642,9 @@ export async function verifyWeb3Session() {
 // Create a new event with all details using the new schema
 export async function createEventWithDetails(eventData, userId) {
   try {
+    console.log("createEventWithDetails - Received userId:", userId);
+    console.log("createEventWithDetails - Received eventData:", eventData);
+
     const {
       name,
       description,
@@ -661,12 +664,13 @@ export async function createEventWithDetails(eventData, userId) {
       total_capacity,
       audience_type,
       event_visibility,
+      status,
       ticket_types,
       venue_sections,
       seating_options,
     } = eventData;
 
-    const { data, error } = await supabase.rpc("create_event_with_details", {
+    const functionParams = {
       p_user_id: userId,
       p_name: name,
       p_description: description,
@@ -686,10 +690,24 @@ export async function createEventWithDetails(eventData, userId) {
       p_total_capacity: total_capacity,
       p_audience_type: audience_type,
       p_event_visibility: event_visibility,
+      p_status: status || "draft",
       p_ticket_types: ticket_types,
       p_venue_sections: venue_sections,
       p_seating_options: seating_options,
-    });
+    };
+
+    console.log(
+      "createEventWithDetails - Calling RPC with params:",
+      functionParams
+    );
+
+    const { data, error } = await supabase.rpc(
+      "create_event_with_details",
+      functionParams
+    );
+
+    console.log("createEventWithDetails - RPC response data:", data);
+    console.log("createEventWithDetails - RPC response error:", error);
 
     if (error) {
       console.error("Error creating event:", error);
@@ -708,10 +726,31 @@ export async function createEventWithDetails(eventData, userId) {
 }
 
 // Load events for a user using the new schema
-export async function loadUserEvents(userId, sessionType = 'traditional') {
+export async function loadUserEvents(userId, sessionType = "traditional") {
   try {
-    console.log(`Loading events for user: ${userId}, session type: ${sessionType}`);
-    
+    console.log(
+      `Loading events for user: ${userId}, session type: ${sessionType}`
+    );
+
+    // First, let's check all events in the database to see what's there
+    const { data: allEvents, error: allEventsError } = await supabase
+      .from("events")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    console.log(`Total events in database: ${allEvents?.length || 0}`);
+    if (allEvents && allEvents.length > 0) {
+      console.log(
+        "Sample events from database:",
+        allEvents.slice(0, 3).map((e) => ({
+          id: e.id,
+          name: e.name,
+          user_id: e.user_id,
+          status: e.status,
+        }))
+      );
+    }
+
     let eventsQuery = supabase
       .from("events")
       .select(
@@ -725,16 +764,18 @@ export async function loadUserEvents(userId, sessionType = 'traditional') {
       .order("created_at", { ascending: false });
 
     // Handle different user types
-    if (sessionType === 'web3') {
+    if (sessionType === "web3") {
       // For Web3 users, we need to join with web3_users table
+      console.log(`Querying for Web3 user with ID: ${userId}`);
       eventsQuery = eventsQuery.eq("user_id", userId);
     } else {
       // For traditional users, use the user_id directly
+      console.log(`Querying for traditional user with ID: ${userId}`);
       eventsQuery = eventsQuery.eq("user_id", userId);
     }
 
     const { data: events, error } = await eventsQuery;
-    
+
     console.log(`Found ${events?.length || 0} events for user ${userId}`);
     if (error) {
       console.error("Supabase error:", error);

@@ -19,6 +19,7 @@
       const result = await response.json();
 
       if (result.success) {
+        console.log("Events page - Raw events from API:", result.events);
         events = result.events.map((event) => ({
           id: event.id,
           title: event.name,
@@ -27,7 +28,7 @@
           image:
             event.image?.file_path ||
             "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=250&fit=crop",
-          status: event.status?.toUpperCase() || "DRAFT",
+          status: event.status || "draft", // Keep original case for filtering
           statusColor: getStatusColor(event.status),
           ticketsSold: getTicketsSold(event),
           revenue: getRevenue(event),
@@ -37,6 +38,7 @@
           secondaryActionColor:
             "border-white text-white hover:bg-white hover:text-gray-900",
         }));
+        console.log("Events page - Mapped events:", events);
       } else {
         error = result.error;
       }
@@ -140,28 +142,42 @@
 
   // Filter events based on search and filter
   $: {
+    console.log("Events page - Filtering events. Active filter:", activeFilter);
+    console.log("Events page - All events before filtering:", events);
+
     filteredEvents = events.filter((event) => {
       const matchesSearch =
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.location.toLowerCase().includes(searchQuery.toLowerCase());
 
       const eventStatus = event.status?.toLowerCase();
+      console.log(
+        `Events page - Event "${event.title}" status: "${event.status}" (lowercase: "${eventStatus}")`
+      );
 
       if (activeFilter === "upcoming") {
-        return (
+        const isUpcoming =
           matchesSearch &&
-          (eventStatus === "live" || eventStatus === "published")
+          (eventStatus === "live" || eventStatus === "published");
+        console.log(
+          `Events page - Event "${event.title}" isUpcoming: ${isUpcoming}`
         );
+        return isUpcoming;
       } else if (activeFilter === "past") {
-        return (
+        const isPast =
           matchesSearch &&
-          (eventStatus === "completed" || eventStatus === "cancelled")
-        );
+          (eventStatus === "completed" || eventStatus === "cancelled");
+        console.log(`Events page - Event "${event.title}" isPast: ${isPast}`);
+        return isPast;
       } else if (activeFilter === "drafts") {
-        return matchesSearch && eventStatus === "draft";
+        const isDraft = matchesSearch && eventStatus === "draft";
+        console.log(`Events page - Event "${event.title}" isDraft: ${isDraft}`);
+        return isDraft;
       }
       return matchesSearch;
     });
+
+    console.log("Events page - Filtered events:", filteredEvents);
   }
 </script>
 
