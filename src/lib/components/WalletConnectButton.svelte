@@ -207,18 +207,13 @@
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
             />
           </svg>
-          <span class="text-xs md:text-sm">Disconnect</span>
+          <span class="text-xs md:text-sm"
+            >{walletAddress
+              ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
+              : "Disconnect"}</span
+          >
         </div>
       </button>
-      {#if walletAddress}
-        <div
-          class="mt-1 md:mt-2 px-2 md:px-3 py-0.5 md:py-1 bg-gradient-to-r from-[#18122B] to-[#232946] border border-[#00F5FF]/30 rounded-lg"
-        >
-          <div class="text-xs text-[#00F5FF] font-medium">
-            {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
-          </div>
-        </div>
-      {/if}
     </div>
   {:else}
     <!-- Disconnected State -->
