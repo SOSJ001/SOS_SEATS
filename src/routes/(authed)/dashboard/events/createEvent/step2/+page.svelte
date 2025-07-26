@@ -12,7 +12,8 @@
     organizer: "", // Database: TEXT
     contact_email: "", // Database: TEXT (field name)
     website: "", // Database: TEXT
-    social_media: { // Database: JSONB
+    social_media: {
+      // Database: JSONB
       facebook: "",
       twitter: "",
       instagram: "",
@@ -44,7 +45,7 @@
       console.log("Step2 - Loading saved data:", parsed);
       eventData = { ...eventData, ...parsed };
       console.log("Step2 - Final eventData after merge:", eventData);
-      
+
       // If there's a saved image, create preview (note: File objects can't be serialized to JSON)
       // So we'll need to handle this differently - the image will need to be re-uploaded
       if (parsed.imagePreview) {
@@ -68,10 +69,10 @@
     const file = event.target.files[0];
     if (file) {
       eventData.image = file;
-      
+
       // Create preview URL
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = function (e) {
         imagePreview = e.target.result;
       };
       reader.readAsDataURL(file);
@@ -101,7 +102,7 @@
       // Save to localStorage (including image preview)
       const dataToSave = {
         ...eventData,
-        imagePreview: imagePreview
+        imagePreview: imagePreview,
       };
       localStorage.setItem("eventCreationData", JSON.stringify(dataToSave));
       goto("/dashboard/events/createEvent/step3");
@@ -112,7 +113,7 @@
     // Save to localStorage (including image preview)
     const dataToSave = {
       ...eventData,
-      imagePreview: imagePreview
+      imagePreview: imagePreview,
     };
     console.log("Step2 - Saving data on prevStep:", dataToSave);
     localStorage.setItem("eventCreationData", JSON.stringify(dataToSave));
@@ -120,25 +121,27 @@
   }
 </script>
 
-<div class="max-w-6xl mx-auto p-6" in:fade={{ duration: 300 }}>
+<div class="max-w-4xl mx-auto p-4 sm:p-6" in:fade={{ duration: 300 }}>
   <!-- Title -->
-  <div class="text-center mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Create New Event</h1>
+  <div class="text-center mb-6 sm:mb-8">
+    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">
+      Create New Event
+    </h1>
   </div>
 
   <!-- Stepper Progress -->
   <StepperProgress currentStep={2} />
 
   <!-- Step Title -->
-  <div class="mb-8">
-    <h2 class="text-3xl font-bold text-white mb-2">Event Details</h2>
-    <p class="text-gray-400">
+  <div class="mb-6 sm:mb-8">
+    <h2 class="text-xl sm:text-3xl font-bold text-white mb-2">Event Details</h2>
+    <p class="text-gray-400 text-sm sm:text-base">
       Add more details to help people discover your event.
     </p>
   </div>
 
   <!-- Form -->
-  <div class="bg-gray-800 rounded-xl p-8 space-y-6">
+  <div class="bg-gray-800 rounded-xl p-4 sm:p-8 space-y-4 sm:space-y-6">
     <!-- Category -->
     <div>
       <label
@@ -169,31 +172,32 @@
       <label class="block text-sm font-medium text-gray-300 mb-2">
         Event Tags
       </label>
-      <div class="flex gap-2 mb-2">
+      <div class="flex flex-col sm:flex-row gap-2 mb-2">
         <input
           type="text"
           bind:value={newTag}
           on:keydown={(e) => e.key === "Enter" && addTag()}
-          class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+          class="flex-1 px-3 sm:px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm sm:text-base"
           placeholder="Add a tag and press Enter"
         />
         <button
           on:click={addTag}
-          class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200"
+          class="w-full sm:w-auto px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm sm:text-base font-medium"
         >
-          Add
+          Add Tag
         </button>
       </div>
       {#if eventData.tags.length > 0}
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-2 mt-3">
           {#each eventData.tags as tag}
             <span
-              class="inline-flex items-center px-3 py-1 bg-teal-500 text-white text-sm rounded-full"
+              class="inline-flex items-center px-2 sm:px-3 py-1 bg-teal-500 text-white text-xs sm:text-sm rounded-full"
             >
               {tag}
               <button
                 on:click={() => removeTag(tag)}
-                class="ml-2 text-teal-200 hover:text-white"
+                class="ml-1 sm:ml-2 text-teal-200 hover:text-white text-sm sm:text-base"
+                aria-label="Remove tag {tag}"
               >
                 ×
               </button>
@@ -208,7 +212,7 @@
       <label class="block text-sm font-medium text-gray-300 mb-2">
         Event Image
       </label>
-      
+
       {#if imagePreview}
         <!-- Image Preview -->
         <div class="mb-4">
@@ -230,11 +234,11 @@
             </button>
           </div>
           <p class="text-sm text-gray-400 mt-2">
-            {eventData.image?.name || 'Image uploaded'}
+            {eventData.image?.name || "Image uploaded"}
           </p>
         </div>
       {/if}
-      
+
       {#if !imagePreview}
         <!-- Upload Area -->
         <div
@@ -281,8 +285,18 @@
             for="change-image-upload"
             class="inline-flex items-center px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors cursor-pointer"
           >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <svg
+              class="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
             </svg>
             Change Image
           </label>
@@ -291,7 +305,7 @@
     </div>
 
     <!-- Organizer Information -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
       <div>
         <label
           for="organizer"
@@ -337,10 +351,7 @@
 
     <!-- Website -->
     <div>
-      <label
-        for="website"
-        class="block text-sm font-medium text-gray-300 mb-2"
-      >
+      <label for="website" class="block text-sm font-medium text-gray-300 mb-2">
         Website
       </label>
       <input
@@ -357,7 +368,7 @@
       <label class="block text-sm font-medium text-gray-300 mb-4">
         Social Media Links
       </label>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
           <label
             for="facebook"
@@ -408,17 +419,19 @@
   </div>
 
   <!-- Navigation Buttons -->
-  <div class="flex justify-between mt-8">
+  <div
+    class="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6 mt-6 sm:mt-8"
+  >
     <button
       on:click={prevStep}
-      class="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
+      class="w-full sm:w-auto px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 text-sm sm:text-base"
     >
       Previous
     </button>
 
     <button
       on:click={nextStep}
-      class="px-8 py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 font-medium"
+      class="w-full sm:w-auto px-8 py-3 sm:py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 font-medium text-sm sm:text-base"
     >
       Next Step
     </button>

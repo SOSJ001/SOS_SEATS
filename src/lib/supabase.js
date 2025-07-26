@@ -728,30 +728,8 @@ export async function createEventWithDetails(eventData, userId) {
 // Load events for a user using the new schema
 export async function loadUserEvents(userId, sessionType = "traditional") {
   try {
-    console.log(
-      `Loading events for user: ${userId}, session type: ${sessionType}`
-    );
-
-    // First, let's check all events in the database to see what's there
-    const { data: allEvents, error: allEventsError } = await supabase
-      .from("events")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    console.log(`Total events in database: ${allEvents?.length || 0}`);
-    if (allEvents && allEvents.length > 0) {
-      console.log(
-        "Sample events from database:",
-        allEvents.slice(0, 3).map((e) => ({
-          id: e.id,
-          name: e.name,
-          user_id: e.user_id,
-          status: e.status,
-        }))
-      );
-    }
-
-    let eventsQuery = supabase
+    // Query events for the user directly
+    const { data: events, error } = await supabase
       .from("events")
       .select(
         `
@@ -761,25 +739,8 @@ export async function loadUserEvents(userId, sessionType = "traditional") {
         seating_options(*)
       `
       )
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
-
-    // Handle different user types
-    if (sessionType === "web3") {
-      // For Web3 users, we need to join with web3_users table
-      console.log(`Querying for Web3 user with ID: ${userId}`);
-      eventsQuery = eventsQuery.eq("user_id", userId);
-    } else {
-      // For traditional users, use the user_id directly
-      console.log(`Querying for traditional user with ID: ${userId}`);
-      eventsQuery = eventsQuery.eq("user_id", userId);
-    }
-
-    const { data: events, error } = await eventsQuery;
-
-    console.log(`Found ${events?.length || 0} events for user ${userId}`);
-    if (error) {
-      console.error("Supabase error:", error);
-    }
 
     if (error) {
       console.error("Error loading user events:", error);
@@ -1056,6 +1017,9 @@ export async function uploadEventImageNew(imageFile, userId) {
       .upload(fileName, imageFile, {
         cacheControl: "3600",
         upsert: false,
+        metadata: {
+          owner: userId,
+        },
       });
 
     if (uploadError) {

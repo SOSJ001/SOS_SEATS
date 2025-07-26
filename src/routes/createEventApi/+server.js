@@ -15,6 +15,7 @@ export async function POST({ request, cookies }) {
     // Handle both FormData and JSON requests
     let eventData;
     let imageFile = null;
+    let imageBase64 = null;
 
     const contentType = request.headers.get("content-type");
 
@@ -22,6 +23,12 @@ export async function POST({ request, cookies }) {
       // Handle JSON request from step5
       eventData = await request.json();
       console.log("createEventApi - Received JSON data:", eventData);
+      
+      // Extract base64 image if present
+      if (eventData.image && typeof eventData.image === 'string' && eventData.image.startsWith('data:')) {
+        imageBase64 = eventData.image;
+        console.log("createEventApi - Found base64 image data");
+      }
     } else {
       // Handle FormData request (legacy)
       const formData = await request.formData();
@@ -40,6 +47,32 @@ export async function POST({ request, cookies }) {
       } else {
         return json(
           { success: false, error: "Failed to upload image" },
+          { status: 400 }
+        );
+      }
+    } else if (imageBase64) {
+      // Handle base64 image upload
+      try {
+        // Convert base64 to File object
+        const base64Response = await fetch(imageBase64);
+        const blob = await base64Response.blob();
+        const file = new File([blob], 'event-image.jpg', { type: blob.type });
+        
+        const uploadResult = await uploadEventImageNew(file, user_Id);
+        if (uploadResult.success) {
+          imageId = uploadResult.image_id;
+          console.log("createEventApi - Successfully uploaded base64 image, image_id:", imageId);
+        } else {
+          console.error("createEventApi - Failed to upload base64 image:", uploadResult.error);
+          return json(
+            { success: false, error: "Failed to upload image" },
+            { status: 400 }
+          );
+        }
+      } catch (error) {
+        console.error("createEventApi - Error processing base64 image:", error);
+        return json(
+          { success: false, error: "Failed to process image" },
           { status: 400 }
         );
       }

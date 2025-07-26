@@ -1,5 +1,5 @@
 //@ts-nocheck
-import { loadEventToTable } from "$lib/supabase";
+import { loadUserEvents } from "$lib/supabase";
 import { parseSession } from "$lib/sessionUtils.js";
 
 export async function load({ cookies }) {
@@ -15,6 +15,23 @@ export async function load({ cookies }) {
     };
   }
 
-  const EventTableResult = await loadEventToTable(user_Id);
+  // Use the new loadUserEvents function instead of the old loadEventToTable
+  const events = await loadUserEvents(user_Id, sessionType);
+  
+  // Transform the data to match the expected format for backward compatibility
+  const EventTableResult = events.map(event => ({
+    Event: {
+      id: event.id,
+      name: event.name,
+      date: event.date,
+      venue: event.location,
+      audience: event.audience_type,
+      imageId: event.image_id,
+      status: event.status,
+      // Add other fields as needed
+    },
+    Image: event.image || null
+  }));
+
   return { EventTableResult, user_Id, userName, sessionType };
 }

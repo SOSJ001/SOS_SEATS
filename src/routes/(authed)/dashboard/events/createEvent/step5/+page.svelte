@@ -97,15 +97,35 @@
     return `$${parseFloat(price.toString()).toFixed(2)}`;
   }
 
+  // Helper function to convert File to base64
+  function convertFileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function publishEvent() {
     isPublishing = true;
 
     try {
       console.log("Step5 - Publishing event data:", eventData);
 
+      // Convert image to base64 if it exists
+      let imageBase64 = null;
+      if (eventData.image && eventData.image instanceof File) {
+        imageBase64 = await convertFileToBase64(eventData.image);
+      } else if (eventData.imagePreview) {
+        // If we have imagePreview (base64), use it directly
+        imageBase64 = eventData.imagePreview;
+      }
+
       // Prepare the event data for the database
       const eventDataForDB = {
         ...eventData,
+        image: imageBase64, // Replace File object with base64 string
         status: "published", // Set status to published, not draft
         published_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
@@ -152,9 +172,19 @@
     try {
       console.log("Step5 - Saving draft data:", eventData);
 
+      // Convert image to base64 if it exists
+      let imageBase64 = null;
+      if (eventData.image && eventData.image instanceof File) {
+        imageBase64 = await convertFileToBase64(eventData.image);
+      } else if (eventData.imagePreview) {
+        // If we have imagePreview (base64), use it directly
+        imageBase64 = eventData.imagePreview;
+      }
+
       // Prepare the event data for the database
       const eventDataForDB = {
         ...eventData,
+        image: imageBase64, // Replace File object with base64 string
         status: "draft", // Set status to draft
         created_at: new Date().toISOString(),
       };
@@ -173,16 +203,16 @@
       const result = await response.json();
       console.log("Step5 - API response:", result);
 
-             if (result.success) {
-         // Clear localStorage
-         localStorage.removeItem("eventCreationData");
-         draftSuccess = true;
+      if (result.success) {
+        // Clear localStorage
+        localStorage.removeItem("eventCreationData");
+        draftSuccess = true;
 
-         // Redirect to events page after a short delay
-         setTimeout(() => {
-           goto("/dashboard/events");
-         }, 2000);
-       } else {
+        // Redirect to events page after a short delay
+        setTimeout(() => {
+          goto("/dashboard/events");
+        }, 2000);
+      } else {
         console.error("Error saving draft:", result.error);
         alert("Error saving draft: " + result.error);
       }
@@ -206,10 +236,12 @@
   }
 </script>
 
-<div class="max-w-6xl mx-auto p-6" in:fade={{ duration: 300 }}>
+<div class="max-w-4xl mx-auto p-4 sm:p-6" in:fade={{ duration: 300 }}>
   <!-- Title -->
-  <div class="text-center mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Create New Event</h1>
+  <div class="text-center mb-6 sm:mb-8">
+    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">
+      Create New Event
+    </h1>
   </div>
 
   <!-- Stepper Progress -->
@@ -232,17 +264,15 @@
           d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
         ></path>
       </svg>
-      <h3 class="text-2xl font-bold text-white mb-2">
+      <h3 class="text-xl sm:text-2xl font-bold text-white mb-2">
         Event Published Successfully!
       </h3>
-      <p class="text-green-200">
+      <p class="text-green-200 text-sm sm:text-base">
         Your event is now live and ready for ticket sales.
       </p>
     </div>
   {:else if draftSuccess}
-    <div
-      class="bg-blue-800 border border-blue-600 rounded-lg p-6 text-center"
-    >
+    <div class="bg-blue-800 border border-blue-600 rounded-lg p-6 text-center">
       <svg
         class="w-16 h-16 text-blue-400 mx-auto mb-4"
         fill="none"
@@ -256,16 +286,17 @@
           d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
         ></path>
       </svg>
-      <h3 class="text-2xl font-bold text-white mb-2">
+      <h3 class="text-xl sm:text-2xl font-bold text-white mb-2">
         Draft Saved Successfully!
       </h3>
-      <p class="text-blue-200">
-        Your event draft has been saved. You can edit and publish it later from the events page.
+      <p class="text-blue-200 text-sm sm:text-base">
+        Your event draft has been saved. You can edit and publish it later from
+        the events page.
       </p>
       <div class="mt-4">
         <button
           on:click={() => goto("/dashboard/events")}
-          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+          class="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm sm:text-base"
         >
           Go to Events
         </button>
@@ -275,40 +306,56 @@
     <!-- Review Content -->
     <div class="space-y-8">
       <!-- Step 1: Basic Information -->
-      <div class="bg-gray-800 rounded-xl p-8">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl font-bold text-white">Basic Information</h2>
+      <div class="bg-gray-800 rounded-xl p-4 sm:p-8">
+        <div
+          class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
+        >
+          <h2 class="text-lg sm:text-xl font-bold text-white">
+            Basic Information
+          </h2>
           <button
             on:click={() => editStep(1)}
-            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
+            class="w-full sm:w-auto px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
           >
             Edit Step 1
           </button>
         </div>
         <div class="space-y-3">
-          <div class="flex justify-between items-center">
-            <span class="text-gray-400">Event Name:</span>
-            <span class="text-white font-medium"
+          <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2"
+          >
+            <span class="text-gray-400 text-sm sm:text-base">Event Name:</span>
+            <span class="text-white font-medium text-sm sm:text-base text-right"
               >{eventData.name || "Not set"}</span
             >
           </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-400">Date & Time:</span>
-            <span class="text-white font-medium">
+          <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2"
+          >
+            <span class="text-gray-400 text-sm sm:text-base">Date & Time:</span>
+            <span
+              class="text-white font-medium text-sm sm:text-base text-right"
+            >
               {eventData.date ? formatDate(eventData.date) : "Not set"}, {eventData.time
                 ? formatTime(eventData.time)
                 : "Not set"}
             </span>
           </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-400">Venue:</span>
-            <span class="text-white font-medium"
+          <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2"
+          >
+            <span class="text-gray-400 text-sm sm:text-base">Venue:</span>
+            <span class="text-white font-medium text-sm sm:text-base text-right"
               >{eventData.location || "Not set"}</span
             >
           </div>
-          <div class="flex justify-between items-start">
-            <span class="text-gray-400">Description:</span>
-            <span class="text-white font-medium max-w-md text-right">
+          <div
+            class="flex flex-col sm:flex-row justify-between items-start gap-2"
+          >
+            <span class="text-gray-400 text-sm sm:text-base">Description:</span>
+            <span
+              class="text-white font-medium text-sm sm:text-base text-right max-w-md"
+            >
               {eventData.description || "Not set"}
             </span>
           </div>
@@ -316,12 +363,14 @@
       </div>
 
       <!-- Step 2: Event Details -->
-      <div class="bg-gray-800 rounded-xl p-8">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl font-bold text-white">Event Details</h2>
+      <div class="bg-gray-800 rounded-xl p-4 sm:p-8">
+        <div
+          class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
+        >
+          <h2 class="text-lg sm:text-xl font-bold text-white">Event Details</h2>
           <button
             on:click={() => editStep(2)}
-            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
+            class="w-full sm:w-auto px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
           >
             Edit Step 2
           </button>
@@ -369,20 +418,20 @@
           {/if}
 
           <div>
-            <span class="text-gray-400 text-sm">Event Image:</span>
+            <span class="text-gray-400 text-sm sm:text-base">Event Image:</span>
             <div class="mt-2">
               {#if eventData.imagePreview}
                 <img
                   src={eventData.imagePreview}
                   alt="Event preview"
-                  class="w-32 h-32 object-cover rounded-lg border border-gray-600"
+                  class="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-lg border border-gray-600"
                 />
               {:else if eventData.image}
                 <div
-                  class="w-32 h-32 bg-gray-700 rounded-lg flex items-center justify-center"
+                  class="w-24 h-24 sm:w-32 sm:h-32 bg-gray-700 rounded-lg flex items-center justify-center"
                 >
                   <svg
-                    class="w-8 h-8 text-gray-500"
+                    class="w-6 h-6 sm:w-8 sm:h-8 text-gray-500"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -402,12 +451,16 @@
       </div>
 
       <!-- Step 3: Ticket Types & Seating -->
-      <div class="bg-gray-800 rounded-xl p-8">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl font-bold text-white">Ticket Types & Seating</h2>
+      <div class="bg-gray-800 rounded-xl p-4 sm:p-8">
+        <div
+          class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
+        >
+          <h2 class="text-lg sm:text-xl font-bold text-white">
+            Ticket Types & Seating
+          </h2>
           <button
             on:click={() => editStep(3)}
-            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
+            class="w-full sm:w-auto px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
           >
             Edit Step 3
           </button>
@@ -428,11 +481,17 @@
           <div class="space-y-4">
             {#if eventData.ticket_types && eventData.ticket_types.length > 0}
               {#each eventData.ticket_types as ticket}
-                <div class="p-4 bg-gray-700 rounded-lg">
-                  <div class="flex justify-between items-start">
-                    <div>
-                      <h4 class="font-medium text-white">{ticket.name}</h4>
-                      <p class="text-gray-400 text-sm">{ticket.description}</p>
+                <div class="p-3 sm:p-4 bg-gray-700 rounded-lg">
+                  <div
+                    class="flex flex-col sm:flex-row justify-between items-start gap-3"
+                  >
+                    <div class="flex-1">
+                      <h4 class="font-medium text-white text-sm sm:text-base">
+                        {ticket.name}
+                      </h4>
+                      <p class="text-gray-400 text-xs sm:text-sm">
+                        {ticket.description}
+                      </p>
                       {#if ticket.benefits && ticket.benefits.length > 0}
                         <div class="mt-2">
                           <span class="text-gray-400 text-xs">Benefits:</span>
@@ -444,11 +503,11 @@
                         </div>
                       {/if}
                     </div>
-                    <div class="text-right">
-                      <p class="text-white font-semibold">
+                    <div class="text-right sm:text-left">
+                      <p class="text-white font-semibold text-sm sm:text-base">
                         {formatPrice(ticket.price)}
                       </p>
-                      <p class="text-gray-400 text-sm">
+                      <p class="text-gray-400 text-xs sm:text-sm">
                         {ticket.quantity} available
                       </p>
                     </div>
@@ -548,12 +607,16 @@
       </div>
 
       <!-- Step 4: Event Settings -->
-      <div class="bg-gray-800 rounded-xl p-8">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl font-bold text-white">Event Settings</h2>
+      <div class="bg-gray-800 rounded-xl p-4 sm:p-8">
+        <div
+          class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
+        >
+          <h2 class="text-lg sm:text-xl font-bold text-white">
+            Event Settings
+          </h2>
           <button
             on:click={() => editStep(4)}
-            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
+            class="w-full sm:w-auto px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm"
           >
             Edit Step 4
           </button>
@@ -599,81 +662,85 @@
     </div>
 
     <!-- Action Buttons -->
-    <div class="flex justify-between items-center mt-8">
+    <div
+      class="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8"
+    >
       <button
         on:click={prevStep}
-        class="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
+        class="w-full sm:w-auto px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 text-sm sm:text-base"
       >
         Previous: Event Settings
       </button>
 
-      <button
-        on:click={saveAsDraft}
-        disabled={isSavingDraft}
-        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-      >
-        {#if isSavingDraft}
-          <div class="flex items-center justify-center">
-            <svg
-              class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            Saving Draft...
-          </div>
-        {:else}
-          Save as Draft
-        {/if}
-      </button>
+      <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+        <button
+          on:click={saveAsDraft}
+          disabled={isSavingDraft}
+          class="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm sm:text-base"
+        >
+          {#if isSavingDraft}
+            <div class="flex items-center justify-center">
+              <svg
+                class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Saving Draft...
+            </div>
+          {:else}
+            Save as Draft
+          {/if}
+        </button>
 
-      <button
-        on:click={publishEvent}
-        disabled={isPublishing}
-        class="px-8 py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-      >
-        {#if isPublishing}
-          <div class="flex items-center justify-center">
-            <svg
-              class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            Publishing Event...
-          </div>
-        {:else}
-          Publish Event
-        {/if}
-      </button>
+        <button
+          on:click={publishEvent}
+          disabled={isPublishing}
+          class="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm sm:text-base"
+        >
+          {#if isPublishing}
+            <div class="flex items-center justify-center">
+              <svg
+                class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Publishing Event...
+            </div>
+          {:else}
+            Publish Event
+          {/if}
+        </button>
+      </div>
     </div>
   {/if}
 </div>

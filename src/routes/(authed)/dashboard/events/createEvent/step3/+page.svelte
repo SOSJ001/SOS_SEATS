@@ -177,26 +177,30 @@
   }
 </script>
 
-<div class="max-w-6xl mx-auto p-6" in:fade={{ duration: 300 }}>
+<div class="max-w-4xl mx-auto p-4 sm:p-6" in:fade={{ duration: 300 }}>
   <!-- Title -->
-  <div class="text-center mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Create New Event</h1>
+  <div class="text-center mb-6 sm:mb-8">
+    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">
+      Create New Event
+    </h1>
   </div>
 
   <!-- Stepper Progress -->
   <StepperProgress currentStep={3} />
 
   <!-- Step Title -->
-  <div class="mb-8">
-    <h2 class="text-3xl font-bold text-white mb-2">Ticket Types & Seating</h2>
-    <p class="text-gray-400">
+  <div class="mb-6 sm:mb-8">
+    <h2 class="text-xl sm:text-3xl font-bold text-white mb-2">
+      Ticket Types & Seating
+    </h2>
+    <p class="text-gray-400 text-sm sm:text-base">
       Set up different ticket tiers, pricing, and seating configuration for your
       event.
     </p>
   </div>
 
   <!-- Ticket Types -->
-  <div class="space-y-6 mb-8">
+  <div class="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
     <h3 class="text-2xl font-semibold text-white mb-4">
       Ticket Types & Pricing
     </h3>
@@ -244,7 +248,9 @@
           {/if}
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6"
+        >
           <!-- Ticket Name -->
           <div>
             <label class="block text-sm font-medium text-gray-300 mb-2">
@@ -295,7 +301,9 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6"
+        >
           <!-- Quantity -->
           <div>
             <label class="block text-sm font-medium text-gray-300 mb-2">
@@ -671,17 +679,19 @@
   </div>
 
   <!-- Navigation Buttons -->
-  <div class="flex justify-between mt-8">
+  <div
+    class="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6 mt-6 sm:mt-8"
+  >
     <button
       on:click={prevStep}
-      class="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
+      class="w-full sm:w-auto px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 text-sm sm:text-base"
     >
       Previous
     </button>
 
     <button
       on:click={nextStep}
-      class="px-8 py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 font-medium"
+      class="w-full sm:w-auto px-8 py-3 sm:py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 font-medium text-sm sm:text-base"
     >
       Next Step
     </button>
