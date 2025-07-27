@@ -26,7 +26,7 @@
     await loadEventData();
   });
 
-    async function loadEventData() {
+  async function loadEventData() {
     try {
       // Always load from server data first to get the latest event data
       console.log("Step1 - Loading data from server:", data?.event);
@@ -34,7 +34,7 @@
         eventData = { ...eventData, ...data.event };
         console.log("Step1 - Loaded server data:", eventData);
       }
-      
+
       // Then merge with any localStorage data (for any changes made in this session)
       const savedData = localStorage.getItem("eventEditData");
       if (savedData) {
@@ -47,7 +47,7 @@
           }
         });
       }
-      
+
       console.log("Step1 - Final eventData after merge:", eventData);
     } catch (error) {
       console.error("Error loading event data:", error);
@@ -88,19 +88,23 @@
   }
 </script>
 
-<div class="max-w-6xl mx-auto p-6" in:fade={{ duration: 300 }}>
+<div class="max-w-4xl mx-auto p-4 sm:p-6" in:fade={{ duration: 300 }}>
   <!-- Title -->
-  <div class="text-center mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Edit Event</h1>
+  <div class="text-center mb-6 sm:mb-8">
+    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">Edit Event</h1>
   </div>
 
   <!-- Stepper Progress -->
   <StepperProgress currentStep={1} />
 
   <!-- Step Title -->
-  <div class="mb-8">
-    <h2 class="text-3xl font-bold text-white mb-2">Basic Event Information</h2>
-    <p class="text-gray-400">Update the essential details about your event.</p>
+  <div class="mb-6 sm:mb-8">
+    <h2 class="text-xl sm:text-3xl font-bold text-white mb-2">
+      Basic Event Information
+    </h2>
+    <p class="text-gray-400 text-sm sm:text-base">
+      Update the essential details about your event.
+    </p>
   </div>
 
   {#if data?.error}
@@ -140,7 +144,7 @@
     </div>
   {:else}
     <!-- Form -->
-    <div class="bg-gray-800 rounded-xl p-8 space-y-6">
+    <div class="bg-gray-800 rounded-xl p-4 sm:p-8 space-y-4 sm:space-y-6">
       <!-- Event Name -->
       <div>
         <label for="name" class="block text-sm font-medium text-gray-300 mb-2">
@@ -161,7 +165,7 @@
       </div>
 
       <!-- Date and Time -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
           <label
             for="date"

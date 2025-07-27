@@ -24,7 +24,12 @@ export async function load({ params, cookies }) {
     // Fetch complete event data for step5 preview
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select(`*`)
+      .select(`
+        *,
+        ticket_types(*),
+        venue_sections(*),
+        seating_options(*)
+      `)
       .eq("id", eventId)
       .eq("user_id", user_Id)
       .single();
@@ -59,25 +64,17 @@ export async function load({ params, cookies }) {
       image_id: event.image_id,
       is_free_event: event.is_free_event || false,
       seating_type: event.seating_type || "general",
-      total_capacity: event.total_capacity || null,
+      total_capacity: event.total_capacity,
       ticket_types: event.ticket_types || [],
       venue_sections: event.venue_sections || [],
-      seating_options: event.seating_options || {},
-      status: event.status || "draft",
-      visibility: event.event_visibility || "public",
-      registration_required: event.registration_required || false,
-      allow_waitlist: event.allow_waitlist || false,
-      max_waitlist_size: event.max_waitlist_size || 50,
-      registration_deadline: event.registration_deadline || "",
-      check_in_opens: event.check_in_opens || "",
-      check_in_closes: event.check_in_closes || "",
-      allow_refunds: event.allow_refunds || false,
-      refund_policy: event.refund_policy || "",
-      terms_conditions: event.terms_conditions || "",
-      privacy_policy: event.privacy_policy || "",
-      email_notifications: event.email_notifications !== false,
-      sms_notifications: event.sms_notifications || false,
-      reminder_emails: event.reminder_emails !== false,
+      seating_options: event.seating_options?.[0] || {
+        allow_seat_selection: false,
+        max_seats_per_order: 4,
+        reserved_seating: false,
+        has_seating_chart: false,
+      },
+      audience_type: event.audience_type || "all-ages",
+      event_visibility: event.event_visibility || "public",
     };
 
     console.log("Step5 server - Complete event data:", event);

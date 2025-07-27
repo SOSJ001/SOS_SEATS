@@ -243,7 +243,7 @@
   </div>
 
   <!-- Form -->
-  <div class="bg-gray-800 rounded-xl p-4 sm:p-8 space-y-6">
+  <div class="bg-gray-800 rounded-xl p-4 sm:p-8 space-y-6 sm:space-y-8">
     <!-- Event Type -->
     <div>
       <label class="block text-sm font-medium text-gray-300 mb-4">
@@ -346,7 +346,9 @@
               {/if}
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div
+              class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6"
+            >
               <div>
                 <label class="block text-sm text-gray-400 mb-1">Name *</label>
                 <input
@@ -499,7 +501,7 @@
                 </button>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label class="block text-sm text-gray-400 mb-1">Name *</label>
                   <input

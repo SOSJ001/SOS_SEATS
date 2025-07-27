@@ -13,7 +13,14 @@ export async function load({ params, cookies }) {
 
     const { data: event, error } = await supabase
       .from("events")
-      .select("*")
+      .select(
+        `
+        *,
+        ticket_types(*),
+        venue_sections(*),
+        seating_options(*)
+      `
+      )
       .eq("id", params.eventId)
       .eq("user_id", user_Id)
       .single();
@@ -55,7 +62,7 @@ export async function load({ params, cookies }) {
       seating_type: event.seating_type || "general",
       total_capacity: event.total_capacity,
       venue_sections: event.venue_sections || [],
-      seating_options: event.seating_options || {
+      seating_options: event.seating_options?.[0] || {
         allow_seat_selection: false,
         max_seats_per_order: 4,
         reserved_seating: false,

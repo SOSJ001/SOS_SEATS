@@ -28,7 +28,9 @@ export async function load({ params, cookies }) {
       .select(
         `
         *,
-        ticket_types (*)
+        ticket_types(*),
+        venue_sections(*),
+        seating_options(*)
       `
       )
       .eq("id", eventId)
@@ -92,7 +94,7 @@ export async function load({ params, cookies }) {
       seating_type: eventWithImage.seating_type || "general",
       total_capacity: eventWithImage.total_capacity,
       venue_sections: eventWithImage.venue_sections || [],
-      seating_options: eventWithImage.seating_options || {
+      seating_options: eventWithImage.seating_options?.[0] || {
         allow_seat_selection: false,
         max_seats_per_order: 4,
         reserved_seating: false,

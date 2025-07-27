@@ -24,7 +24,12 @@ export async function load({ params, cookies }) {
     // Fetch event data for step3
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select(`*`)
+      .select(`
+        *,
+        ticket_types(*),
+        venue_sections(*),
+        seating_options(*)
+      `)
       .eq("id", eventId)
       .eq("user_id", user_Id)
       .single();
@@ -68,12 +73,14 @@ export async function load({ params, cookies }) {
         },
       ],
       venue_sections: event.venue_sections || [],
-      seating_options: event.seating_options || {
+      seating_options: event.seating_options?.[0] || {
         allow_seat_selection: false,
         max_seats_per_order: 4,
         reserved_seating: false,
         has_seating_chart: false,
       },
+      audience_type: event.audience_type || "all-ages",
+      event_visibility: event.event_visibility || "public",
     };
 
     console.log("Step3 server - Event data:", event);
