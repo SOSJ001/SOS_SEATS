@@ -2,11 +2,16 @@
   // @ts-nocheck
   import { fade, fly } from "svelte/transition";
   import { onMount } from "svelte";
+  import ShareEventModal from "$lib/components/ShareEventModal.svelte";
 
   // Event data
   let events = [];
   let isLoading = true;
   let error = null;
+
+  // Share modal state
+  let showShareModal = false;
+  let selectedEventForSharing = null;
 
   onMount(async () => {
     await loadEvents();
@@ -102,13 +107,13 @@
     switch (status?.toLowerCase()) {
       case "live":
       case "published":
-        return "Manage Event";
+        return activeFilter === "upcoming" ? "Share Event" : "Manage Event";
       case "completed":
         return "View Report";
       case "draft":
         return "Edit Draft";
       default:
-        return "Manage Event";
+        return activeFilter === "upcoming" ? "Share Event" : "Manage Event";
     }
   }
 
@@ -169,6 +174,19 @@
       }
       return matchesSearch;
     });
+  }
+
+  // Share event functionality
+  function shareEvent(event) {
+    selectedEventForSharing = event;
+    showShareModal = true;
+    console.log("Opening share modal for event:", event.title);
+  }
+
+  // Close share modal
+  function closeShareModal() {
+    showShareModal = false;
+    selectedEventForSharing = null;
   }
 </script>
 
@@ -353,6 +371,8 @@
             <!-- Action Buttons -->
             <div class="flex gap-2">
               <button
+                on:click={() =>
+                  activeFilter === "upcoming" ? shareEvent(event) : null}
                 class="flex-1 bg-gradient-to-r {event.primaryActionColor} text-white py-2 px-4 rounded-lg font-medium hover:opacity-90 transition-opacity duration-200"
               >
                 {event.primaryAction}
@@ -414,3 +434,10 @@
     />
   </svg>
 </a>
+
+<!-- Share Event Modal -->
+<ShareEventModal
+  event={selectedEventForSharing}
+  isOpen={showShareModal}
+  on:close={closeShareModal}
+/>
