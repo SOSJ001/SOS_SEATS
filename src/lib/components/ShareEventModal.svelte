@@ -11,11 +11,13 @@
 
   // Reactive statement to update eventLink when event changes
   $: {
-    const baseUrl = window.location.origin;
-    if (event && event.title) {
-      eventLink = `${baseUrl}/events/${event.id}`;
-    } else {
-      eventLink = `${baseUrl}/events`;
+    if (typeof window !== 'undefined') {
+      const baseUrl = window.location.origin;
+      if (event && event.title) {
+        eventLink = `${baseUrl}/events/${event.id}`;
+      } else {
+        eventLink = `${baseUrl}/events`;
+      }
     }
   }
 
@@ -61,7 +63,7 @@
   }
 
   function downloadQRCode() {
-    console.log("Downloading QR code...");
+    // QR code download functionality would be implemented here
   }
 </script>
 
