@@ -122,7 +122,7 @@
       ></div>
       <div class="absolute bottom-6 left-6 text-white">
         <h1 class="text-4xl font-bold mb-2">{eventData.title}</h1>
-        <p class="text-lg text-gray-200">{eventData.date}, {eventData.time}</p>
+        <p class="text-lg text-gray-200">{eventData.date}</p>
       </div>
     </div>
 

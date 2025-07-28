@@ -640,6 +640,184 @@ export async function verifyWeb3Session() {
 // =====================================================
 
 // Create a new event with all details using the new schema
+export async function updateEventWithDetails(
+  eventId,
+  eventData,
+  userId,
+  fullEventData
+) {
+  try {
+    console.log("updateEventWithDetails - Received userId:", userId);
+    console.log("updateEventWithDetails - Received eventId:", eventId);
+    console.log("updateEventWithDetails - Received eventData:", eventData);
+
+    // First, update the main event record
+    const { data: eventUpdateData, error: eventUpdateError } = await supabase
+      .from("events")
+      .update({
+        name: eventData.name,
+        description: eventData.description,
+        date: eventData.date,
+        time: eventData.time,
+        location: eventData.location,
+        venue_address: eventData.venue_address,
+        category: eventData.category,
+        tags: eventData.tags,
+        organizer: eventData.organizer,
+        contact_email: eventData.contact_email,
+        website: eventData.website,
+        social_media: eventData.social_media,
+        image_id: eventData.image_id,
+        is_free_event: eventData.is_free_event,
+        seating_type: eventData.seating_type,
+        total_capacity: eventData.total_capacity,
+        audience_type: eventData.audience_type,
+        event_visibility: eventData.event_visibility,
+        updated_at: eventData.updated_at,
+      })
+      .eq("id", eventId)
+      .eq("user_id", userId)
+      .select()
+      .single();
+
+    if (eventUpdateError) {
+      console.error(
+        "updateEventWithDetails - Error updating event:",
+        eventUpdateError
+      );
+      return { success: false, error: eventUpdateError.message };
+    }
+
+    console.log(
+      "updateEventWithDetails - Event updated successfully:",
+      eventUpdateData
+    );
+
+    // Update ticket types if they exist
+    if (fullEventData.ticket_types && fullEventData.ticket_types.length > 0) {
+      // Delete existing ticket types
+      const { error: deleteTicketError } = await supabase
+        .from("ticket_types")
+        .delete()
+        .eq("event_id", eventId);
+
+      if (deleteTicketError) {
+        console.error(
+          "updateEventWithDetails - Error deleting existing ticket types:",
+          deleteTicketError
+        );
+      }
+
+      // Insert new ticket types
+      const ticketTypesToInsert = fullEventData.ticket_types.map((ticket) => ({
+        event_id: eventId,
+        name: ticket.name,
+        price: ticket.price,
+        quantity: ticket.quantity,
+        description: ticket.description,
+        benefits: ticket.benefits,
+      }));
+
+      const { error: ticketInsertError } = await supabase
+        .from("ticket_types")
+        .insert(ticketTypesToInsert);
+
+      if (ticketInsertError) {
+        console.error(
+          "updateEventWithDetails - Error inserting ticket types:",
+          ticketInsertError
+        );
+        return { success: false, error: ticketInsertError.message };
+      }
+    }
+
+    // Update venue sections if they exist
+    if (
+      fullEventData.venue_sections &&
+      fullEventData.venue_sections.length > 0
+    ) {
+      // Delete existing venue sections
+      const { error: deleteVenueError } = await supabase
+        .from("venue_sections")
+        .delete()
+        .eq("event_id", eventId);
+
+      if (deleteVenueError) {
+        console.error(
+          "updateEventWithDetails - Error deleting existing venue sections:",
+          deleteVenueError
+        );
+      }
+
+      // Insert new venue sections
+      const venueSectionsToInsert = fullEventData.venue_sections.map(
+        (section) => ({
+          event_id: eventId,
+          name: section.name,
+          capacity: section.capacity,
+          price: section.price,
+          description: section.description,
+          seating_chart_data: section.seating_chart_data,
+        })
+      );
+
+      const { error: venueInsertError } = await supabase
+        .from("venue_sections")
+        .insert(venueSectionsToInsert);
+
+      if (venueInsertError) {
+        console.error(
+          "updateEventWithDetails - Error inserting venue sections:",
+          venueInsertError
+        );
+        return { success: false, error: venueInsertError.message };
+      }
+    }
+
+    // Update seating options if they exist
+    if (fullEventData.seating_options) {
+      // Delete existing seating options
+      const { error: deleteSeatingError } = await supabase
+        .from("seating_options")
+        .delete()
+        .eq("event_id", eventId);
+
+      if (deleteSeatingError) {
+        console.error(
+          "updateEventWithDetails - Error deleting existing seating options:",
+          deleteSeatingError
+        );
+      }
+
+      // Insert new seating options
+      const { error: seatingInsertError } = await supabase
+        .from("seating_options")
+        .insert({
+          event_id: eventId,
+          allow_seat_selection:
+            fullEventData.seating_options.allow_seat_selection,
+          max_seats_per_order:
+            fullEventData.seating_options.max_seats_per_order,
+          reserved_seating: fullEventData.seating_options.reserved_seating,
+          has_seating_chart: fullEventData.seating_options.has_seating_chart,
+        });
+
+      if (seatingInsertError) {
+        console.error(
+          "updateEventWithDetails - Error inserting seating options:",
+          seatingInsertError
+        );
+        return { success: false, error: seatingInsertError.message };
+      }
+    }
+
+    return { success: true, event_id: eventId };
+  } catch (error) {
+    console.error("Error in updateEventWithDetails:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function createEventWithDetails(eventData, userId) {
   try {
     console.log("createEventWithDetails - Received userId:", userId);

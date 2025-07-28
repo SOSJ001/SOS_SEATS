@@ -134,14 +134,31 @@
     if (validateStep()) {
       // Save to localStorage before navigating
       console.log("Step2 - Saving data:", eventData);
-      localStorage.setItem("eventEditData", JSON.stringify(eventData));
+      console.log("Step2 - Saving imagePreview:", imagePreview);
+      
+      // Save eventData with imagePreview
+      const dataToSave = {
+        ...eventData,
+        imagePreview: imagePreview
+      };
+      
+      localStorage.setItem("eventEditData", JSON.stringify(dataToSave));
       goto(`/dashboard/events/editEvent/${eventId}/step3`);
     }
   }
 
   function prevStep() {
     // Save current data before going back
-    localStorage.setItem("eventEditData", JSON.stringify(eventData));
+    console.log("Step2 - Saving data on prevStep:", eventData);
+    console.log("Step2 - Saving imagePreview on prevStep:", imagePreview);
+    
+    // Save eventData with imagePreview
+    const dataToSave = {
+      ...eventData,
+      imagePreview: imagePreview
+    };
+    
+    localStorage.setItem("eventEditData", JSON.stringify(dataToSave));
     goto(`/dashboard/events/editEvent/${eventId}/step1`);
   }
 

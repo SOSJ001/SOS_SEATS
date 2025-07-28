@@ -1,93 +1,67 @@
+import { error } from "@sveltejs/kit";
 import { supabase } from "$lib/supabase.js";
 import { validateSession } from "$lib/sessionUtils.js";
 
-export async function load({ params, cookies }) {
-  const eventId = params.eventId;
-
-  if (!eventId) {
-    return {
-      status: 400,
-      error: "Event ID is required",
-    };
-  }
-
+export async function load({ url, cookies, params }) {
   try {
-    const { valid, user_Id, sessionType } = validateSession(cookies);
+    const { user_Id, sessionType } = validateSession(cookies);
+    const eventId = params.eventId;
 
-    if (!valid) {
-      return {
-        status: 401,
-        error: "Unauthorized",
-      };
+    console.log("Step2 server - Loading event data for eventId:", eventId);
+    console.log("Step2 server - User ID:", user_Id);
+
+    if (!user_Id) {
+      throw error(401, "Unauthorized");
     }
 
-    // Fetch event data for step2
+    if (!eventId) {
+      throw error(400, "Event ID is required");
+    }
+
+    // Fetch event data
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select(
-        `
-        *,
-        ticket_types(*),
-        venue_sections(*),
-        seating_options(*)
-      `
-      )
+      .select("*")
       .eq("id", eventId)
       .eq("user_id", user_Id)
       .single();
 
-    if (eventError || !event) {
-      return {
-        status: 404,
-        error: "Event not found",
-      };
+    if (eventError) {
+      console.error("Step2 server - Error fetching event:", eventError);
+      throw error(404, "Event not found");
     }
 
-    // Format the event data for step2
-    const formattedEvent = {
-      id: event.id,
-      name: event.name,
-      date: event.date,
-      time: event.time,
-      location: event.location,
-      venue_address: event.venue_address || "",
-      description: event.description || "",
-      category: event.category || "",
-      tags: event.tags || [],
-      organizer: event.organizer || "",
-      contact_email: event.contact_email || "",
-      website: event.website || "",
-      social_media: event.social_media || {
-        facebook: "",
-        twitter: "",
-        instagram: "",
-      },
-      image: event.image || null,
-      image_id: event.image_id,
-      ticket_types: event.ticket_types || [],
-      venue_sections: event.venue_sections || [],
-      seating_options: event.seating_options?.[0] || {
-        allow_seat_selection: false,
-        max_seats_per_order: 4,
-        reserved_seating: false,
-        has_seating_chart: false,
-      },
-      is_free_event: event.is_free_event || false,
-      seating_type: event.seating_type || "general",
-      total_capacity: event.total_capacity,
-      audience_type: event.audience_type || "all-ages",
-      event_visibility: event.event_visibility || "public",
+    // Fetch image data separately if image_id exists
+    let imageData = null;
+    if (event.image_id) {
+      const { data: image, error: imageError } = await supabase
+        .from("images")
+        .select("*")
+        .eq("id", event.image_id)
+        .single();
+
+      if (!imageError && image) {
+        imageData = image;
+        console.log("Step2 server - Image data loaded:", imageData);
+      }
+    }
+
+    // Combine event and image data
+    const eventWithImage = {
+      ...event,
+      image: imageData
     };
 
-    console.log("Step2 server - Event data:", event);
-    console.log("Step2 server - Formatted event:", formattedEvent);
+    console.log("Step2 server - Event data loaded:", eventWithImage);
 
-    return { event: formattedEvent };
-  } catch (error) {
-    console.error("Error loading event for step2:", error);
     return {
-      status: 500,
-      error: "Internal server error",
+      event: eventWithImage,
     };
+  } catch (err) {
+    console.error("Step2 server - Unexpected error:", err);
+    if (err.status) {
+      throw err;
+    }
+    throw error(500, "Internal server error");
   }
 }
