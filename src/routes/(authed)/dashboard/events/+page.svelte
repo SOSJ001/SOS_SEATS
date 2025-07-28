@@ -2,6 +2,7 @@
   // @ts-nocheck
   import { fade, fly } from "svelte/transition";
   import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
   import ShareEventModal from "$lib/components/ShareEventModal.svelte";
 
   // Event data
@@ -371,8 +372,13 @@
             <!-- Action Buttons -->
             <div class="flex gap-2">
               <button
-                on:click={() =>
-                  activeFilter === "upcoming" ? shareEvent(event) : null}
+                on:click={() => {
+                  if (activeFilter === "upcoming") {
+                    shareEvent(event);
+                  } else if (activeFilter === "drafts") {
+                    goto(`/dashboard/events/editEvent/${event.id}`);
+                  }
+                }}
                 class="flex-1 bg-gradient-to-r {event.primaryActionColor} text-white py-2 px-4 rounded-lg font-medium hover:opacity-90 transition-opacity duration-200"
               >
                 {event.primaryAction}

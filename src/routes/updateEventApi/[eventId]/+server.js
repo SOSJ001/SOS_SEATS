@@ -119,6 +119,8 @@ export async function PUT({ request, cookies, params }) {
       total_capacity: parseInt(eventData.total_capacity) || 0,
       audience_type: eventData.audience_type || "all-ages",
       event_visibility: eventData.event_visibility || "public",
+      status: eventData.status, // Include status field
+      published_at: eventData.published_at, // Include published_at field
       updated_at: new Date().toISOString(),
     };
 

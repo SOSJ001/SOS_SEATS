@@ -673,6 +673,8 @@ export async function updateEventWithDetails(
         total_capacity: eventData.total_capacity,
         audience_type: eventData.audience_type,
         event_visibility: eventData.event_visibility,
+        status: eventData.status, // Include status field
+        published_at: eventData.published_at, // Include published_at field
         updated_at: eventData.updated_at,
       })
       .eq("id", eventId)
