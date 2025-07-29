@@ -1,14 +1,9 @@
-<script>
+<script lang="ts">
   import EventCard from "$lib/components/EventCard.svelte";
   import SearchFilters from "$lib/components/SearchFilters.svelte";
   import { Tabs, TabItem } from "flowbite-svelte";
   import { onMount } from "svelte";
-  import {
-    demoEvents,
-    featuredEvents,
-    upcomingEvents,
-    resaleEvents,
-  } from "$lib/data/demoEvents.js";
+  import { loadPublicEvents } from "$lib/supabase.js";
 
   // Search and filter functionality
   let searchQuery = "";
@@ -17,9 +12,16 @@
   let pageLoaded = false;
   let cardsVisible = false;
   let heroSearchQuery = "";
+  
+  // Event data
+  let allEvents = [];
+  let featuredEvents = [];
+  let upcomingEvents = [];
+  let resaleEvents = [];
+  let loading = true;
 
   // Filter events based on search and category
-  $: filteredEvents = demoEvents.filter((event) => {
+  $: filteredEvents = allEvents.filter((event: any) => {
     const matchesSearch =
       event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.venue.toLowerCase().includes(searchQuery.toLowerCase());
@@ -28,7 +30,7 @@
     return matchesSearch && matchesCategory;
   });
 
-  $: filteredFeaturedEvents = featuredEvents.filter((event) => {
+  $: filteredFeaturedEvents = featuredEvents.filter((event: any) => {
     const matchesSearch =
       event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.venue.toLowerCase().includes(searchQuery.toLowerCase());
@@ -45,7 +47,28 @@
       ?.scrollIntoView({ behavior: "smooth" });
   }
 
-  onMount(() => {
+  onMount(async () => {
+    try {
+      // Load public events from database
+      const events = await loadPublicEvents();
+      
+      allEvents = events || [];
+      
+      // Set featured events (first 4)
+      featuredEvents = events.slice(0, 4);
+      
+      // Set upcoming events (first 6)
+      upcomingEvents = events.slice(0, 6);
+      
+      // Set resale events (remaining events)
+      resaleEvents = events.slice(6);
+      
+      loading = false;
+    } catch (error) {
+      console.error("Error loading events:", error);
+      loading = false;
+    }
+
     // Trigger page load animation
     setTimeout(() => {
       pageLoaded = true;
@@ -180,18 +203,40 @@
       >
         Featured Events
       </h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {#each filteredFeaturedEvents as event, index}
-          <div
-            class="transition-all duration-700 ease-out {cardsVisible
-              ? 'opacity-100 translate-y-0 scale-100'
-              : 'opacity-0 translate-y-8 scale-95'}"
-            style="transition-delay: {index * 100}ms;"
-          >
-            <EventCard {event} buttonText="Buy Now" />
-          </div>
-        {/each}
-      </div>
+      
+      {#if loading}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {#each Array(4) as _, index}
+            <div class="bg-gray-800 rounded-xl p-6 animate-pulse">
+              <div class="bg-gray-700 h-48 rounded-lg mb-4"></div>
+              <div class="bg-gray-700 h-4 rounded mb-2"></div>
+              <div class="bg-gray-700 h-3 rounded mb-4"></div>
+              <div class="bg-gray-700 h-3 rounded mb-6"></div>
+              <div class="flex justify-between items-center">
+                <div class="bg-gray-700 h-6 w-16 rounded"></div>
+                <div class="bg-gray-700 h-10 w-24 rounded"></div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {:else if filteredFeaturedEvents.length > 0}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {#each filteredFeaturedEvents as event, index}
+            <div
+              class="transition-all duration-700 ease-out {cardsVisible
+                ? 'opacity-100 translate-y-0 scale-100'
+                : 'opacity-0 translate-y-8 scale-95'}"
+              style="transition-delay: {index * 100}ms;"
+            >
+              <EventCard {event} buttonText="Buy Now" />
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div class="text-center py-12">
+          <p class="text-gray-400 text-lg">No featured events available at the moment.</p>
+        </div>
+      {/if}
     </div>
 
     <!-- All Events Section -->
@@ -217,36 +262,78 @@
           title="Upcoming"
           class="px-6 py-3 rounded-lg transition-all duration-300 ease-out font-semibold"
         >
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {#each filteredEvents as event, index}
-              <div
-                class="transition-all duration-700 ease-out {cardsVisible
-                  ? 'opacity-100 translate-y-0 scale-100'
-                  : 'opacity-0 translate-y-8 scale-95'}"
-                style="transition-delay: {index * 100}ms;"
-              >
-                <EventCard {event} buttonText="View Details" />
-              </div>
-            {/each}
-          </div>
+          {#if loading}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {#each Array(6) as _, index}
+                <div class="bg-gray-800 rounded-xl p-6 animate-pulse">
+                  <div class="bg-gray-700 h-48 rounded-lg mb-4"></div>
+                  <div class="bg-gray-700 h-4 rounded mb-2"></div>
+                  <div class="bg-gray-700 h-3 rounded mb-4"></div>
+                  <div class="bg-gray-700 h-3 rounded mb-6"></div>
+                  <div class="flex justify-between items-center">
+                    <div class="bg-gray-700 h-6 w-16 rounded"></div>
+                    <div class="bg-gray-700 h-10 w-24 rounded"></div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {:else if filteredEvents.length > 0}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {#each filteredEvents as event, index}
+                <div
+                  class="transition-all duration-700 ease-out {cardsVisible
+                    ? 'opacity-100 translate-y-0 scale-100'
+                    : 'opacity-0 translate-y-8 scale-95'}"
+                  style="transition-delay: {index * 100}ms;"
+                >
+                  <EventCard {event} buttonText="View Details" />
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="text-center py-12">
+              <p class="text-gray-400 text-lg">No events found matching your criteria.</p>
+            </div>
+          {/if}
         </TabItem>
 
         <TabItem
           title="Resales"
           class="px-6 py-3 rounded-lg transition-all duration-300 ease-out font-semibold"
         >
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {#each resaleEvents as event, index}
-              <div
-                class="transition-all duration-700 ease-out {cardsVisible
-                  ? 'opacity-100 translate-y-0 scale-100'
-                  : 'opacity-0 translate-y-8 scale-95'}"
-                style="transition-delay: {index * 100}ms;"
-              >
-                <EventCard {event} buttonText="View Details" />
-              </div>
-            {/each}
-          </div>
+          {#if loading}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {#each Array(3) as _, index}
+                <div class="bg-gray-800 rounded-xl p-6 animate-pulse">
+                  <div class="bg-gray-700 h-48 rounded-lg mb-4"></div>
+                  <div class="bg-gray-700 h-4 rounded mb-2"></div>
+                  <div class="bg-gray-700 h-3 rounded mb-4"></div>
+                  <div class="bg-gray-700 h-3 rounded mb-6"></div>
+                  <div class="flex justify-between items-center">
+                    <div class="bg-gray-700 h-6 w-16 rounded"></div>
+                    <div class="bg-gray-700 h-10 w-24 rounded"></div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {:else if resaleEvents.length > 0}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {#each resaleEvents as event, index}
+                <div
+                  class="transition-all duration-700 ease-out {cardsVisible
+                    ? 'opacity-100 translate-y-0 scale-100'
+                    : 'opacity-0 translate-y-8 scale-95'}"
+                  style="transition-delay: {index * 100}ms;"
+                >
+                  <EventCard {event} buttonText="View Details" />
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="text-center py-12">
+              <p class="text-gray-400 text-lg">No resale events available at the moment.</p>
+            </div>
+          {/if}
         </TabItem>
       </Tabs>
     </div>

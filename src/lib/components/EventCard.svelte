@@ -106,7 +106,13 @@
         {event.price}
       </span>
       <button
-        on:click={() => (paymentOptions = true)}
+        on:click={() => {
+          if (buttonText === "View Details") {
+            window.location.href = `/marketplace/eventDetails/${event.id}`;
+          } else {
+            paymentOptions = true;
+          }
+        }}
         class="relative overflow-hidden px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-semibold transition-all duration-300 ease-out transform hover:scale-105 hover:shadow-lg hover:from-blue-600 hover:to-purple-700 group/btn"
       >
         <!-- Button shine effect -->

@@ -905,6 +905,85 @@ export async function createEventWithDetails(eventData, userId) {
   }
 }
 
+// Load all public events for marketplace
+export async function loadPublicEvents() {
+  try {
+    // Now try the full query without joins first
+    const { data: events, error } = await supabase
+      .from("events")
+      .select("*")
+      .eq("event_visibility", "public")
+      .eq("status", "published")
+      .gte("date", new Date().toISOString().split("T")[0]) // Show events from today onwards
+      .order("date", { ascending: true });
+
+    if (error) {
+      console.error("Error loading public events:", error);
+      return [];
+    }
+
+    // Load related data for each event
+    const transformedEvents = await Promise.all(
+      events.map(async (event) => {
+        // Load ticket types for this event
+        const { data: ticketTypes } = await supabase
+          .from("ticket_types")
+          .select("*")
+          .eq("event_id", event.id);
+
+        // Load image for this event
+        let imageUrl =
+          "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop";
+        if (event.image_id) {
+          const { data: imageData } = await supabase
+            .from("images")
+            .select("file_path")
+            .eq("id", event.image_id)
+            .single();
+
+          if (imageData?.file_path) {
+            imageUrl = imageData.file_path;
+          }
+        }
+
+        // Determine price from ticket types
+        let price = "Free";
+        if (!event.is_free_event && ticketTypes && ticketTypes.length > 0) {
+          const lowestPrice = Math.min(
+            ...ticketTypes.map((t) => parseFloat(t.price) || 0)
+          );
+          price = `NLe ${lowestPrice}`;
+        }
+
+        return {
+          id: event.id,
+          name: event.name,
+          date: new Date(event.date).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }),
+          venue: event.location,
+          image: imageUrl,
+          price: price,
+          category: event.category || "General",
+          description: event.description,
+          time: event.time,
+          organizer: event.organizer,
+          total_capacity: event.total_capacity,
+          ticket_types: ticketTypes || [],
+          venue_sections: [], // We'll load these separately if needed
+        };
+      })
+    );
+
+    return transformedEvents;
+  } catch (error) {
+    console.error("Error in loadPublicEvents:", error);
+    return [];
+  }
+}
+
 // Load events for a user using the new schema
 export async function loadUserEvents(userId, sessionType = "traditional") {
   try {
