@@ -14,7 +14,7 @@
   $: eventId = $page.params.eventId;
   let event: any = null;
   let loading = true;
-  let error = null;
+  let error: string | null = null;
 
   // Ticket types with pricing
   let ticketTypes = [
@@ -59,14 +59,8 @@
     return total + ticket.price * (selectedTickets[ticket.id] || 0);
   }, 0);
 
-  // Event details
-  const eventDetails = [
-    { icon: "calendar", label: "Date", value: event.date },
-    { icon: "clock", label: "Time", value: "7:00 PM - 11:00 PM" },
-    { icon: "location", label: "Location", value: event.venue },
-    { icon: "music", label: "Genre", value: "Electronic, Pop, Dance" },
-    { icon: "users", label: "Age Restriction", value: "18+" },
-  ];
+  // Event details - will be populated after event loads
+  let eventDetails: Array<{icon: string, label: string, value: string}> = [];
 
   function handleQuantityChange(ticketId: number, newQuantity: number) {
     selectedTickets[ticketId] = newQuantity;
@@ -88,8 +82,10 @@
 
   onMount(async () => {
     try {
+      console.log("Loading event with ID:", eventId);
       // Load event data from database
       const eventData = await getEventById(eventId);
+      console.log("Event data received:", eventData);
       if (eventData) {
         event = {
           id: eventData.id,
@@ -121,6 +117,15 @@
             features: ticket.benefits || []
           }));
         }
+
+        // Populate event details after event is loaded
+        eventDetails = [
+          { icon: "calendar", label: "Date", value: event.date },
+          { icon: "clock", label: "Time", value: eventData.time || "TBD" },
+          { icon: "location", label: "Location", value: event.venue },
+          { icon: "music", label: "Category", value: event.category },
+          { icon: "users", label: "Organizer", value: event.organizer },
+        ];
       } else {
         error = "Event not found";
       }

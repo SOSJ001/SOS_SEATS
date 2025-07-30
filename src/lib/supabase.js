@@ -1338,26 +1338,59 @@ export async function generateTicketNumber() {
 // Get event by ID with all related data
 export async function getEventById(eventId) {
   try {
-    const { data, error } = await supabase
+    console.log("Getting event by ID:", eventId);
+
+    // First get the basic event data
+    const { data: eventData, error: eventError } = await supabase
       .from("events")
-      .select(
-        `
-        *,
-        ticket_types(*),
-        venue_sections(*),
-        seating_options(*),
-        images(*)
-      `
-      )
+      .select("*")
       .eq("id", eventId)
       .single();
 
-    if (error) {
-      console.error("Error getting event:", error);
+    if (eventError) {
+      console.error("Error getting event:", eventError);
       return null;
     }
 
-    return data;
+    if (!eventData) {
+      console.log("No event found with ID:", eventId);
+      return null;
+    }
+
+    console.log("Found event:", eventData.name);
+
+    // Get related data separately to avoid RLS issues
+    const { data: ticketTypes, error: ticketError } = await supabase
+      .from("ticket_types")
+      .select("*")
+      .eq("event_id", eventId);
+
+    const { data: images, error: imageError } = await supabase
+      .from("images")
+      .select("*")
+      .eq("id", eventData.image_id);
+
+    const { data: venueSections, error: venueError } = await supabase
+      .from("venue_sections")
+      .select("*")
+      .eq("event_id", eventId);
+
+    const { data: seatingOptions, error: seatingError } = await supabase
+      .from("seating_options")
+      .select("*")
+      .eq("event_id", eventId);
+
+    // Combine all data
+    const fullEventData = {
+      ...eventData,
+      ticket_types: ticketTypes || [],
+      images: images || [],
+      venue_sections: venueSections || [],
+      seating_options: seatingOptions || [],
+    };
+
+    console.log("Full event data:", fullEventData);
+    return fullEventData;
   } catch (error) {
     console.error("Error in getEventById:", error);
     return null;
