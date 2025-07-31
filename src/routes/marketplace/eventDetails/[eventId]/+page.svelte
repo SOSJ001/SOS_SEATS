@@ -10,6 +10,7 @@
   import GradientButton from "$lib/components/GradientButton.svelte";
   import QuantitySelector from "$lib/components/QuantitySelector.svelte";
   import BackButton from "$lib/components/BackButton.svelte";
+  import ShareButton from "$lib/components/ShareButton.svelte";
 
   // Get event ID from URL params and load event data
   $: eventId = $page.params.eventId;
@@ -180,6 +181,15 @@
       left="left-6"
       link="/marketplace"
       title="Back to Marketplace"
+    />
+
+    <!-- Share Button -->
+    <ShareButton
+      top="top-20"
+      right="right-6"
+      url={window.location.href}
+      title={event.name}
+      description={event.description || "Check out this amazing event!"}
     />
 
     <!-- Hero Section -->
