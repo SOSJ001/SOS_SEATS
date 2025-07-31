@@ -9,6 +9,10 @@
   let showShareModal = false;
   let showQRModal = false;
   let qrCodeUrl = "";
+  let copied = false;
+  let sharing = false;
+  let showToast = false;
+  let toastMessage = "";
 
   function toggleShareMenu() {
     showShareMenu = !showShareMenu;
@@ -35,34 +39,65 @@
   }
 
   function shareOnFacebook() {
+    sharing = true;
     const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
     window.open(shareUrl, "_blank", "width=600,height=400");
     showShareMenu = false;
+    showToast = true;
+    toastMessage = "Shared on Facebook!";
+    setTimeout(() => {
+      sharing = false;
+      showToast = false;
+    }, 2000);
   }
 
   function shareOnTwitter() {
+    sharing = true;
     const shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
     window.open(shareUrl, "_blank", "width=600,height=400");
     showShareMenu = false;
+    showToast = true;
+    toastMessage = "Shared on Twitter!";
+    setTimeout(() => {
+      sharing = false;
+      showToast = false;
+    }, 2000);
   }
 
   function shareOnWhatsApp() {
+    sharing = true;
     const shareUrl = `https://wa.me/?text=${encodeURIComponent(`${title} - ${url}`)}`;
     window.open(shareUrl, "_blank");
     showShareMenu = false;
+    showToast = true;
+    toastMessage = "Shared on WhatsApp!";
+    setTimeout(() => {
+      sharing = false;
+      showToast = false;
+    }, 2000);
   }
 
   function shareOnTelegram() {
+    sharing = true;
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
     window.open(shareUrl, "_blank");
     showShareMenu = false;
+    showToast = true;
+    toastMessage = "Shared on Telegram!";
+    setTimeout(() => {
+      sharing = false;
+      showToast = false;
+    }, 2000);
   }
 
   async function copyToClipboard() {
     try {
       await navigator.clipboard.writeText(url);
-      // You could add a toast notification here
-      showShareMenu = false;
+      copied = true;
+      setTimeout(() => {
+        copied = false;
+        showShareMenu = false;
+      }, 2000);
     } catch (err) {
       console.error("Failed to copy: ", err);
     }
@@ -82,11 +117,18 @@
   <!-- Share Button -->
   <button
     on:click={toggleShareMenu}
-    class="flex items-center justify-center w-12 h-12 bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-full text-white hover:bg-gray-700/90 transition-all duration-300 group"
+    class="flex items-center justify-center w-12 h-12 bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-full text-white hover:bg-gray-700/90 transition-all duration-300 group relative"
     title="Share Event"
   >
+    {#if sharing}
+      <div
+        class="absolute inset-0 bg-green-500/20 rounded-full animate-pulse"
+      ></div>
+    {/if}
     <svg
-      class="w-6 h-6 transition-transform duration-300 group-hover:scale-110"
+      class="w-6 h-6 transition-transform duration-300 group-hover:scale-110 {sharing
+        ? 'text-green-400'
+        : ''}"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
@@ -213,7 +255,7 @@
               d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
             ></path>
           </svg>
-          <span class="text-sm">Copy Link</span>
+          <span class="text-sm">{copied ? "Copied!" : "Copy Link"}</span>
         </button>
 
         <!-- Divider -->
@@ -410,11 +452,11 @@
               <button
                 on:click={() => {
                   copyToClipboard();
-                  closeShareModal();
+                  // Don't close modal immediately, let the copyToClipboard function handle it
                 }}
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
-                Copy
+                {copied ? "Copied!" : "Copy"}
               </button>
             </div>
           </div>
@@ -504,6 +546,30 @@
       </div>
     </div>
   {/if}
+
+  <!-- Toast Notification -->
+  {#if showToast}
+    <div
+      class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-in slide-in-from-bottom-2 duration-300"
+    >
+      <div class="flex items-center gap-2">
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+        <span class="font-medium">{toastMessage}</span>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -518,7 +584,22 @@
     }
   }
 
+  @keyframes slide-in-from-bottom-2 {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .animate-in {
     animation: slide-in-from-top-2 0.2s ease-out;
+  }
+
+  .animate-in.slide-in-from-bottom-2 {
+    animation: slide-in-from-bottom-2 0.3s ease-out;
   }
 </style>
