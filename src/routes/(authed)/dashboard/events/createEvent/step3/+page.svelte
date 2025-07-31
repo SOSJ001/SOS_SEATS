@@ -55,7 +55,7 @@
       {
         name: "",
         description: "",
-        price: eventData.is_free_event ? 0.0 : 0.0, // Database: DECIMAL(10,2)
+        price: eventData.is_free_event ? 0.0 : 10.0, // Database: DECIMAL(10,2)
         quantity: null, // Database: INTEGER
         benefits: [], // Database: TEXT[]
       },
@@ -90,7 +90,7 @@
         name: "",
         description: "",
         capacity: null, // Database: INTEGER
-        price: eventData.is_free_event ? 0.0 : 0.0, // Database: DECIMAL(10,2)
+        price: eventData.is_free_event ? 0.0 : 10.0, // Database: DECIMAL(10,2)
         seating_chart_data: null, // Database: JSONB
       },
     ];
@@ -106,12 +106,12 @@
   function handleFreeEventToggle() {
     // Update all existing ticket prices
     eventData.ticket_types.forEach((ticket: any) => {
-      ticket.price = eventData.is_free_event ? 0.0 : 0.0;
+      ticket.price = eventData.is_free_event ? 0.0 : ticket.price || 0.0;
     });
 
     // Update all existing section prices
     eventData.venue_sections.forEach((section: any) => {
-      section.price = eventData.is_free_event ? 0.0 : 0.0;
+      section.price = eventData.is_free_event ? 0.0 : section.price || 0.0;
     });
   }
 
