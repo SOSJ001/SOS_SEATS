@@ -315,7 +315,11 @@
           { icon: "location", label: "Location", value: event.venue },
           { icon: "music", label: "Category", value: event.category },
           { icon: "users", label: "Organizer", value: event.organizer },
-          { icon: "ticket", label: "Max per Order", value: `${event.seating_options?.max_seats_per_order || 10} tickets` },
+          {
+            icon: "ticket",
+            label: "Max per Order",
+            value: `${event.seating_options?.max_seats_per_order || 10} tickets`,
+          },
         ];
       } else {
         error = "Event not found";
@@ -468,15 +472,30 @@
           <!-- Payment Summary -->
           <PaymentSummaryCard {totalPrice}>
             <!-- Max seats per order info -->
-            <div class="mb-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+            <div
+              class="mb-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg"
+            >
               <div class="flex items-center gap-2 text-blue-300 text-sm">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                <svg
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
                 </svg>
-                <span>Maximum {event?.seating_options?.max_seats_per_order || 10} tickets per ticket type</span>
+                <span
+                  >Maximum {event?.seating_options?.max_seats_per_order || 10} tickets
+                  per ticket type</span
+                >
               </div>
             </div>
-            
+
             {#if event.is_free_event}
               <GradientButton
                 text="Get Free Ticket"
