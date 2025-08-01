@@ -78,15 +78,11 @@
       ticketType.available_quantity || eventTotalCapacity;
 
     // Calculate current totals
-    const currentTotal = Object.values(selectedTickets).reduce(
-      (sum, qty) => sum + qty,
-      0
-    );
     const otherTicketsTotal = Object.entries(selectedTickets)
       .filter(([id]) => parseInt(id) !== ticketId)
       .reduce((sum, [, qty]) => sum + qty, 0);
 
-    // Validation checks - max seats per order is per ticket type, not total
+    // Validation checks - max seats per order is PER TICKET TYPE
     if (newQuantity > maxSeatsPerOrder) {
       alert(
         `Cannot select more than ${maxSeatsPerOrder} tickets of this type per order.`
@@ -127,7 +123,7 @@
       .filter(([id]) => parseInt(id) !== ticketId)
       .reduce((sum, [, qty]) => sum + qty, 0);
 
-    // Validation checks - max seats per order is per ticket type, not total
+    // Validation checks - max seats per order is PER TICKET TYPE
     if (currentQty + 1 > maxSeatsPerOrder) {
       alert(
         `Cannot select more than ${maxSeatsPerOrder} tickets of this type per order.`
@@ -318,7 +314,7 @@
           {
             icon: "ticket",
             label: "Max per Order",
-            value: `${event.seating_options?.max_seats_per_order || 10} tickets`,
+            value: `${event.seating_options?.max_seats_per_order || 10} per ticket type`,
           },
         ];
       } else {
@@ -449,7 +445,8 @@
                   </div>
                   <div class="text-sm text-gray-400">/ ticket</div>
                   <div class="text-xs text-blue-400 mt-1">
-                    Max {event?.seating_options?.max_seats_per_order || 10} per order
+                    Max {event?.seating_options?.max_seats_per_order || 10} per ticket
+                    type
                   </div>
                 </div>
               </div>
