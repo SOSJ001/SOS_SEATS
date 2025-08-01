@@ -40,6 +40,24 @@
     handleFreeEventToggle();
   }
 
+  // Reactive validation for ticket quantities vs total capacity
+  $: {
+    if (eventData.total_capacity && eventData.ticket_types) {
+      const totalTicketQuantity = eventData.ticket_types.reduce(
+        (sum: number, ticket: any) => {
+          return sum + (ticket.quantity || 0);
+        },
+        0
+      );
+
+      if (totalTicketQuantity > eventData.total_capacity) {
+        errors.ticketQuantityExceedsCapacity = `Total ticket quantity (${totalTicketQuantity}) exceeds event capacity (${eventData.total_capacity})`;
+      } else {
+        delete errors.ticketQuantityExceedsCapacity;
+      }
+    }
+  }
+
   onMount(() => {
     // Load data from previous steps
     const savedData = localStorage.getItem("eventCreationData");
@@ -136,6 +154,33 @@
     // Validate total capacity
     if (eventData.total_capacity === null || eventData.total_capacity <= 0) {
       errors.totalCapacity = "Valid total capacity is required";
+    }
+
+    // Validate that ticket quantities don't exceed total capacity
+    if (eventData.total_capacity && eventData.ticket_types) {
+      const totalTicketQuantity = eventData.ticket_types.reduce(
+        (sum: number, ticket: any) => {
+          return sum + (ticket.quantity || 0);
+        },
+        0
+      );
+
+      if (totalTicketQuantity > eventData.total_capacity) {
+        errors.ticketQuantityExceedsCapacity = `Total ticket quantity (${totalTicketQuantity}) exceeds event capacity (${eventData.total_capacity}). Please reduce ticket quantities or increase event capacity.`;
+      }
+    }
+
+    // Validate max seats per order
+    if (
+      eventData.seating_options.max_seats_per_order === null ||
+      eventData.seating_options.max_seats_per_order <= 0
+    ) {
+      errors.maxSeatsPerOrder = "Valid max seats per order is required";
+    } else if (
+      eventData.seating_options.max_seats_per_order > eventData.total_capacity
+    ) {
+      errors.maxSeatsPerOrder =
+        "Max seats per order cannot exceed total capacity";
     }
 
     // Validate venue sections for assigned seating

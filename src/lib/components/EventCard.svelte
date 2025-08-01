@@ -1,4 +1,6 @@
 <script>
+  import { goto } from "$app/navigation";
+
   export let event = {
     id: 1,
     name: "Event Name",
@@ -7,6 +9,7 @@
     image: "https://placehold.co/600x400",
     price: "NLe 150",
     category: "Music",
+    is_free_event: false,
   };
 
   export let showBuyButton = true;
@@ -14,6 +17,16 @@
 
   let paymentOptions = false;
   let isHovered = false;
+
+  // Debug logging
+  $: if (event) {
+    console.log("EventCard Debug:", {
+      name: event.name,
+      price: event.price,
+      is_free_event: event.is_free_event,
+      buttonText: buttonText,
+    });
+  }
 </script>
 
 <div
@@ -49,7 +62,7 @@
       <span
         class="px-3 py-1 bg-black/70 backdrop-blur-sm text-white text-sm font-bold rounded-full"
       >
-        {event.price}
+        {event.is_free_event ? "Free" : event.price}
       </span>
     </div>
   </div>
@@ -103,24 +116,52 @@
       <span
         class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent"
       >
-        {event.price}
+        {event.is_free_event ? "Free" : event.price}
       </span>
-      <button
-        on:click={() => {
-          if (buttonText === "View Details") {
-            window.location.href = `/marketplace/eventDetails/${event.id}`;
-          } else {
-            paymentOptions = true;
-          }
-        }}
-        class="relative overflow-hidden px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-semibold transition-all duration-300 ease-out transform hover:scale-105 hover:shadow-lg hover:from-blue-600 hover:to-purple-700 group/btn"
-      >
-        <!-- Button shine effect -->
-        <div
-          class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"
-        ></div>
-        <span class="relative z-10">{buttonText}</span>
-      </button>
+      {#if !event.is_free_event && showBuyButton}
+        <button
+          on:click={() => {
+            if (buttonText === "View Details") {
+              goto(`/marketplace/eventDetails/${event.id}`);
+            } else {
+              paymentOptions = true;
+            }
+          }}
+          class="relative overflow-hidden px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-semibold transition-all duration-300 ease-out transform hover:scale-105 hover:shadow-lg hover:from-blue-600 hover:to-purple-700 group/btn"
+        >
+          <!-- Button shine effect -->
+          <div
+            class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"
+          ></div>
+          <span class="relative z-10">{buttonText}</span>
+        </button>
+      {:else if event.is_free_event}
+        <button
+          on:click={() => {
+            goto(`/marketplace/eventDetails/${event.id}`);
+          }}
+          class="relative overflow-hidden px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-semibold transition-all duration-300 ease-out transform hover:scale-105 hover:shadow-lg hover:from-green-600 hover:to-emerald-700 group/btn"
+        >
+          <!-- Button shine effect -->
+          <div
+            class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"
+          ></div>
+          <span class="relative z-10">Get Free Ticket</span>
+        </button>
+      {:else}
+        <button
+          on:click={() => {
+            goto(`/marketplace/eventDetails/${event.id}`);
+          }}
+          class="relative overflow-hidden px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-semibold transition-all duration-300 ease-out transform hover:scale-105 hover:shadow-lg hover:from-blue-600 hover:to-purple-700 group/btn"
+        >
+          <!-- Button shine effect -->
+          <div
+            class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"
+          ></div>
+          <span class="relative z-10">View Details</span>
+        </button>
+      {/if}
     </div>
   </div>
 

@@ -12,7 +12,7 @@
   let pageLoaded = false;
   let cardsVisible = false;
   let heroSearchQuery = "";
-  
+
   // Event data
   let allEvents = [];
   let featuredEvents = [];
@@ -51,18 +51,43 @@
     try {
       // Load public events from database
       const events = await loadPublicEvents();
-      
-      allEvents = events || [];
-      
+
+      // Ensure all events have the is_free_event property
+      allEvents = (events || []).map((event) => {
+        const isFree =
+          event.is_free_event ||
+          event.price === 0 ||
+          event.price === "Free" ||
+          event.price === "0" ||
+          event.price === "NLe 0" ||
+          (typeof event.price === "string" &&
+            (event.price.toLowerCase().includes("free") ||
+              event.price.toLowerCase().includes("nle 0")));
+
+        console.log(
+          "Event:",
+          event.name,
+          "Price:",
+          event.price,
+          "Is Free:",
+          isFree
+        );
+
+        return {
+          ...event,
+          is_free_event: isFree,
+        };
+      });
+
       // Set featured events (first 4)
-      featuredEvents = events.slice(0, 4);
-      
+      featuredEvents = allEvents.slice(0, 4);
+
       // Set upcoming events (first 6)
-      upcomingEvents = events.slice(0, 6);
-      
+      upcomingEvents = allEvents.slice(0, 6);
+
       // Set resale events (remaining events)
-      resaleEvents = events.slice(6);
-      
+      resaleEvents = allEvents.slice(6);
+
       loading = false;
     } catch (error) {
       console.error("Error loading events:", error);
@@ -203,7 +228,7 @@
       >
         Featured Events
       </h2>
-      
+
       {#if loading}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {#each Array(4) as _, index}
@@ -228,13 +253,18 @@
                 : 'opacity-0 translate-y-8 scale-95'}"
               style="transition-delay: {index * 100}ms;"
             >
-              <EventCard {event} buttonText="Buy Now" />
+              <EventCard
+                {event}
+                buttonText={event.is_free_event ? "Get Free Ticket" : "Buy Now"}
+              />
             </div>
           {/each}
         </div>
       {:else}
         <div class="text-center py-12">
-          <p class="text-gray-400 text-lg">No featured events available at the moment.</p>
+          <p class="text-gray-400 text-lg">
+            No featured events available at the moment.
+          </p>
         </div>
       {/if}
     </div>
@@ -286,13 +316,20 @@
                     : 'opacity-0 translate-y-8 scale-95'}"
                   style="transition-delay: {index * 100}ms;"
                 >
-                  <EventCard {event} buttonText="View Details" />
+                  <EventCard
+                    {event}
+                    buttonText={event.is_free_event
+                      ? "Get Free Ticket"
+                      : "View Details"}
+                  />
                 </div>
               {/each}
             </div>
           {:else}
             <div class="text-center py-12">
-              <p class="text-gray-400 text-lg">No events found matching your criteria.</p>
+              <p class="text-gray-400 text-lg">
+                No events found matching your criteria.
+              </p>
             </div>
           {/if}
         </TabItem>
@@ -325,13 +362,20 @@
                     : 'opacity-0 translate-y-8 scale-95'}"
                   style="transition-delay: {index * 100}ms;"
                 >
-                  <EventCard {event} buttonText="View Details" />
+                  <EventCard
+                    {event}
+                    buttonText={event.is_free_event
+                      ? "Get Free Ticket"
+                      : "View Details"}
+                  />
                 </div>
               {/each}
             </div>
           {:else}
             <div class="text-center py-12">
-              <p class="text-gray-400 text-lg">No resale events available at the moment.</p>
+              <p class="text-gray-400 text-lg">
+                No resale events available at the moment.
+              </p>
             </div>
           {/if}
         </TabItem>

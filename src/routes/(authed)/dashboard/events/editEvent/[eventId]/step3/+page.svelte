@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
@@ -58,13 +58,31 @@
     },
   };
 
-  let errors = {};
+  let errors: Record<string, string> = {};
   let error = data.error || "";
   let isLoading = true;
 
   // Reactive statement to handle free event changes
   $: if (eventData.is_free_event !== undefined) {
     handleFreeEventToggle();
+  }
+
+  // Reactive validation for ticket quantities vs total capacity
+  $: {
+    if (eventData.total_capacity && eventData.ticket_types) {
+      const totalTicketQuantity = eventData.ticket_types.reduce(
+        (sum, ticket) => {
+          return sum + (ticket.quantity || 0);
+        },
+        0
+      );
+
+      if (totalTicketQuantity > eventData.total_capacity) {
+        errors.ticketQuantityExceedsCapacity = `Total ticket quantity (${totalTicketQuantity}) exceeds event capacity (${eventData.total_capacity})`;
+      } else {
+        delete errors.ticketQuantityExceedsCapacity;
+      }
+    }
   }
 
   $: eventId = $page.params.eventId;
@@ -177,6 +195,33 @@
     // Validate total capacity
     if (eventData.total_capacity === null || eventData.total_capacity <= 0) {
       errors.totalCapacity = "Valid total capacity is required";
+    }
+
+    // Validate max seats per order
+    if (
+      eventData.seating_options.max_seats_per_order === null ||
+      eventData.seating_options.max_seats_per_order <= 0
+    ) {
+      errors.maxSeatsPerOrder = "Valid max seats per order is required";
+    } else if (
+      eventData.seating_options.max_seats_per_order > eventData.total_capacity
+    ) {
+      errors.maxSeatsPerOrder =
+        "Max seats per order cannot exceed total capacity";
+    }
+
+    // Validate that ticket quantities don't exceed total capacity
+    if (eventData.total_capacity && eventData.ticket_types) {
+      const totalTicketQuantity = eventData.ticket_types.reduce(
+        (sum, ticket) => {
+          return sum + (ticket.quantity || 0);
+        },
+        0
+      );
+
+      if (totalTicketQuantity > eventData.total_capacity) {
+        errors.ticketQuantityExceedsCapacity = `Total ticket quantity (${totalTicketQuantity}) exceeds event capacity (${eventData.total_capacity}). Please reduce ticket quantities or increase event capacity.`;
+      }
     }
 
     // Validate venue sections for assigned seating
@@ -310,6 +355,38 @@
       />
       {#if errors.totalCapacity}
         <p class="text-red-400 text-sm mt-1">{errors.totalCapacity}</p>
+      {/if}
+      {#if errors.ticketQuantityExceedsCapacity}
+        <p class="text-red-400 text-sm mt-1">
+          {errors.ticketQuantityExceedsCapacity}
+        </p>
+      {/if}
+    </div>
+
+    <!-- Max Seats Per Order -->
+    <div>
+      <label
+        for="max_seats_per_order"
+        class="block text-sm font-medium text-gray-300 mb-2"
+      >
+        Max Seats Per Order *
+      </label>
+      <input
+        id="max_seats_per_order"
+        type="number"
+        bind:value={eventData.seating_options.max_seats_per_order}
+        min="1"
+        max={eventData.total_capacity || 100}
+        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.maxSeatsPerOrder
+          ? 'border-red-500'
+          : ''}"
+        placeholder="Maximum tickets per order"
+      />
+      <p class="text-gray-400 text-sm mt-1">
+        Maximum number of tickets a customer can purchase in a single order
+      </p>
+      {#if errors.maxSeatsPerOrder}
+        <p class="text-red-400 text-sm mt-1">{errors.maxSeatsPerOrder}</p>
       {/if}
     </div>
 
