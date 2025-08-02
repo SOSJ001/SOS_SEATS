@@ -92,7 +92,7 @@
 </script>
 
 <div
-  class="w-64 h-screen bg-gray-900 border-r border-gray-700 flex flex-col relative"
+  class="w-64 h-screen bg-gray-900 border-r border-gray-700 flex flex-col relative overflow-y-auto"
 >
   <!-- Close button for mobile -->
   {#if onClose}
@@ -130,7 +130,7 @@
   </div>
 
   <!-- Navigation -->
-  <nav class="flex-1 p-4 space-y-2">
+  <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
     {#each routes as route, index}
       <a
         href={route.url}
@@ -234,3 +234,29 @@
     </button>
   </div>
 </div>
+
+<style>
+  /* Custom scrollbar styling for better UX */
+  div::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  div::-webkit-scrollbar-track {
+    background: #374151;
+  }
+
+  div::-webkit-scrollbar-thumb {
+    background: #6b7280;
+    border-radius: 3px;
+  }
+
+  div::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+
+  /* Firefox scrollbar */
+  div {
+    scrollbar-width: thin;
+    scrollbar-color: #6b7280 #374151;
+  }
+</style>
