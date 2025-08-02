@@ -13,11 +13,8 @@
   let showQRModal = false;
   let walletAddress = "";
   let assigning = false;
-  let debugInfo = {};
-  let showDebug = false;
 
   onMount(async () => {
-    console.log("�� Component mounted, server data:", data);
     await loadTickets();
   });
 
@@ -26,27 +23,13 @@
       loading = true;
       error = null;
 
-      // Initialize debug info
-      debugInfo = {
-        serverData: data || {},
-        walletFromServer: null,
-        sessionType: null,
-        finalWalletAddress: null,
-        ordersFound: 0,
-        ticketsFound: 0,
-      };
-
       // Get wallet address from server-side data
       let userWalletAddress = null;
 
       // Safely access server data
       if (data && data.walletAddress) {
         userWalletAddress = data.walletAddress;
-        debugInfo.walletFromServer = userWalletAddress;
-        debugInfo.sessionType = data.sessionType;
       }
-
-      console.log("🔍 Debug Info:", debugInfo);
 
       // If no wallet address from server, try client-side fallback
       if (!userWalletAddress) {
@@ -60,18 +43,14 @@
             const sessionData = JSON.parse(
               decodeURIComponent(web3SessionCookie.split("=")[1])
             );
-            console.log("🔍 Client-side session data:", sessionData);
             if (sessionData.type === "web3" && sessionData.wallet_address) {
               userWalletAddress = sessionData.wallet_address;
             }
           } catch (parseError) {
-            console.error("❌ Error parsing web3Session:", parseError);
+            // Silent error handling
           }
         }
       }
-
-      debugInfo.finalWalletAddress = userWalletAddress;
-      console.log("🎯 Final wallet address:", userWalletAddress);
 
       if (!userWalletAddress) {
         error = "No wallet address found. Please connect your wallet.";
@@ -85,8 +64,6 @@
       );
 
       if (fetchError) throw fetchError;
-
-      debugInfo.ordersFound = ordersData?.length || 0;
 
       // Transform the data to match the expected format
       tickets =
@@ -111,12 +88,8 @@
             location: order.event_location,
           },
         })) || [];
-
-      debugInfo.ticketsFound = tickets.length;
-      console.log("✅ Loaded tickets:", tickets);
     } catch (err) {
-      console.error("❌ Error loading tickets:", err);
-      error = err.message;
+      error = "Failed to load tickets. Please try again.";
     } finally {
       loading = false;
     }
@@ -166,9 +139,8 @@
     try {
       await navigator.clipboard.writeText(text);
       // You could add a toast notification here
-      console.log("✅ Copied to clipboard:", text);
     } catch (err) {
-      console.error("❌ Failed to copy:", err);
+      // Silent error handling
     }
   }
 
@@ -234,12 +206,6 @@
       </div>
       <div class="flex items-center space-x-3">
         <button
-          on:click={() => (showDebug = !showDebug)}
-          class="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-        >
-          {showDebug ? "Hide" : "Show"} Debug
-        </button>
-        <button
           on:click={loadTickets}
           class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
         >
@@ -248,27 +214,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Debug Information -->
-  {#if showDebug}
-    <div class="mb-6 p-4 bg-gray-800 border border-gray-700 rounded-lg">
-      <h3 class="text-white font-medium mb-2">Debug Information</h3>
-      <div class="text-sm text-gray-400 space-y-1">
-        <p>Session Type: {debugInfo.sessionType || "Unknown"}</p>
-        <p>
-          Wallet from Server: {debugInfo.walletFromServer
-            ? "Found"
-            : "Not found"}
-        </p>
-        <p>
-          Final Wallet: {debugInfo.finalWalletAddress ? "Found" : "Not found"}
-        </p>
-        <p>Orders Found: {debugInfo.ordersFound || 0}</p>
-        <p>Tickets Found: {debugInfo.ticketsFound || 0}</p>
-        <p>Current Error: {error || "None"}</p>
-      </div>
-    </div>
-  {/if}
 
   <!-- Loading State -->
   {#if loading}
@@ -309,9 +254,7 @@
       </div>
       <h3 class="text-xl font-semibold text-white mb-2">No tickets found</h3>
       <p class="text-gray-400 mb-6">
-        {debugInfo.finalWalletAddress
-          ? "You haven't purchased any tickets with this wallet yet."
-          : "Connect your wallet to see your purchased tickets."}
+        You haven't purchased any tickets with this wallet yet.
       </p>
       <a
         href="/marketplace"
