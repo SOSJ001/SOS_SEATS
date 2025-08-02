@@ -2,6 +2,8 @@
   import { walletStore, web3UserStore, showToast } from "$lib/store";
   import WalletSelectionModal from "./WalletSelectionModal.svelte";
   import UsernameSetupModal from "./UsernameSetupModal.svelte";
+  import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
 
   let walletConnected = false;
   let walletAddress = "";
@@ -11,6 +13,12 @@
   let showUsernameModal = false;
   let walletData: any = null;
   let web3Data: any = null;
+  let currentPath = "";
+
+  // Subscribe to page to get current path
+  page.subscribe(($page) => {
+    currentPath = $page.url.pathname;
+  });
 
   // Subscribe to wallet store
   walletStore.subscribe((data) => {
@@ -28,46 +36,125 @@
 
   // Track previous wallet connection state to detect changes
   let previousWalletConnected = false;
+  let previousWalletAddress = "";
   let hasShownConnectionToast = false;
   let isConnectingFromModal = false;
   let currentConnectionSession = null;
 
   // Watch for wallet connection changes and show appropriate toasts
-  $: if (walletConnected !== previousWalletConnected) {
-    if (
-      walletConnected &&
-      walletAddress &&
-      !hasShownConnectionToast &&
-      !isConnectingFromModal
-    ) {
-      // Create a unique session ID for this connection
-      currentConnectionSession = Date.now();
-
-      // Wallet just connected successfully (but not from modal selection)
-      showToast(
-        "success",
-        "Wallet Connected!",
-        `Successfully connected to ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-      );
-      hasShownConnectionToast = true;
-    } else if (!walletConnected) {
-      // Reset the flag when wallet disconnects
-      hasShownConnectionToast = false;
-      isConnectingFromModal = false;
-      currentConnectionSession = null;
+  $: if (
+    walletConnected !== previousWalletConnected ||
+    walletAddress !== previousWalletAddress
+  ) {
+    if (walletConnected && walletAddress) {
+      // Wallet connected or changed
+      if (
+        walletAddress !== previousWalletAddress &&
+        previousWalletAddress &&
+        previousWalletConnected
+      ) {
+        // Wallet changed - check if account exists
+        handleWalletChange(walletAddress);
+      } else if (
+        !hasShownConnectionToast &&
+        !isConnectingFromModal &&
+        previousWalletConnected === false
+      ) {
+        // Initial connection (not from modal)
+        hasShownConnectionToast = true;
+      }
+    } else if (!walletConnected && previousWalletConnected) {
+      // Wallet disconnected
+      handleWalletDisconnect();
     }
+
     previousWalletConnected = walletConnected;
+    previousWalletAddress = walletAddress;
   }
 
-  async function handleWalletAction() {
-    if (walletConnected) {
-      // Show disconnect toast before disconnecting
+  // Handle wallet change - check if account exists
+  async function handleWalletChange(newWalletAddress: string) {
+    if (!web3Data?.authenticate) {
+      showToast(
+        "error",
+        "Authentication Error",
+        "Authentication service is not available. Please try again."
+      );
+      return;
+    }
+
+    try {
+      // Check if the new wallet account exists
+      const authResult = await web3Data.authenticate(newWalletAddress);
+
+      if (authResult?.success) {
+        // Account exists and authenticated successfully
+        showToast(
+          "success",
+          "Wallet Changed",
+          `Successfully switched to ${newWalletAddress.slice(0, 6)}...${newWalletAddress.slice(-4)}`
+        );
+      } else if (authResult?.needsUsername) {
+        // Account doesn't exist - redirect to home and show onboarding
+        if (currentPath.startsWith("/dashboard")) {
+          await goto("/");
+        }
+        showUsernameModal = true;
+        showToast(
+          "info",
+          "New Wallet Detected",
+          "Please complete your account setup to continue."
+        );
+      } else {
+        // Authentication failed for other reasons
+        showToast(
+          "error",
+          "Authentication Failed",
+          "Failed to authenticate the new wallet. Please try again."
+        );
+      }
+    } catch (error) {
+      console.error("Wallet change error:", error);
+      showToast(
+        "error",
+        "Wallet Change Failed",
+        "Failed to authenticate the new wallet. Please try again."
+      );
+    }
+  }
+
+  // Handle wallet disconnect
+  async function handleWalletDisconnect() {
+    // Reset flags
+    hasShownConnectionToast = false;
+    isConnectingFromModal = false;
+    currentConnectionSession = null;
+
+    try {
+      // If on dashboard, redirect to home
+      if (currentPath.startsWith("/dashboard")) {
+        await goto("/");
+      }
+
+      // Show disconnect toast
       showToast(
         "info",
         "Wallet Disconnected",
         "Your wallet has been disconnected successfully."
       );
+    } catch (error) {
+      console.error("Wallet disconnect redirect error:", error);
+      // Still show the disconnect toast even if redirect fails
+      showToast(
+        "info",
+        "Wallet Disconnected",
+        "Your wallet has been disconnected successfully."
+      );
+    }
+  }
 
+  async function handleWalletAction() {
+    if (walletConnected) {
       walletData?.disconnect?.();
     } else {
       // If no wallets are detected, try to refresh the wallet list
@@ -95,7 +182,14 @@
   }
 
   async function handleWeb3Authentication() {
-    if (!walletAddress || !web3Data?.authenticate) return;
+    if (!walletAddress || !web3Data?.authenticate) {
+      showToast(
+        "error",
+        "Authentication Error",
+        "Authentication service is not available. Please try again."
+      );
+      return;
+    }
 
     try {
       // Set flag to prevent connection toast during authentication
@@ -113,8 +207,16 @@
           "Authentication Successful!",
           "Your wallet has been authenticated and you're now logged in."
         );
+      } else {
+        // Authentication failed
+        showToast(
+          "error",
+          "Authentication Failed",
+          "Failed to authenticate your wallet. Please try again."
+        );
       }
     } catch (error) {
+      console.error("Web3 authentication error:", error);
       // Show error toast
       showToast(
         "error",
@@ -128,13 +230,28 @@
     const { username, displayName } = event.detail;
 
     if (walletAddress && web3Data?.authenticate) {
-      web3Data.authenticate(walletAddress, username, displayName);
+      try {
+        web3Data.authenticate(walletAddress, username, displayName);
 
-      // Show success toast for username setup
+        // Show success toast for username setup
+        showToast(
+          "success",
+          "Account Created!",
+          `Welcome ${username}! Your account has been created successfully.`
+        );
+      } catch (error) {
+        console.error("Username setup error:", error);
+        showToast(
+          "error",
+          "Account Creation Failed",
+          "Failed to create your account. Please try again."
+        );
+      }
+    } else {
       showToast(
-        "success",
-        "Account Created!",
-        `Welcome ${username}! Your account has been created successfully.`
+        "error",
+        "Setup Error",
+        "Unable to complete account setup. Please try again."
       );
     }
 
@@ -147,13 +264,6 @@
       walletData.disconnect();
     }
 
-    // Show toast notification
-    showToast(
-      "info",
-      "Wallet Disconnected",
-      "Wallet was disconnected because username setup was cancelled. Please complete the setup to use your wallet."
-    );
-
     showUsernameModal = false;
   }
 
@@ -164,16 +274,32 @@
     // Set flag to prevent duplicate toast from reactive statement
     isConnectingFromModal = true;
 
-    const result = await walletData?.connectToSpecific?.(wallet);
+    try {
+      const result = await walletData?.connectToSpecific?.(wallet);
 
-    if (result && typeof result === "object" && result.needsUsername) {
-      showUsernameModal = true;
-    } else if (result === true) {
-      // Show success toast for modal selection
+      if (result && typeof result === "object" && result.needsUsername) {
+        showUsernameModal = true;
+      } else if (result === true) {
+        // Show success toast for modal selection
+        showToast(
+          "success",
+          "Wallet Connected!",
+          `Successfully connected to ${wallet}`
+        );
+      } else {
+        // Connection failed
+        showToast(
+          "error",
+          "Connection Failed",
+          `Failed to connect to ${wallet}. Please try again.`
+        );
+      }
+    } catch (error) {
+      console.error("Wallet selection error:", error);
       showToast(
-        "success",
-        "Wallet Connected!",
-        `Successfully connected to ${wallet}`
+        "error",
+        "Connection Failed",
+        `Failed to connect to ${wallet}. Please try again.`
       );
     }
 

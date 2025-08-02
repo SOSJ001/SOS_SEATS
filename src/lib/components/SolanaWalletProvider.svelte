@@ -57,8 +57,11 @@
       (window as any).solana.on("accountChanged", (publicKey: any) => {
         if (publicKey) {
           // Account changed, update wallet address
-          walletAddress = publicKey.toString();
-          updateStore();
+          const newAddress = publicKey.toString();
+          if (newAddress !== walletAddress) {
+            walletAddress = newAddress;
+            updateStore();
+          }
         } else {
           // Account cleared, handle as disconnect
           handleWalletDisconnect();
@@ -78,8 +81,11 @@
 
       (window as any).solflare.on("accountChanged", (publicKey: any) => {
         if (publicKey) {
-          walletAddress = publicKey.toString();
-          updateStore();
+          const newAddress = publicKey.toString();
+          if (newAddress !== walletAddress) {
+            walletAddress = newAddress;
+            updateStore();
+          }
         } else {
           handleWalletDisconnect();
         }
@@ -98,8 +104,11 @@
 
       (window as any).backpack.on("accountChanged", (publicKey: any) => {
         if (publicKey) {
-          walletAddress = publicKey.toString();
-          updateStore();
+          const newAddress = publicKey.toString();
+          if (newAddress !== walletAddress) {
+            walletAddress = newAddress;
+            updateStore();
+          }
         } else {
           handleWalletDisconnect();
         }
