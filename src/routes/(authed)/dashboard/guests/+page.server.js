@@ -12,8 +12,7 @@ export async function load({ cookies }) {
          const sessionData = JSON.parse(userSession);
          user_Id = sessionData.id;
        } catch (error) {
-         console.error('Error parsing traditional session:', error);
-       }
+         }
      }
      
      // Check Web3 session if no traditional session
@@ -24,8 +23,7 @@ export async function load({ cookies }) {
            user_Id = sessionData.user.id;
          }
        } catch (error) {
-         console.error('Error parsing Web3 session:', error);
-       }
+         }
      }
     let loadGuestsData = await loadGuestsRows(user_Id);
     return{loadGuestsData}

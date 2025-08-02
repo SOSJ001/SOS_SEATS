@@ -11,9 +11,6 @@ export async function PUT({ request, cookies, params }) {
     const { user_Id, sessionType } = parseSession(cookies);
     const eventId = params.eventId;
 
-    console.log("updateEventApi - Session data:", { user_Id, sessionType });
-    console.log("updateEventApi - Event ID:", eventId);
-
     if (!user_Id) {
       return json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
@@ -27,8 +24,6 @@ export async function PUT({ request, cookies, params }) {
 
     // Handle JSON request
     const eventData = await request.json();
-    console.log("updateEventApi - Received event data:", eventData);
-
     let imageId = null;
     let imageBase64 = null;
 
@@ -39,8 +34,7 @@ export async function PUT({ request, cookies, params }) {
       eventData.image.startsWith("data:")
     ) {
       imageBase64 = eventData.image;
-      console.log("updateEventApi - Found base64 image data");
-    }
+      }
 
     // Handle image upload if provided
     if (imageBase64) {
@@ -53,22 +47,13 @@ export async function PUT({ request, cookies, params }) {
         const uploadResult = await uploadEventImageNew(file, user_Id);
         if (uploadResult.success) {
           imageId = uploadResult.image_id;
-          console.log(
-            "updateEventApi - Successfully uploaded base64 image, image_id:",
-            imageId
-          );
-        } else {
-          console.error(
-            "updateEventApi - Failed to upload base64 image:",
-            uploadResult.error
-          );
+          } else {
           return json(
             { success: false, error: "Failed to upload image" },
             { status: 400 }
           );
         }
       } catch (error) {
-        console.error("updateEventApi - Error processing base64 image:", error);
         return json(
           { success: false, error: "Failed to process image" },
           { status: 400 }
@@ -85,10 +70,6 @@ export async function PUT({ request, cookies, params }) {
         .single();
 
       if (fetchError) {
-        console.error(
-          "updateEventApi - Error fetching current event:",
-          fetchError
-        );
         return json(
           { success: false, error: "Failed to fetch current event data" },
           { status: 400 }
@@ -96,8 +77,7 @@ export async function PUT({ request, cookies, params }) {
       }
 
       imageId = currentEvent.image_id;
-      console.log("updateEventApi - Preserving existing image_id:", imageId);
-    }
+      }
 
     // Prepare event data for database update
     const eventPayload = {
@@ -133,27 +113,18 @@ export async function PUT({ request, cookies, params }) {
     );
 
     if (updateResult.success) {
-      console.log(
-        "updateEventApi - Event updated successfully:",
-        updateResult.event_id
-      );
       return json({
         success: true,
         event_id: updateResult.event_id,
         message: "Event updated successfully",
       });
     } else {
-      console.error(
-        "updateEventApi - Failed to update event:",
-        updateResult.error
-      );
       return json(
         { success: false, error: updateResult.error },
         { status: 400 }
       );
     }
   } catch (error) {
-    console.error("updateEventApi - Unexpected error:", error);
     return json(
       { success: false, error: "Internal server error" },
       { status: 500 }

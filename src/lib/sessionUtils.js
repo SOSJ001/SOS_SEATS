@@ -25,8 +25,7 @@ export function parseSession(cookies) {
         sessionData.user_metadata?.userName || sessionData.user_metadata?.name;
       sessionType = "traditional";
     } catch (error) {
-      console.error("Error parsing traditional session:", error);
-    }
+      }
   }
 
   // Check Web3 session if no traditional session
@@ -40,8 +39,7 @@ export function parseSession(cookies) {
         walletAddress = sessionData.wallet_address;
       }
     } catch (error) {
-      console.error("Error parsing Web3 session:", error);
-    }
+      }
   }
 
   return { user_Id, userName, sessionType, walletAddress };

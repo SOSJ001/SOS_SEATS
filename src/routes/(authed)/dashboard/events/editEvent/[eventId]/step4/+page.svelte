@@ -63,11 +63,7 @@
   $: eventId = $page.params.eventId;
 
   onMount(() => {
-    console.log("Step4 - onMount started");
-    console.log("Step4 - Server data:", data);
-
     // Always load from server data first to get the latest event data
-    console.log("Step4 - Loading data from server:", data.event);
     if (data.event) {
       eventData = { ...eventData, ...data.event };
     }
@@ -76,11 +72,9 @@
     const savedData = localStorage.getItem("eventEditData");
     if (savedData) {
       const parsed = JSON.parse(savedData);
-      console.log("Step4 - Merging with localStorage data:", parsed);
       eventData = { ...eventData, ...parsed };
     }
 
-    console.log("Step4 - Final eventData after merge:", eventData);
     isLoading = false;
   });
 
@@ -91,7 +85,6 @@
 
   function nextStep() {
     if (validateStep()) {
-      console.log("Step4 - Saving data:", eventData);
       localStorage.setItem("eventEditData", JSON.stringify(eventData));
       goto(`/dashboard/events/editEvent/${eventId}/step5`);
     }

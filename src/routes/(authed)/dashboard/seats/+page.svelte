@@ -43,22 +43,18 @@
   }
 
   function handleSelectAll() {
-    console.log('Select all available seats');
     // Implementation for selecting all available seats
   }
 
   function handleAssignMultiple() {
-    console.log('Assign multiple seats');
     // Implementation for assigning multiple seats
   }
 
   function handleChangePrice() {
-    console.log('Change price for selected seats');
     // Implementation for changing price
   }
 
   function handleDeleteSeats() {
-    console.log('Delete selected seats');
     // Implementation for deleting seats
   }
 </script>

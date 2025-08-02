@@ -6,7 +6,6 @@ export async function load({ cookies }) {
   const { user_Id, userName, sessionType } = parseSession(cookies);
 
   if (!user_Id) {
-    console.log("No valid session found for dashboard");
     return {
       EventTableResult: [],
       user_Id: null,

@@ -23,17 +23,14 @@
   });
 
   function handleSend() {
-    console.log("Send transaction");
     // Implementation for sending transaction
   }
 
   function handleReceive() {
-    console.log("Receive transaction");
     // Implementation for receiving transaction
   }
 
   function handleSwap() {
-    console.log("Swap tokens");
     // Implementation for swapping tokens
   }
 </script>

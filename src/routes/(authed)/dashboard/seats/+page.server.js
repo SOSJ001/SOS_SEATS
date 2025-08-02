@@ -12,8 +12,7 @@ export async function load({ parent, cookies }) {
       const sessionData = JSON.parse(userSession);
       user_Id = sessionData.id;
     } catch (error) {
-      console.error('Error parsing traditional session:', error);
-    }
+      }
   }
   
   // Check Web3 session if no traditional session
@@ -24,8 +23,7 @@ export async function load({ parent, cookies }) {
         user_Id = sessionData.user.id;
       }
     } catch (error) {
-      console.error('Error parsing Web3 session:', error);
-    }
+      }
   }
 
   const [{ EventTableResult }, historyData_] = await Promise.all([
@@ -45,7 +43,6 @@ export async function load({ parent, cookies }) {
     if (!historyData_.error) {
         historyData = historyData_.data
     } else {
-        console.log(historyData_.error)
-    }
+        }
   return { events, historyData };
 }

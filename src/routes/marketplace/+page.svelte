@@ -64,15 +64,6 @@
             (event.price.toLowerCase().includes("free") ||
               event.price.toLowerCase().includes("nle 0")));
 
-        console.log(
-          "Event:",
-          event.name,
-          "Price:",
-          event.price,
-          "Is Free:",
-          isFree
-        );
-
         return {
           ...event,
           is_free_event: isFree,
@@ -90,7 +81,6 @@
 
       loading = false;
     } catch (error) {
-      console.error("Error loading events:", error);
       loading = false;
     }
 

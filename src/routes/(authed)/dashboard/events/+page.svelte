@@ -52,8 +52,7 @@
       }
     } catch (err) {
       error = "Failed to load events";
-      console.error("Error loading events:", err);
-    } finally {
+      } finally {
       isLoading = false;
     }
   }
@@ -181,8 +180,7 @@
   function shareEvent(event) {
     selectedEventForSharing = event;
     showShareModal = true;
-    console.log("Opening share modal for event:", event.title);
-  }
+    }
 
   // Close share modal
   function closeShareModal() {

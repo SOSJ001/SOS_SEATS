@@ -13,8 +13,7 @@ export async function load({ cookies, depends }) {
       const sessionData = JSON.parse(userSession);
       user_Id = sessionData.id;
     } catch (error) {
-      console.error('Error parsing traditional session:', error);
-    }
+      }
   }
   
   // Check Web3 session if no traditional session
@@ -25,8 +24,7 @@ export async function load({ cookies, depends }) {
         user_Id = sessionData.user.id;
       }
     } catch (error) {
-      console.error('Error parsing Web3 session:', error);
-    }
+      }
   }
   // check if user has a wallet
   const { data, error } = await usersAndPublickeys(user_Id);
@@ -40,7 +38,6 @@ export async function load({ cookies, depends }) {
       status = true;
     }
   } else {
-    console.log("Error getting users and public key", error.message);
-  }
+    }
   return { status, publickey, balance, user_Id };
 }

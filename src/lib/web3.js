@@ -22,7 +22,7 @@ export async function getBalance(publickey) {
   const balance = lamportBalance / web3.LAMPORTS_PER_SOL;
   return balance;
   } catch (error) {
-    console.log("error getting balance from getBalance() :", console.error(error));
+    :", );
     return null
   }
  

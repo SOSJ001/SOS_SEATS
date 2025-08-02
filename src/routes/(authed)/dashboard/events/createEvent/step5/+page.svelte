@@ -68,12 +68,9 @@
     const savedData = localStorage.getItem("eventCreationData");
     if (savedData) {
       const parsed = JSON.parse(savedData);
-      console.log("Step5 - Loading saved data:", parsed);
       eventData = parsed;
-      console.log("Step5 - Final eventData:", eventData);
-    } else {
-      console.log("Step5 - No saved data found in localStorage");
-    }
+      } else {
+      }
   });
 
   function formatDate(dateString: string | undefined): string {
@@ -111,8 +108,6 @@
     isPublishing = true;
 
     try {
-      console.log("Step5 - Publishing event data:", eventData);
-
       // Convert image to base64 if it exists
       let imageBase64 = null;
       if (eventData.image && eventData.image instanceof File) {
@@ -131,8 +126,6 @@
         created_at: new Date().toISOString(),
       };
 
-      console.log("Step5 - Event data for DB:", eventDataForDB);
-
       // Send to API
       const response = await fetch("/createEventApi", {
         method: "POST",
@@ -143,8 +136,6 @@
       });
 
       const result = await response.json();
-      console.log("Step5 - API response:", result);
-
       if (result.success) {
         // Clear localStorage
         localStorage.removeItem("eventCreationData");
@@ -155,11 +146,9 @@
           goto("/dashboard/events");
         }, 2000);
       } else {
-        console.error("Error publishing event:", result.error);
         alert("Error publishing event: " + result.error);
       }
     } catch (error) {
-      console.error("Error publishing event:", error);
       alert("Error publishing event. Please try again.");
     } finally {
       isPublishing = false;
@@ -170,8 +159,6 @@
     isSavingDraft = true;
 
     try {
-      console.log("Step5 - Saving draft data:", eventData);
-
       // Convert image to base64 if it exists
       let imageBase64 = null;
       if (eventData.image && eventData.image instanceof File) {
@@ -189,8 +176,6 @@
         created_at: new Date().toISOString(),
       };
 
-      console.log("Step5 - Draft data for DB:", eventDataForDB);
-
       // Send to API
       const response = await fetch("/createEventApi", {
         method: "POST",
@@ -201,8 +186,6 @@
       });
 
       const result = await response.json();
-      console.log("Step5 - API response:", result);
-
       if (result.success) {
         // Clear localStorage
         localStorage.removeItem("eventCreationData");
@@ -213,11 +196,9 @@
           goto("/dashboard/events");
         }, 2000);
       } else {
-        console.error("Error saving draft:", result.error);
         alert("Error saving draft: " + result.error);
       }
     } catch (error) {
-      console.error("Error saving draft:", error);
       alert("Error saving draft. Please try again.");
     } finally {
       isSavingDraft = false;
@@ -226,7 +207,6 @@
 
   function prevStep() {
     // Save current data before going back
-    console.log("Step5 - Saving data on prevStep:", eventData);
     localStorage.setItem("eventCreationData", JSON.stringify(eventData));
     goto("/dashboard/events/createEvent/step4");
   }

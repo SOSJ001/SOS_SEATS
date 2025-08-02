@@ -20,8 +20,7 @@ export async function POST({ cookies, request }) {
       const sessionData = JSON.parse(userSession);
       user_Id = sessionData.id;
     } catch (error) {
-      console.error('Error parsing traditional session:', error);
-    }
+      }
   }
   
   // Check Web3 session if no traditional session
@@ -32,8 +31,7 @@ export async function POST({ cookies, request }) {
         user_Id = sessionData.user.id;
       }
     } catch (error) {
-      console.error('Error parsing Web3 session:', error);
-    }
+      }
   }
 
   if (!user_Id) {
@@ -63,11 +61,9 @@ export async function POST({ cookies, request }) {
         );
       }
     } else {
-      console.log("User Not found");
       return;
     }
   } else {
-    console.log("error getting userName: \n", response.error.message);
-  }
+    }
   return json({ payload }, { headers: ACTIONS_CORS_HEADERS, status: 201 });
 }

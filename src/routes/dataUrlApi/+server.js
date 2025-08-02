@@ -3,8 +3,7 @@ import { json } from "@sveltejs/kit";
 
 export async function POST({ request }) {
   const { baseImageSrc } = await request.json();
-  // console.log(baseImageSrc)
-  try {
+  // try {
     const response = await fetch(baseImageSrc);
     
     const buffer = await response.arrayBuffer();
@@ -12,10 +11,8 @@ export async function POST({ request }) {
     const dataURL = `data:${response.headers.get(
       "content-type"
     )};base64,${base64Image}`;
-    // console.log(dataURL)
-      return json({ dataURL }, { status: 201 });
+    // return json({ dataURL }, { status: 201 });
   } catch (error) {
-    console.error("Error fetching image:", error);
-     return json({ }, { status: 201 });
+    return json({ }, { status: 201 });
   }
 }

@@ -65,18 +65,15 @@
 
   function handlePasswordChange() {
     // Handle password change modal/form
-    console.log("Password change requested");
-  }
+    }
 
   function handle2FASetup() {
     // Handle 2FA setup modal/form
-    console.log("2FA setup requested");
-  }
+    }
 
   function handleDeviceManagement() {
     // Handle device management modal/page
-    console.log("Device management requested");
-  }
+    }
 </script>
 
 <div class="min-h-screen bg-gray-900 text-white p-4 sm:p-6">

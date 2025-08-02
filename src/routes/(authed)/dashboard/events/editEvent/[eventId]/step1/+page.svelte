@@ -29,17 +29,14 @@
   async function loadEventData() {
     try {
       // Always load from server data first to get the latest event data
-      console.log("Step1 - Loading data from server:", data?.event);
       if (data?.event) {
         eventData = { ...eventData, ...data.event };
-        console.log("Step1 - Loaded server data:", eventData);
-      }
+        }
 
       // Then merge with any localStorage data (for any changes made in this session)
       const savedData = localStorage.getItem("eventEditData");
       if (savedData) {
         const parsed = JSON.parse(savedData);
-        console.log("Step1 - Merging with localStorage data:", parsed);
         // Only merge fields that are not already set from server data
         Object.keys(parsed).forEach((key) => {
           if (!eventData[key] || eventData[key] === "") {
@@ -48,10 +45,8 @@
         });
       }
 
-      console.log("Step1 - Final eventData after merge:", eventData);
-    } catch (error) {
-      console.error("Error loading event data:", error);
-    } finally {
+      } catch (error) {
+      } finally {
       isLoading = false;
     }
   }

@@ -110,7 +110,6 @@ export function getDomain() {
   try {
     return new URL(window.location.href).hostname;
   } catch (error) {
-    console.error("Error getting domain:", error);
     return null; // Or handle the error as needed
   }
 }

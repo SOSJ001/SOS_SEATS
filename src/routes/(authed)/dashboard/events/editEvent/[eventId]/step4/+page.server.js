@@ -75,12 +75,8 @@ export async function load({ params, cookies }) {
       event_visibility: event.event_visibility || "public",
     };
 
-    console.log("Step4 server - Event data:", event);
-    console.log("Step4 server - Formatted event:", formattedEvent);
-
     return { event: formattedEvent };
   } catch (error) {
-    console.error("Error loading event for step4:", error);
     return {
       status: 500,
       error: "Internal server error",

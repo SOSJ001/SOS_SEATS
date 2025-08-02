@@ -29,23 +29,19 @@
 
   function handleBookSeat() {
     // Handle booking logic
-    console.log("Booking seat:", selectedSeat);
-  }
+    }
 
   function handleAssignGuest() {
     // Handle guest assignment logic
-    console.log("Assigning guest to seat:", selectedSeat);
-  }
+    }
 
   function handleChangeTier() {
     // Handle tier change logic
-    console.log("Changing tier for seat:", selectedSeat);
-  }
+    }
 
   function handleCancelBooking() {
     // Handle booking cancellation logic
-    console.log("Cancelling booking for seat:", selectedSeat);
-  }
+    }
 </script>
 
 <div class="bg-gray-800 rounded-lg p-6">

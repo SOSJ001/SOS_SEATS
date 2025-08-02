@@ -54,26 +54,20 @@
   $: eventId = $page.params.eventId;
 
   onMount(() => {
-    console.log("Step2 - onMount started");
-    console.log("Step2 - Server data:", data);
-
     // Always load from server data first to get the latest event data
-    console.log("Step2 - Loading data from server:", data.event);
     if (data.event) {
       eventData = { ...eventData, ...data.event };
 
       // Handle existing image from server
       if (data.event.image && data.event.image.file_path) {
         imagePreview = data.event.image.file_path;
-        console.log("Step2 - Loaded existing image:", imagePreview);
-      }
+        }
     }
 
     // Then merge with any localStorage data (for any changes made in this session)
     const savedData = localStorage.getItem("eventEditData");
     if (savedData) {
       const parsed = JSON.parse(savedData);
-      console.log("Step2 - Merging with localStorage data:", parsed);
       eventData = { ...eventData, ...parsed };
 
       // If there's a saved image preview, use it
@@ -82,8 +76,6 @@
       }
     }
 
-    console.log("Step2 - Final eventData after merge:", eventData);
-    console.log("Step2 - Final imagePreview:", imagePreview);
     isLoading = false;
   });
 
@@ -133,9 +125,6 @@
   function nextStep() {
     if (validateStep()) {
       // Save to localStorage before navigating
-      console.log("Step2 - Saving data:", eventData);
-      console.log("Step2 - Saving imagePreview:", imagePreview);
-      
       // Save eventData with imagePreview
       const dataToSave = {
         ...eventData,
@@ -149,9 +138,6 @@
 
   function prevStep() {
     // Save current data before going back
-    console.log("Step2 - Saving data on prevStep:", eventData);
-    console.log("Step2 - Saving imagePreview on prevStep:", imagePreview);
-    
     // Save eventData with imagePreview
     const dataToSave = {
       ...eventData,

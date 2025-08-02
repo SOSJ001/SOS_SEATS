@@ -42,10 +42,7 @@
     const savedData = localStorage.getItem("eventCreationData");
     if (savedData) {
       const parsed = JSON.parse(savedData);
-      console.log("Step2 - Loading saved data:", parsed);
       eventData = { ...eventData, ...parsed };
-      console.log("Step2 - Final eventData after merge:", eventData);
-
       // If there's a saved image, create preview (note: File objects can't be serialized to JSON)
       // So we'll need to handle this differently - the image will need to be re-uploaded
       if (parsed.imagePreview) {
@@ -115,7 +112,6 @@
       ...eventData,
       imagePreview: imagePreview,
     };
-    console.log("Step2 - Saving data on prevStep:", dataToSave);
     localStorage.setItem("eventCreationData", JSON.stringify(dataToSave));
     goto("/dashboard/events/createEvent/step1");
   }

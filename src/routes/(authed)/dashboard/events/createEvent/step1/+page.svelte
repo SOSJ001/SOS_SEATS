@@ -21,12 +21,9 @@
     const savedData = localStorage.getItem("eventCreationData");
     if (savedData) {
       const parsed = JSON.parse(savedData);
-      console.log("Step1 - Loading saved data:", parsed);
-      console.log("Step1 - Current eventData before merge:", eventData);
       // Merge saved data with current eventData, preserving existing structure
       eventData = { ...eventData, ...parsed };
-      console.log("Step1 - Final eventData after merge:", eventData);
-    }
+      }
   });
 
   function validateStep() {
@@ -51,7 +48,6 @@
   function nextStep() {
     if (validateStep()) {
       // Save to localStorage before navigating
-      console.log("Step1 - Saving data:", eventData);
       localStorage.setItem("eventCreationData", JSON.stringify(eventData));
       goto("/dashboard/events/createEvent/step2");
     }

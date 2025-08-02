@@ -115,7 +115,6 @@
         );
       }
     } catch (error) {
-      console.error("Web3 authentication error:", error);
       // Show error toast
       showToast(
         "error",

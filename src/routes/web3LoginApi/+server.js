@@ -21,7 +21,6 @@ export async function POST({ request, cookies }) {
 
     return json({ success: true }, { status: 201 });
   } catch (error) {
-    console.error("Web3 login error:", error);
     return json({ error: "Internal server error" }, { status: 500 });
   }
 }

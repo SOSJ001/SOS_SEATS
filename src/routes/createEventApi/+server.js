@@ -6,8 +6,6 @@ export async function POST({ request, cookies }) {
   try {
     const { user_Id, sessionType } = parseSession(cookies);
 
-    console.log("createEventApi - Session data:", { user_Id, sessionType });
-
     if (!user_Id) {
       return json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
@@ -22,20 +20,16 @@ export async function POST({ request, cookies }) {
     if (contentType && contentType.includes("application/json")) {
       // Handle JSON request from step5
       eventData = await request.json();
-      console.log("createEventApi - Received JSON data:", eventData);
-      
       // Extract base64 image if present
       if (eventData.image && typeof eventData.image === 'string' && eventData.image.startsWith('data:')) {
         imageBase64 = eventData.image;
-        console.log("createEventApi - Found base64 image data");
-      }
+        }
     } else {
       // Handle FormData request (legacy)
       const formData = await request.formData();
       eventData = JSON.parse(formData.get("eventData"));
       imageFile = formData.get("image");
-      console.log("createEventApi - Received FormData:", eventData);
-    }
+      }
 
     let imageId = null;
 
@@ -61,16 +55,13 @@ export async function POST({ request, cookies }) {
         const uploadResult = await uploadEventImageNew(file, user_Id);
         if (uploadResult.success) {
           imageId = uploadResult.image_id;
-          console.log("createEventApi - Successfully uploaded base64 image, image_id:", imageId);
-        } else {
-          console.error("createEventApi - Failed to upload base64 image:", uploadResult.error);
+          } else {
           return json(
             { success: false, error: "Failed to upload image" },
             { status: 400 }
           );
         }
       } catch (error) {
-        console.error("createEventApi - Error processing base64 image:", error);
         return json(
           { success: false, error: "Failed to process image" },
           { status: 400 }
@@ -104,17 +95,8 @@ export async function POST({ request, cookies }) {
       seating_options: eventData.seating_options || {},
     };
 
-    console.log("createEventApi - Prepared event payload:", eventPayload);
-    console.log("createEventApi - Using user ID for event creation:", user_Id);
-
     // Create event in database
-    console.log(
-      "createEventApi - Calling createEventWithDetails with payload:",
-      eventPayload
-    );
     const result = await createEventWithDetails(eventPayload, user_Id);
-    console.log("createEventApi - Database result:", result);
-
     if (result.success) {
       return json({
         success: true,
@@ -125,7 +107,6 @@ export async function POST({ request, cookies }) {
       return json({ success: false, error: result.error }, { status: 400 });
     }
   } catch (error) {
-    console.error("Error creating event:", error);
     return json(
       { success: false, error: "Internal server error" },
       { status: 500 }

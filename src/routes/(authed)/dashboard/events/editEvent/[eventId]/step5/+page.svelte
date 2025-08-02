@@ -21,11 +21,7 @@
   $: eventId = $page.params.eventId;
 
   onMount(() => {
-    console.log("Step5 - onMount started");
-    console.log("Step5 - Server data:", data);
-
     // Always load from server data first to get the latest event data
-    console.log("Step5 - Loading data from server:", data.event);
     if (data.event) {
       eventData = { ...eventData, ...data.event };
     }
@@ -34,20 +30,14 @@
     const savedData = localStorage.getItem("eventEditData");
     if (savedData) {
       const parsed = JSON.parse(savedData);
-      console.log("Step5 - Merging with localStorage data:", parsed);
       eventData = { ...eventData, ...parsed };
 
       // Ensure imagePreview from localStorage takes precedence for display
       if (parsed.imagePreview) {
         eventData.imagePreview = parsed.imagePreview;
-        console.log(
-          "Step5 - Using imagePreview from localStorage:",
-          eventData.imagePreview
-        );
-      }
+        }
     }
 
-    console.log("Step5 - Final eventData for preview:", eventData);
     isLoading = false;
   });
 
@@ -56,8 +46,6 @@
     saveError = "";
 
     try {
-      console.log("Step5 - Saving event data:", eventData);
-
       // Convert image to base64 if it exists and is a File
       let imageBase64 = null;
       if (eventData.image && eventData.image instanceof File) {
@@ -74,8 +62,6 @@
         updated_at: new Date().toISOString(),
       };
 
-      console.log("Step5 - Event data for DB:", eventDataForDB);
-
       // Send to API
       const response = await fetch(`/updateEventApi/${eventId}`, {
         method: "PUT",
@@ -86,8 +72,6 @@
       });
 
       const result = await response.json();
-      console.log("Step5 - API response:", result);
-
       if (result.success) {
         // Clear localStorage
         localStorage.removeItem("eventEditData");
@@ -98,11 +82,9 @@
           goto(`/dashboard/events/eventDetails?id=${eventId}`);
         }, 2000);
       } else {
-        console.error("Error saving event:", result.error);
         saveError = "Error saving event: " + result.error;
       }
     } catch (error) {
-      console.error("Error saving event:", error);
       saveError = "Error saving event. Please try again.";
     } finally {
       isSaving = false;
@@ -114,8 +96,6 @@
     publishError = "";
 
     try {
-      console.log("Step5 - Publishing event:", eventId);
-
       // Convert image to base64 if it exists and is a File
       let imageBase64 = null;
       if (eventData.image && eventData.image instanceof File) {
@@ -134,8 +114,6 @@
         updated_at: new Date().toISOString(),
       };
 
-      console.log("Step5 - Publish data:", publishData);
-
       // Send to API
       const response = await fetch(`/updateEventApi/${eventId}`, {
         method: "PUT",
@@ -146,8 +124,6 @@
       });
 
       const result = await response.json();
-      console.log("Step5 - Publish API response:", result);
-
       if (result.success) {
         // Clear localStorage
         localStorage.removeItem("eventEditData");
@@ -158,11 +134,9 @@
           goto(`/dashboard/events/eventDetails?id=${eventId}`);
         }, 2000);
       } else {
-        console.error("Error publishing event:", result.error);
         publishError = "Error publishing event: " + result.error;
       }
     } catch (error) {
-      console.error("Error publishing event:", error);
       publishError = "Error publishing event. Please try again.";
     } finally {
       isPublishing = false;

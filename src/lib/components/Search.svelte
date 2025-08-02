@@ -104,7 +104,7 @@
                 
             </div>
             <button
-            on:click|preventDefault|stopPropagation={()=>{ console.log(date.value)}}
+            on:click|preventDefault|stopPropagation={()=>{ }}
             id="button"
                 type="submit"
                 class="p-2 font-bold text-white bg-yellow-400 hover:bg-yellow-500 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg text-lg "

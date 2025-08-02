@@ -37,7 +37,6 @@ export async function load({ url, cookies }) {
       .single();
 
     if (eventError) {
-      console.error("Error fetching event:", eventError);
       return {
         status: 404,
         error: "Event not found",
@@ -65,8 +64,7 @@ export async function load({ url, cookies }) {
           eventWithImage = { ...event, image: imageData };
         }
       } catch (imageError) {
-        console.error("Error loading image for event:", imageError);
-      }
+        }
     }
 
     // Calculate metrics
@@ -136,7 +134,6 @@ export async function load({ url, cookies }) {
       event: formattedEvent,
     };
   } catch (error) {
-    console.error("Server error:", error);
     return {
       status: 500,
       error: "Internal server error",

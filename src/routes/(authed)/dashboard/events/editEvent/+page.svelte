@@ -28,7 +28,6 @@
       // Redirect to the edit flow (you can create a multi-step edit flow similar to createEvent)
       goto(`/dashboard/events/editEvent/${eventId}`);
     } catch (error) {
-      console.error("Error loading event:", error);
       goto("/dashboard/events");
     } finally {
       isLoading = false;

@@ -6,7 +6,6 @@ export async function POST({ cookies }) {
         cookies.delete("web3Session", { path: "/" });
         return json({ success: true }, { status: 201 });
     } catch (error) {
-        console.error("Web3 logout error:", error);
         return json({ error: "Internal server error" }, { status: 500 });
     }
 } 

@@ -26,7 +26,6 @@ export async function load({ params, cookies }) {
       .single();
 
     if (error) {
-      console.error("Error fetching event:", error);
       return {
         error: "Failed to load event data",
       };
@@ -94,7 +93,6 @@ export async function load({ params, cookies }) {
       event: formattedEvent,
     };
   } catch (error) {
-    console.error("Error in step1 load function:", error);
     return {
       error: "Failed to load event data",
     };

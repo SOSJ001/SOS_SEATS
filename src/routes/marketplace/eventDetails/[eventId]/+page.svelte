@@ -1,7 +1,14 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { onMount } from "svelte";
-  import { getEventById } from "$lib/supabase.js";
+  import { goto } from "$app/navigation";
+  import {
+    getEventById,
+    claimFreeTickets,
+    verifyWeb3Session,
+    getWeb3UserProfile,
+  } from "$lib/supabase.js";
+  import { sessionFromDb, walletStore, web3UserStore } from "$lib/store";
   import EventHeroSection from "$lib/components/EventHeroSection.svelte";
   import EventDetailsCard from "$lib/components/EventDetailsCard.svelte";
   import TicketSelectionCard from "$lib/components/TicketSelectionCard.svelte";
@@ -50,6 +57,11 @@
   // State management
   let selectedTickets: Record<number, number> = {};
   let pageLoaded = false;
+  let claimingTickets = false;
+
+  // Wallet connection state
+  $: connectedWalletAddress = $walletStore?.address || null;
+  $: web3User = $web3UserStore?.user || null;
 
   // Initialize ticket quantities
   $: ticketTypes.forEach((ticket) => {
@@ -152,13 +164,9 @@
 
   function handlePayWithSolana() {
     // Payment logic will be implemented here
-    console.log("Processing payment with Solana...", {
-      selectedTickets,
-      totalPrice,
-    });
   }
 
-  function handleGetFreeTicket() {
+  async function handleGetFreeTicket() {
     // Validate quantity doesn't exceed available capacity
     const totalSelected = Object.values(selectedTickets).reduce(
       (sum, qty) => sum + qty,
@@ -189,32 +197,134 @@
       return;
     }
 
-    // Handle free ticket claim
-    console.log("Claiming free tickets...", {
-      eventId: event.id,
+    // Prevent multiple submissions
+    if (claimingTickets) {
+      return;
+    }
+
+    claimingTickets = true;
+
+    try {
+      // Get current user session - try Web3 first, then fallback to traditional
+      let userData: {
+        id: string | null;
+        email: string | null;
+        name: string;
+        wallet_address: string | null;
+      } = {
+        id: null,
+        email: null,
+        name: "Event Attendee",
+        wallet_address: null,
+      };
+
+      // Get the connected wallet address from the store (already available as reactive variables)
+
+      // Try to get Web3 session first
+      const web3Session = await verifyWeb3Session();
+
+      if (web3Session.success && web3Session.user) {
+        // Use the connected wallet address if available, otherwise fall back to session
+        const walletAddressToUse =
+          connectedWalletAddress || web3Session.user.wallet_address;
+
+        if (walletAddressToUse && walletAddressToUse !== "undefined") {
+          // Get Web3 user profile
+          const profile = await getWeb3UserProfile(walletAddressToUse);
+
+          if (profile.success && profile.user) {
+            userData = {
+              id: profile.user.id,
+              email: null, // Web3 users don't have email
+              name:
+                profile.user.display_name ||
+                profile.user.username ||
+                "Web3 User",
+              wallet_address: profile.user.wallet_address,
+            };
+            } else {
+            // Use basic Web3 session data with connected wallet
+            userData = {
+              id: web3Session.user.id,
+              email: null,
+              name: web3Session.user.username || "Web3 User",
+              wallet_address: walletAddressToUse,
+            };
+            }
+        } else {
+          // No valid wallet address, use basic session data
+          userData = {
+            id: web3Session.user.id,
+            email: null,
+            name: web3Session.user.username || "Web3 User",
+            wallet_address: "0x1234567890abcdef" as string, // Fallback wallet address
+          };
+          }
+      } else {
+        // No Web3 session, try to use connected wallet directly
+        if (connectedWalletAddress) {
+          userData = {
+            id: null,
+            email: null,
+            name: web3User?.display_name || web3User?.username || "Web3 User",
+            wallet_address: connectedWalletAddress,
+          };
+          } else {
+          // Fallback to traditional session
+          const currentSession = $sessionFromDb;
+          userData = {
+            id: currentSession,
+            email: null,
+            name: "Event Attendee",
+            wallet_address: "0x1234567890abcdef" as string, // Fallback wallet address
+          };
+          }
+      }
+
+      // Call the actual free ticket claiming function
+      const result = await claimFreeTickets(
+        event.id,
       selectedTickets,
-      totalQuantity: totalSelected,
-      maxSeatsPerOrder,
-      eventTotalCapacity,
-    });
+        userData
+      );
 
-    // TODO: Implement actual free ticket claiming logic
-    // This would typically involve:
-    // 1. Calling an API to reserve the tickets
-    // 2. Creating ticket records in the database
-    // 3. Sending confirmation to user
+      if (result.success) {
+        // Success! Show brief confirmation before redirect
+        if (result.isTemporary) {
+          alert(
+            `🎉 Successfully claimed ${result.ticketsClaimed} free ticket(s)!\n\nNote: Order stored locally (database access restricted).\n\nRedirecting to your ticket confirmation...`
+          );
+        } else {
+          alert(
+            `🎉 Successfully claimed ${result.ticketsClaimed} free ticket(s)!\n\nRedirecting to your ticket confirmation...`
+          );
+        }
 
-    alert(
-      `Successfully claimed ${totalSelected} free ticket(s) for ${event.name}!`
-    );
+        // Reset selected tickets
+        selectedTickets = {};
+        selectedTickets = { ...selectedTickets };
+
+        // Redirect to ticket confirmation page
+        goto(`/tickets/confirmation/${result.orderId}`);
+      } else {
+        // Handle error
+        alert(
+          `❌ Failed to claim tickets: ${result.error}\n\nPlease try again or contact support.`
+        );
+      }
+    } catch (error: any) {
+      alert(
+        `❌ An error occurred while claiming tickets: ${error?.message || "Unknown error"}\n\nPlease try again.`
+      );
+    } finally {
+      claimingTickets = false;
+    }
   }
 
   onMount(async () => {
     try {
-      console.log("Loading event with ID:", eventId);
       // Load event data from database
       const eventData = await getEventById(eventId);
-      console.log("Event data received:", eventData);
 
       if (eventData) {
         // Determine if event is free based on price or is_free_event flag
@@ -223,20 +333,6 @@
           eventData.ticket_types?.[0]?.price === 0 ||
           eventData.ticket_types?.[0]?.price === "0" ||
           eventData.ticket_types?.[0]?.price === "NLe 0";
-
-        console.log("Is free event:", isFreeEvent);
-        console.log("Event capacity constraints:", {
-          total_capacity: eventData.total_capacity,
-          seating_options: eventData.seating_options,
-          max_seats_per_order:
-            eventData.seating_options?.[0]?.max_seats_per_order,
-          ticket_types: eventData.ticket_types?.map((t: any) => ({
-            id: t.id,
-            name: t.name,
-            price: t.price,
-            available_quantity: t.available_quantity,
-          })),
-        });
 
         event = {
           id: eventData.id,
@@ -265,12 +361,6 @@
           },
           is_free_event: isFreeEvent,
         };
-
-        console.log("Final event object:", event);
-        console.log(
-          "Max seats per order from event:",
-          event.seating_options?.max_seats_per_order
-        );
 
         // Update ticket types from database - always show actual ticket types
         if (eventData.ticket_types && eventData.ticket_types.length > 0) {
@@ -301,9 +391,6 @@
           ];
         }
 
-        console.log("Ticket types from database:", eventData.ticket_types);
-        console.log("Processed ticket types:", ticketTypes);
-
         // Populate event details after event is loaded
         eventDetails = [
           { icon: "calendar", label: "Date", value: event.date },
@@ -322,7 +409,6 @@
       }
       loading = false;
     } catch (err) {
-      console.error("Error loading event:", err);
       error = "Failed to load event";
       loading = false;
     }
@@ -494,20 +580,64 @@
             </div>
 
             {#if event.is_free_event}
+              <!-- Wallet Connection Status -->
+              <div
+                class="mb-4 p-3 bg-gray-800/50 border border-gray-600/30 rounded-lg"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <svg
+                      class="h-4 w-4 {connectedWalletAddress
+                        ? 'text-green-400'
+                        : 'text-yellow-400'}"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clip-rule="evenodd"
+                      ></path>
+                    </svg>
+                    <span class="text-sm text-gray-300">
+                      {connectedWalletAddress
+                        ? "Wallet Connected"
+                        : "No Wallet Connected"}
+                    </span>
+                  </div>
+                  {#if connectedWalletAddress}
+                    <div class="text-xs text-blue-400 font-mono">
+                      {connectedWalletAddress.slice(
+                        0,
+                        6
+                      )}...{connectedWalletAddress.slice(-4)}
+                    </div>
+                  {/if}
+                </div>
+                {#if !connectedWalletAddress}
+                  <div class="text-xs text-yellow-400 mt-1">
+                    Connect your wallet to claim tickets with your address
+                  </div>
+                {/if}
+              </div>
+
               <GradientButton
-                text="Get Free Ticket"
+                text={claimingTickets
+                  ? "Claiming Tickets..."
+                  : "Get Free Ticket"}
                 onClick={handleGetFreeTicket}
-                icon="ticket"
+                icon={claimingTickets ? "loading" : "ticket"}
                 class_="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                disabled={claimingTickets}
               />
             {:else}
-              <GradientButton
-                text="Pay with Solana"
-                onClick={handlePayWithSolana}
-                icon="wallet"
-                class_="w-full"
-                disabled={totalPrice === 0}
-              />
+            <GradientButton
+              text="Pay with Solana"
+              onClick={handlePayWithSolana}
+              icon="wallet"
+              class_="w-full"
+              disabled={totalPrice === 0}
+            />
             {/if}
           </PaymentSummaryCard>
         </div>

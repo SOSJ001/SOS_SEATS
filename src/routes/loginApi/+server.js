@@ -7,6 +7,5 @@ export async function POST({ request, cookies }) {
     const user = JSON.stringify(COOKIE_DATA)
     cookies.set('userSession', user, { path: '/' });
         return json({  }, { status: 201 });
-  
 
 }

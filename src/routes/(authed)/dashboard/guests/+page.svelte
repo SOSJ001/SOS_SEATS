@@ -168,18 +168,15 @@
 
   function exportCSV() {
     // Implementation for CSV export
-    console.log("Exporting CSV...");
-  }
+    }
 
   function exportPDF() {
     // Implementation for PDF export
-    console.log("Exporting PDF...");
-  }
+    }
 
   function addNewGuest() {
     // Implementation for adding new guest
-    console.log("Adding new guest...");
-  }
+    }
 </script>
 
 <div class="space-y-6" in:fade={{ duration: 300 }}>

@@ -13,7 +13,6 @@ export async function GET({ cookies }) {
         try {
             sessionData = JSON.parse(web3Session);
         } catch (parseError) {
-            console.error("Error parsing Web3 session:", parseError);
             cookies.delete("web3Session", { path: "/" });
             return json({ valid: false, error: "Invalid session format" }, { status: 401 });
         }
@@ -42,7 +41,6 @@ export async function GET({ cookies }) {
         }, { status: 200 });
         
     } catch (error) {
-        console.error("Web3 session verification error:", error);
         return json({ valid: false, error: "Internal server error" }, { status: 500 });
     }
 } 

@@ -112,7 +112,7 @@
       signup = false;
       goto("/dashboard");
     } else {
-      console.log(error);
+      // Handle error silently
       errorMessage = error.message;
     }
   };

@@ -20,12 +20,6 @@
 
   // Debug logging
   $: if (event) {
-    console.log("EventCard Debug:", {
-      name: event.name,
-      price: event.price,
-      is_free_event: event.is_free_event,
-      buttonText: buttonText,
-    });
   }
 </script>
 
