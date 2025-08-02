@@ -1,7 +1,9 @@
 <script>
   import { onMount } from "svelte";
-  import { supabase } from "$lib/supabase";
+  import { supabase, transferTicket } from "$lib/supabase";
   import { fade, fly } from "svelte/transition";
+  import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
+  import { showToast } from "$lib/store";
 
   export let data;
 
@@ -15,6 +17,17 @@
   let walletAddress = "";
   let assigning = false;
   let copyFeedback = false;
+
+  // Confirmation dialog state
+  let showConfirmDialog = false;
+  let confirmDialogData = {
+    title: "",
+    message: "",
+    confirmText: "",
+    confirmVariant: "success",
+  };
+
+  // Toast state (removed - using global toast system)
 
   // Search and filter functionality
   let searchQuery = "";
@@ -74,9 +87,9 @@
         return;
       }
 
-      // Use the bypass function to fetch tickets (bypasses RLS)
+      // Use the bypass function to fetch tickets by current owner (bypasses RLS)
       const { data: ordersData, error: fetchError } = await supabase.rpc(
-        "load_orders_by_wallet",
+        "load_tickets_by_current_owner",
         { p_wallet_address: userWalletAddress }
       );
 
@@ -87,7 +100,8 @@
         ordersData?.map((order) => ({
           id: `ticket-${order.order_id}`,
           event_id: order.event_id,
-          wallet_address: order.buyer_wallet_address,
+          wallet_address: order.current_owner, // Use current owner
+          original_buyer_wallet: order.original_buyer_wallet,
           ticket_number: `TIX-${order.order_item_id?.slice(0, 8) || order.order_id.slice(0, 8)}`,
           status: order.payment_status || "confirmed",
           orderId: order.order_id,
@@ -99,10 +113,11 @@
           orderStatus: order.order_status,
           paymentMethod: order.payment_method,
           paymentStatus: order.payment_status,
-          buyerName: order.buyer_name,
+          buyerName: order.original_buyer_name,
           ticketType: order.ticket_type_name || "Standard",
           price: order.ticket_type_price || 0,
           source: order.payment_method === "free" ? "free" : "paid",
+          isTransferred: order.transfer_history === "Transferred to you",
           events: {
             title: order.event_name,
             description: order.event_description || "Event details available",
@@ -147,12 +162,22 @@
     try {
       assigning = true;
 
-      const { error: updateError } = await supabase
-        .from("guests")
-        .update({ wallet_address: walletAddress })
-        .eq("id", ticketId);
+      // Use the new transfer function
+      const { success, error: transferError } = await transferTicket(
+        selectedTicket.orderItemId,
+        selectedTicket.wallet_address, // Current owner
+        walletAddress,
+        "Transfer via My Tickets page"
+      );
 
-      if (updateError) throw updateError;
+      if (!success) throw new Error(transferError || "Transfer failed");
+
+      // Show success toast
+      showToast(
+        "success",
+        "Transfer Successful",
+        `Ticket successfully transferred to ${walletAddress.slice(0, 6)}...${walletAddress.slice(-3)}`
+      );
 
       // Refresh the tickets list
       await loadTickets();
@@ -160,10 +185,34 @@
       selectedTicket = null;
       walletAddress = "";
     } catch (err) {
-      error = err.message;
+      // Show error toast
+      showToast("error", "Transfer Failed", err.message || "Transfer failed");
     } finally {
       assigning = false;
     }
+  }
+
+  function showTransferConfirmation(ticket) {
+    selectedTicket = ticket;
+    walletAddress = "";
+
+    confirmDialogData = {
+      title: "Transfer Ticket",
+      message: `Are you sure you want to transfer this ticket? You will no longer own it after the transfer.`,
+      confirmText: "Transfer",
+      confirmVariant: "warning",
+    };
+    showConfirmDialog = true;
+  }
+
+  function handleTransferConfirm() {
+    showConfirmDialog = false;
+    showTransferModal = true;
+  }
+
+  function handleTransferCancel() {
+    showConfirmDialog = false;
+    selectedTicket = null;
   }
 
   function openActionModal(ticket) {
@@ -478,13 +527,20 @@
                     <span class="text-gray-300">{ticket.ticket_number}</span>
                   </div>
                   <div class="flex items-center text-sm">
-                    <span class="text-gray-400 mr-2">Buyer Wallet:</span>
+                    <span class="text-gray-400 mr-2">Current Owner:</span>
                     <span class="text-green-400 font-mono"
                       >{ticket.wallet_address.slice(
                         0,
                         6
                       )}...{ticket.wallet_address.slice(-3)}</span
                     >
+                    {#if ticket.isTransferred}
+                      <span
+                        class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full"
+                      >
+                        Transferred
+                      </span>
+                    {/if}
                   </div>
                   <div class="flex items-center text-sm">
                     <span class="text-gray-400 mr-2">Price:</span>
@@ -516,7 +572,7 @@
                     View QR Code
                   </button>
                   <button
-                    on:click={() => openTransferModal(ticket)}
+                    on:click={() => showTransferConfirmation(ticket)}
                     class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-lg hover:from-green-600 hover:to-teal-700 transition-all duration-200 font-medium text-sm sm:text-base flex items-center justify-center gap-2"
                   >
                     <svg
@@ -737,6 +793,17 @@
               )}...{selectedTicket?.wallet_address?.slice(-3)}
             </span>
           </div>
+          {#if selectedTicket?.isTransferred}
+            <div class="flex justify-between">
+              <span class="text-gray-400">Original Buyer:</span>
+              <span class="text-blue-400 font-mono text-xs">
+                {selectedTicket?.original_buyer_wallet?.slice(
+                  0,
+                  6
+                )}...{selectedTicket?.original_buyer_wallet?.slice(-3)}
+              </span>
+            </div>
+          {/if}
         </div>
       </div>
 
@@ -813,3 +880,15 @@
     </div>
   </div>
 {/if}
+
+<!-- Confirmation Dialog -->
+<ConfirmationDialog
+  bind:show={showConfirmDialog}
+  title={confirmDialogData.title}
+  message={confirmDialogData.message}
+  confirmText={confirmDialogData.confirmText}
+  confirmVariant={confirmDialogData.confirmVariant}
+  loading={assigning}
+  on:confirm={handleTransferConfirm}
+  on:cancel={handleTransferCancel}
+/>

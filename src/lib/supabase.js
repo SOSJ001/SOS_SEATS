@@ -1623,3 +1623,44 @@ export async function claimFreeTickets(eventId, selectedTickets, userData) {
     return { success: false, error: error.message };
   }
 }
+
+// Transfer a ticket to another wallet
+export async function transferTicket(
+  orderItemId,
+  fromWallet,
+  toWallet,
+  reason = null
+) {
+  try {
+    const { data, error } = await supabase.rpc("transfer_ticket", {
+      p_order_item_id: orderItemId,
+      p_from_wallet: fromWallet,
+      p_to_wallet: toWallet,
+      p_reason: reason,
+    });
+
+    if (error) throw error;
+    return { success: data, error: null };
+  } catch (error) {
+    console.error("Error transferring ticket:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Load tickets by current owner (including transferred tickets)
+export async function loadTicketsByCurrentOwner(walletAddress) {
+  try {
+    const { data, error } = await supabase.rpc(
+      "load_tickets_by_current_owner",
+      {
+        p_wallet_address: walletAddress,
+      }
+    );
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error loading tickets by current owner:", error);
+    return { data: null, error: error.message };
+  }
+}
