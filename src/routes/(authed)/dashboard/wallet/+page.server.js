@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createNew_wallet, getBalance } from "$lib/web3.js";
+import { createNew_wallet, getBalance } from "$lib/web3";
 import { storeWallet, usersAndPublickeys } from "$lib/supabase.js";
 export async function load({ cookies, depends }) {
   depends("data:balance");
@@ -12,19 +12,17 @@ export async function load({ cookies, depends }) {
     try {
       const sessionData = JSON.parse(userSession);
       user_Id = sessionData.id;
-    } catch (error) {
-      }
+    } catch (error) {}
   }
-  
+
   // Check Web3 session if no traditional session
   if (!user_Id && web3Session) {
     try {
       const sessionData = JSON.parse(web3Session);
-      if (sessionData.type === 'web3' && sessionData.user) {
+      if (sessionData.type === "web3" && sessionData.user) {
         user_Id = sessionData.user.id;
       }
-    } catch (error) {
-      }
+    } catch (error) {}
   }
   // check if user has a wallet
   const { data, error } = await usersAndPublickeys(user_Id);
@@ -38,6 +36,6 @@ export async function load({ cookies, depends }) {
       status = true;
     }
   } else {
-    }
+  }
   return { status, publickey, balance, user_Id };
 }

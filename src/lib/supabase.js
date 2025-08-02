@@ -1420,13 +1420,18 @@ async function authenticateUserForDatabase(userData) {
   }
 }
 
-// Claim free tickets
-export async function claimFreeTickets(eventId, selectedTickets, userData) {
+// Claim free tickets or paid tickets
+export async function claimFreeTickets(
+  eventId,
+  selectedTickets,
+  userData,
+  paymentInfo = null
+) {
   try {
     // Generate a unique order number
-    const orderNumber = `FREE-${Date.now()}-${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
+    const orderNumber = `${
+      paymentInfo ? "PAID" : "FREE"
+    }-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Create the order with Web3 user data
     const orderData = {
@@ -1436,11 +1441,11 @@ export async function claimFreeTickets(eventId, selectedTickets, userData) {
       buyer_email: userData.email || null,
       buyer_name: userData.name || userData.display_name || "Anonymous",
       order_number: orderNumber,
-      total_amount: 0, // Free tickets
-      currency: "USD",
-      payment_method: "free",
-      payment_status: "completed", // Free tickets are immediately completed
-      transaction_hash: null,
+      total_amount: paymentInfo ? paymentInfo.amount : 0, // Use payment amount if provided
+      currency: paymentInfo ? "SOL" : "USD",
+      payment_method: paymentInfo ? paymentInfo.paymentMethod : "free",
+      payment_status: paymentInfo ? "completed" : "completed", // Both are immediately completed
+      transaction_hash: paymentInfo ? paymentInfo.transactionSignature : null,
       order_status: "confirmed",
     };
 
@@ -1498,18 +1503,45 @@ export async function claimFreeTickets(eventId, selectedTickets, userData) {
           ticketType = fallbackTicketType;
         }
 
-        // Create tickets one by one using the create_free_ticket_order function
+        // Create tickets one by one using the appropriate function based on payment type
         for (let i = 0; i < quantity; i++) {
           const individualOrderNumber = `${orderNumber}-${i + 1}`;
 
-          const { data: functionResult, error: functionError } =
-            await supabase.rpc("create_free_ticket_order", {
-              p_event_id: eventId,
-              p_buyer_wallet_address: orderData.buyer_wallet_address,
-              p_buyer_name: orderData.buyer_name,
-              p_order_number: individualOrderNumber,
-              p_ticket_type_id: ticketType.id,
-            });
+          let functionResult, functionError;
+
+          if (paymentInfo) {
+            // Use create_paid_ticket_order for paid tickets
+            const { data: paidResult, error: paidError } = await supabase.rpc(
+              "create_paid_ticket_order",
+              {
+                p_event_id: eventId,
+                p_buyer_wallet_address: orderData.buyer_wallet_address,
+                p_buyer_name: orderData.buyer_name,
+                p_order_number: individualOrderNumber,
+                p_ticket_type_id: ticketType.id,
+                p_total_amount: paymentInfo.amount, // Use the total amount for the order
+                p_currency:
+                  paymentInfo.paymentMethod === "solana" ? "SOL" : "USD",
+                p_transaction_hash: paymentInfo.transactionSignature,
+              }
+            );
+            functionResult = paidResult;
+            functionError = paidError;
+          } else {
+            // Use create_free_ticket_order for free tickets
+            const { data: freeResult, error: freeError } = await supabase.rpc(
+              "create_free_ticket_order",
+              {
+                p_event_id: eventId,
+                p_buyer_wallet_address: orderData.buyer_wallet_address,
+                p_buyer_name: orderData.buyer_name,
+                p_order_number: individualOrderNumber,
+                p_ticket_type_id: ticketType.id,
+              }
+            );
+            functionResult = freeResult;
+            functionError = freeError;
+          }
 
           if (
             !functionError &&

@@ -8,6 +8,10 @@
     verifyWeb3Session,
     getWeb3UserProfile,
   } from "$lib/supabase.js";
+  import {
+    purchaseTicketsWithSolana,
+    sendTransactionWithWallet,
+  } from "$lib/web3";
   import { sessionFromDb, walletStore, web3UserStore } from "$lib/store";
   import EventHeroSection from "$lib/components/EventHeroSection.svelte";
   import EventDetailsCard from "$lib/components/EventDetailsCard.svelte";
@@ -58,6 +62,7 @@
   let selectedTickets: Record<number, number> = {};
   let pageLoaded = false;
   let claimingTickets = false;
+  let processingPayment = false;
 
   // Wallet connection state
   $: connectedWalletAddress = $walletStore?.address || null;
@@ -162,8 +167,120 @@
     selectedTickets = { ...selectedTickets };
   }
 
-  function handlePayWithSolana() {
-    // Payment logic will be implemented here
+  async function handlePayWithSolana() {
+    // Validate wallet connection
+    if (!connectedWalletAddress) {
+      alert("Please connect your wallet first to purchase tickets.");
+      return;
+    }
+
+    // Validate ticket selection
+    const totalSelected = Object.values(selectedTickets).reduce(
+      (sum, qty) => sum + qty,
+      0
+    );
+
+    if (totalSelected === 0) {
+      alert("Please select at least 1 ticket to purchase.");
+      return;
+    }
+
+    // Prevent multiple submissions
+    if (processingPayment) {
+      return;
+    }
+
+    processingPayment = true;
+
+    try {
+      // Calculate total tickets and price
+      const totalTickets = totalSelected;
+      const pricePerTicket = 0.01; // Default price as specified
+      const totalPrice = totalTickets * pricePerTicket;
+
+      // Show confirmation dialog
+      const confirmed = confirm(
+        `Confirm Purchase:\n\n` +
+          `Tickets: ${totalTickets}\n` +
+          `Price per ticket: ${pricePerTicket} SOL\n` +
+          `Total: ${totalPrice} SOL\n\n` +
+          `From: ${connectedWalletAddress.slice(0, 6)}...${connectedWalletAddress.slice(-4)}\n` +
+          `To: HDCrEYrGwPBP2rqX1G7TqChzkN6ckRSpJBVF1YT1YPSF\n\n` +
+          `Proceed with purchase?`
+      );
+
+      if (!confirmed) {
+        processingPayment = false;
+        return;
+      }
+
+      // Create purchase transaction
+      const purchaseResult = await purchaseTicketsWithSolana(
+        connectedWalletAddress,
+        totalTickets,
+        pricePerTicket
+      );
+
+      if (!purchaseResult.success) {
+        throw new Error(purchaseResult.error);
+      }
+
+      // Send transaction
+      const sendResult = await sendTransactionWithWallet(
+        purchaseResult.transaction!
+      );
+
+      if (!sendResult.success) {
+        throw new Error(sendResult.error);
+      }
+
+      // Success! Create order in database
+      const userData = {
+        id: null,
+        email: null,
+        name: web3User?.display_name || web3User?.username || "Web3 User",
+        wallet_address: connectedWalletAddress,
+      };
+
+      // Call the ticket claiming function with payment info
+      const result = await claimFreeTickets(
+        event.id,
+        selectedTickets,
+        userData,
+        {
+          paymentMethod: "solana",
+          transactionSignature: sendResult.signature,
+          amount: purchaseResult.totalAmount || 0,
+          receivingWallet: purchaseResult.receivingWalletAddress || "",
+          buyerWallet: purchaseResult.fromWalletAddress || "",
+        } as any
+      );
+
+      if (result.success) {
+        alert(
+          `🎉 Payment successful!\n\n` +
+            `Transaction: ${sendResult.signature.slice(0, 8)}...${sendResult.signature.slice(-8)}\n` +
+            `Amount: ${purchaseResult.totalAmount} SOL\n` +
+            `Tickets: ${totalTickets}\n\n` +
+            `Redirecting to your ticket confirmation...`
+        );
+
+        // Reset selected tickets
+        selectedTickets = {};
+        selectedTickets = { ...selectedTickets };
+
+        // Redirect to ticket confirmation page
+        goto(`/tickets/confirmation/${result.orderId}`);
+      } else {
+        throw new Error(result.error || "Failed to create order");
+      }
+    } catch (error: any) {
+      alert(
+        `❌ Payment failed: ${error?.message || "Unknown error"}\n\nPlease try again.`
+      );
+    } finally {
+      processingPayment = false;
+    }
   }
 
   async function handleGetFreeTicket() {
@@ -242,7 +359,7 @@
                 "Web3 User",
               wallet_address: profile.user.wallet_address,
             };
-            } else {
+          } else {
             // Use basic Web3 session data with connected wallet
             userData = {
               id: web3Session.user.id,
@@ -250,7 +367,7 @@
               name: web3Session.user.username || "Web3 User",
               wallet_address: walletAddressToUse,
             };
-            }
+          }
         } else {
           // No valid wallet address, use basic session data
           userData = {
@@ -259,7 +376,7 @@
             name: web3Session.user.username || "Web3 User",
             wallet_address: "0x1234567890abcdef" as string, // Fallback wallet address
           };
-          }
+        }
       } else {
         // No Web3 session, try to use connected wallet directly
         if (connectedWalletAddress) {
@@ -269,7 +386,7 @@
             name: web3User?.display_name || web3User?.username || "Web3 User",
             wallet_address: connectedWalletAddress,
           };
-          } else {
+        } else {
           // Fallback to traditional session
           const currentSession = $sessionFromDb;
           userData = {
@@ -278,13 +395,13 @@
             name: "Event Attendee",
             wallet_address: "0x1234567890abcdef" as string, // Fallback wallet address
           };
-          }
+        }
       }
 
       // Call the actual free ticket claiming function
       const result = await claimFreeTickets(
         event.id,
-      selectedTickets,
+        selectedTickets,
         userData
       );
 
@@ -553,7 +670,11 @@
           {/each}
 
           <!-- Payment Summary -->
-          <PaymentSummaryCard {totalPrice}>
+          <PaymentSummaryCard
+            {totalPrice}
+            currency={event?.is_free_event ? "NLe" : "SOL"}
+            pricePerTicket={0.01}
+          >
             <!-- Max seats per order info -->
             <div
               class="mb-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg"
@@ -579,48 +700,50 @@
               </div>
             </div>
 
-            {#if event.is_free_event}
-              <!-- Wallet Connection Status -->
-              <div
-                class="mb-4 p-3 bg-gray-800/50 border border-gray-600/30 rounded-lg"
-              >
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <svg
-                      class="h-4 w-4 {connectedWalletAddress
-                        ? 'text-green-400'
-                        : 'text-yellow-400'}"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clip-rule="evenodd"
-                      ></path>
-                    </svg>
-                    <span class="text-sm text-gray-300">
-                      {connectedWalletAddress
-                        ? "Wallet Connected"
-                        : "No Wallet Connected"}
-                    </span>
-                  </div>
-                  {#if connectedWalletAddress}
-                    <div class="text-xs text-blue-400 font-mono">
-                      {connectedWalletAddress.slice(
-                        0,
-                        6
-                      )}...{connectedWalletAddress.slice(-4)}
-                    </div>
-                  {/if}
+            <!-- Wallet Connection Status -->
+            <div
+              class="mb-4 p-3 bg-gray-800/50 border border-gray-600/30 rounded-lg"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <svg
+                    class="h-4 w-4 {connectedWalletAddress
+                      ? 'text-green-400'
+                      : 'text-yellow-400'}"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clip-rule="evenodd"
+                    ></path>
+                  </svg>
+                  <span class="text-sm text-gray-300">
+                    {connectedWalletAddress
+                      ? "Wallet Connected"
+                      : "No Wallet Connected"}
+                  </span>
                 </div>
-                {#if !connectedWalletAddress}
-                  <div class="text-xs text-yellow-400 mt-1">
-                    Connect your wallet to claim tickets with your address
+                {#if connectedWalletAddress}
+                  <div class="text-xs text-blue-400 font-mono">
+                    {connectedWalletAddress.slice(
+                      0,
+                      6
+                    )}...{connectedWalletAddress.slice(-4)}
                   </div>
                 {/if}
               </div>
+              {#if !connectedWalletAddress}
+                <div class="text-xs text-yellow-400 mt-1">
+                  {event?.is_free_event
+                    ? "Connect your wallet to claim tickets with your address"
+                    : "Connect your wallet to purchase tickets with SOL"}
+                </div>
+              {/if}
+            </div>
 
+            {#if event.is_free_event}
               <GradientButton
                 text={claimingTickets
                   ? "Claiming Tickets..."
@@ -631,13 +754,17 @@
                 disabled={claimingTickets}
               />
             {:else}
-            <GradientButton
-              text="Pay with Solana"
-              onClick={handlePayWithSolana}
-              icon="wallet"
-              class_="w-full"
-              disabled={totalPrice === 0}
-            />
+              <GradientButton
+                text={processingPayment
+                  ? "Processing Payment..."
+                  : "Pay with Solana"}
+                onClick={handlePayWithSolana}
+                icon={processingPayment ? "loading" : "wallet"}
+                class_="w-full"
+                disabled={totalPrice === 0 ||
+                  processingPayment ||
+                  !connectedWalletAddress}
+              />
             {/if}
           </PaymentSummaryCard>
         </div>

@@ -1,7 +1,7 @@
 //@ts-nocheck
 import { json } from "@sveltejs/kit";
 import { storeWallet } from "$lib/supabase.js";
-import { createNew_wallet } from "$lib/web3.js";
+import { createNew_wallet } from "$lib/web3";
 
 export async function POST({ cookies }) {
   //get the cookie
@@ -14,19 +14,17 @@ export async function POST({ cookies }) {
     try {
       const sessionData = JSON.parse(userSession);
       user_Id = sessionData.id;
-    } catch (error) {
-      }
+    } catch (error) {}
   }
-  
+
   // Check Web3 session if no traditional session
   if (!user_Id && web3Session) {
     try {
       const sessionData = JSON.parse(web3Session);
-      if (sessionData.type === 'web3' && sessionData.user) {
+      if (sessionData.type === "web3" && sessionData.user) {
         user_Id = sessionData.user.id;
       }
-    } catch (error) {
-      }
+    } catch (error) {}
   }
 
   if (!user_Id) {

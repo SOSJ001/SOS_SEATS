@@ -17,6 +17,7 @@
   let order: any = null;
   let loading = true;
   let error: string | null = null;
+  let ticketSummary: any = null;
 
   onMount(async () => {
     try {
@@ -28,6 +29,7 @@
       );
       const tempOrder = tempOrders.find((o: any) => o.id === orderId);
       if (tempOrder) {
+        console.log("Found tempOrder in first check:", tempOrder);
         // This is a temporary order from localStorage
         order = {
           ...tempOrder,
@@ -43,6 +45,17 @@
             ticket_number: ticket.ticket_number,
           })),
         };
+
+        // Calculate ticket summary for temporary orders
+        ticketSummary = {
+          totalTickets: tempOrder.tickets.length,
+          ticketTypes: tempOrder.tickets.reduce((acc: any, ticket: any) => {
+            const typeName = ticket.ticket_type_name || "General Admission";
+            acc[typeName] = (acc[typeName] || 0) + 1;
+            return acc;
+          }, {}),
+        };
+        console.log("First tempOrder ticketSummary:", ticketSummary);
       } else {
         // Try to load from database - check both Web3 and traditional sessions
         let userId = null;
@@ -53,10 +66,10 @@
         if (web3Session.success && web3Session.user) {
           userId = web3Session.user.id;
           walletAddress = web3Session.user.wallet_address;
-          } else {
+        } else {
           // Fallback to traditional session
           userId = $sessionFromDb;
-          }
+        }
 
         // Try to get the specific order by ID using the database function
         const { data: orderData, error: orderError } = await supabase.rpc(
@@ -66,6 +79,106 @@
 
         if (!orderError && orderData && orderData.length > 0) {
           const orderResult = orderData[0];
+
+          console.log("Order data found:", orderResult);
+          console.log("Order ID:", orderId);
+
+          // Get all order items for this order to calculate totals
+          const { data: orderItemsData, error: itemsError } = await supabase
+            .from("order_items")
+            .select(
+              `
+              *,
+              ticket_types (
+                name,
+                price
+              )
+            `
+            )
+            .eq("order_id", orderId);
+
+          console.log("Order items query result:", {
+            orderItemsData: JSON.stringify(orderItemsData),
+            itemsError: JSON.stringify(itemsError),
+            orderItemsLength: orderItemsData?.length || 0,
+          });
+
+          let totalTickets = 0;
+          let ticketTypes: any = {};
+          let orderItems: any = [];
+
+          if (!itemsError && orderItemsData && orderItemsData.length > 0) {
+            totalTickets = orderItemsData.length;
+            orderItems = orderItemsData.map((item: any) => ({
+              ticket_types: {
+                name: item.ticket_types?.name || "General Admission",
+                price: item.ticket_types?.price || 0,
+              },
+              ticket_number: item.ticket_number,
+            }));
+
+            // Group tickets by type
+            orderItemsData.forEach((item: any) => {
+              const typeName = item.ticket_types?.name || "General Admission";
+              ticketTypes[typeName] = (ticketTypes[typeName] || 0) + 1;
+            });
+          } else {
+            // Fallback: Calculate tickets from order amount
+            console.log("No order items found, using fallback calculation");
+            console.log("Order result for fallback:", orderResult);
+            if (
+              orderResult.payment_method === "solana" &&
+              orderResult.total_amount
+            ) {
+              // For Solana payments, calculate based on 0.01 SOL per ticket
+              const pricePerTicket = 0.01;
+              totalTickets = Math.round(
+                orderResult.total_amount / pricePerTicket
+              );
+              ticketTypes = { "General Admission": totalTickets };
+
+              // Create dummy order items for display
+              for (let i = 0; i < totalTickets; i++) {
+                orderItems.push({
+                  ticket_types: {
+                    name: "General Admission",
+                    price: pricePerTicket,
+                  },
+                  ticket_number: `TKT-${orderResult.order_number}-${i + 1}`,
+                });
+              }
+              console.log("Fallback calculation for Solana:", {
+                totalTickets,
+                ticketTypes,
+              });
+            } else if (orderResult.payment_method === "free") {
+              // For free tickets, assume 1 ticket if no order items found
+              totalTickets = 1;
+              ticketTypes = { "Free Ticket": 1 };
+              orderItems = [
+                {
+                  ticket_types: {
+                    name: "Free Ticket",
+                    price: 0,
+                  },
+                  ticket_number: `TKT-${orderResult.order_number}-1`,
+                },
+              ];
+              console.log("Fallback calculation for Free:", {
+                totalTickets,
+                ticketTypes,
+              });
+            }
+          }
+
+          console.log("Calculated totals:", {
+            totalTickets,
+            ticketTypes: JSON.stringify(ticketTypes),
+            orderItems: JSON.stringify(orderItems),
+            hasOrderItems: !!orderItemsData,
+            orderItemsCount: orderItemsData?.length || 0,
+          });
+
           order = {
             id: orderResult.order_id,
             event_id: orderResult.event_id,
@@ -83,15 +196,15 @@
               date: orderResult.event_date,
               location: orderResult.event_location || "Unknown",
             },
-            order_items: [
-              {
-                ticket_types: {
-                  name: orderResult.ticket_type_name || "Free Ticket",
-                  price: orderResult.ticket_type_price || 0,
-                },
-              },
-            ],
+            order_items: orderItems,
           };
+
+          ticketSummary = {
+            totalTickets,
+            ticketTypes,
+          };
+
+          console.log("Final ticketSummary:", ticketSummary);
         } else {
           // If order not found in database, check if it's a temporary order
           const tempOrders = JSON.parse(
@@ -100,6 +213,7 @@
           const tempOrder = tempOrders.find((o: any) => o.id === orderId);
 
           if (tempOrder) {
+            console.log("Found temporary order:", tempOrder);
             order = {
               ...tempOrder,
               events: {
@@ -112,6 +226,17 @@
                 ticket_number: ticket.ticket_number,
               })),
             };
+
+            // Calculate ticket summary for temporary orders
+            ticketSummary = {
+              totalTickets: tempOrder.tickets.length,
+              ticketTypes: tempOrder.tickets.reduce((acc: any, ticket: any) => {
+                const typeName = ticket.ticket_type_name || "General Admission";
+                acc[typeName] = (acc[typeName] || 0) + 1;
+                return acc;
+              }, {}),
+            };
+            console.log("Temporary order ticketSummary:", ticketSummary);
           } else {
             error = "Order not found";
           }
@@ -219,6 +344,25 @@
               No payment required - your tickets are ready to use!
             </p>
           </div>
+        {:else if order.payment_method === "solana"}
+          <div
+            class="mt-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg max-w-md mx-auto"
+          >
+            <div class="flex items-center gap-2 text-blue-400">
+              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clip-rule="evenodd"
+                ></path>
+              </svg>
+              <span class="font-semibold">Solana Payment Completed</span>
+            </div>
+            <p class="text-sm text-blue-300 mt-1">
+              Payment of {order.total_amount}
+              {order.currency} confirmed on blockchain!
+            </p>
+          </div>
         {/if}
       </div>
 
@@ -262,7 +406,7 @@
           <div>
             <p class="text-gray-400 text-sm">Total Tickets</p>
             <p class="text-white text-lg font-bold">
-              {order.order_items?.length || 0} tickets
+              {ticketSummary?.totalTickets || order.order_items?.length || 0} tickets
             </p>
           </div>
 
@@ -273,16 +417,57 @@
             </p>
           </div>
 
-          {#if order.payment_method === "free"}
+          {#if order.payment_method === "solana"}
             <div>
-              <p class="text-gray-400 text-sm">Ticket Type</p>
-              <p class="text-blue-400 text-lg font-semibold">🎫 Free Ticket</p>
+              <p class="text-gray-400 text-sm">Payment Method</p>
+              <p class="text-blue-400 text-lg font-semibold">
+                💎 Solana Blockchain
+              </p>
+            </div>
+
+            <div>
+              <p class="text-gray-400 text-sm">Amount Paid</p>
+              <p class="text-white text-lg font-semibold">
+                {order.total_amount}
+                {order.currency}
+              </p>
             </div>
           {/if}
         </div>
       </div>
 
-      <!-- Ticket Details -->
+      <!-- Ticket Summary -->
+      {#if ticketSummary && Object.keys(ticketSummary.ticketTypes).length > 0}
+        <div class="bg-gray-800 rounded-xl p-8 mb-8 border border-gray-700">
+          <h3 class="text-2xl font-bold text-white mb-6">Ticket Summary</h3>
+
+          <div class="space-y-4">
+            {#each Object.entries(ticketSummary.ticketTypes) as [ticketType, quantity]}
+              <div
+                class="flex items-center justify-between p-4 bg-gray-700 rounded-lg"
+              >
+                <div class="flex-1">
+                  <h4 class="text-white font-semibold">{ticketType}</h4>
+                  <p class="text-gray-400 text-sm">
+                    {quantity}
+                    {quantity === 1 ? "ticket" : "tickets"}
+                  </p>
+                </div>
+                <div class="text-right">
+                  <p class="text-green-400 font-bold">
+                    {order.payment_method === "free"
+                      ? "Free"
+                      : `${order.total_amount / ticketSummary.totalTickets} ${order.currency}`}
+                  </p>
+                  <p class="text-gray-400 text-sm">per ticket</p>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Individual Ticket Details -->
       {#if order.order_items && order.order_items.length > 0}
         <div class="bg-gray-800 rounded-xl p-8 mb-8 border border-gray-700">
           <h3 class="text-2xl font-bold text-white mb-6">Your Tickets</h3>
@@ -301,7 +486,11 @@
                   </p>
                 </div>
                 <div class="text-right">
-                  <p class="text-green-400 font-bold">Free</p>
+                  <p class="text-green-400 font-bold">
+                    {order.payment_method === "free"
+                      ? "Free"
+                      : `${order.total_amount / ticketSummary.totalTickets} ${order.currency}`}
+                  </p>
                   <p class="text-gray-400 text-sm">Confirmed</p>
                 </div>
               </div>

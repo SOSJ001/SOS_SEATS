@@ -1,8 +1,8 @@
 //@ts-nocheck
 import { json } from "@sveltejs/kit";
-import { connection } from "$lib/web3.js";
+import { connection } from "$lib/web3";
 import { searchWalletAndUserName } from "$lib/supabase.js";
-import { transferSol } from "$lib/web3.js";
+import { transferSol } from "$lib/web3";
 import { ACTIONS_CORS_HEADERS } from "@solana/actions";
 import { sendAndConfirmTransaction } from "@solana/web3.js";
 
@@ -19,19 +19,17 @@ export async function POST({ cookies, request }) {
     try {
       const sessionData = JSON.parse(userSession);
       user_Id = sessionData.id;
-    } catch (error) {
-      }
+    } catch (error) {}
   }
-  
+
   // Check Web3 session if no traditional session
   if (!user_Id && web3Session) {
     try {
       const sessionData = JSON.parse(web3Session);
-      if (sessionData.type === 'web3' && sessionData.user) {
+      if (sessionData.type === "web3" && sessionData.user) {
         user_Id = sessionData.user.id;
       }
-    } catch (error) {
-      }
+    } catch (error) {}
   }
 
   if (!user_Id) {
@@ -64,6 +62,6 @@ export async function POST({ cookies, request }) {
       return;
     }
   } else {
-    }
+  }
   return json({ payload }, { headers: ACTIONS_CORS_HEADERS, status: 201 });
 }
