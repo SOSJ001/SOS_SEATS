@@ -24,6 +24,8 @@ SECURITY DEFINER
 AS $$
 DECLARE
   v_order_id UUID;
+  v_guest_id UUID;
+  v_order_item_id UUID;
 BEGIN
   -- Create the order (bypasses RLS due to SECURITY DEFINER)
   INSERT INTO orders (
@@ -54,6 +56,29 @@ BEGIN
     'confirmed'
   ) RETURNING id INTO v_order_id;
   
+  -- Create guest record (bypasses RLS due to SECURITY DEFINER)
+  INSERT INTO guests (
+    event_id,
+    ticket_type_id,
+    first_name,
+    last_name,
+    wallet_address,
+    email,
+    phone,
+    status,
+    created_at
+  ) VALUES (
+    p_event_id,
+    p_ticket_type_id,
+    COALESCE(SPLIT_PART(p_buyer_name, ' ', 1), 'Guest'),
+    COALESCE(SPLIT_PART(p_buyer_name, ' ', 2), 'User'),
+    p_buyer_wallet_address,
+    NULL,
+    NULL,
+    'confirmed',
+    NOW()
+  ) RETURNING id INTO v_guest_id;
+  
   -- Create order item (bypasses RLS due to SECURITY DEFINER)
   INSERT INTO order_items (
     order_id,
@@ -67,11 +92,13 @@ BEGIN
     v_order_id,
     p_ticket_type_id,
     NULL,
-    NULL,
+    v_guest_id,
     1,
     0,
     0
-  );
+  ) RETURNING id INTO v_order_item_id;
+  
+  -- Guest record is already complete, no need to update with order_item_id
   
   -- Return success result as a table row
   RETURN QUERY SELECT 
@@ -93,12 +120,16 @@ EXCEPTION
 END;
 $$;
 
+-- Drop existing function first (since we're changing the return type)
+DROP FUNCTION IF EXISTS load_orders_by_wallet(TEXT);
+
 -- Create a function to load orders by wallet address (bypasses RLS)
 CREATE OR REPLACE FUNCTION load_orders_by_wallet(
   p_wallet_address TEXT
 )
 RETURNS TABLE(
   order_id UUID,
+  order_item_id UUID,
   event_id UUID,
   buyer_wallet_address TEXT,
   buyer_name TEXT,
@@ -122,6 +153,7 @@ BEGIN
   RETURN QUERY
   SELECT 
     o.id as order_id,
+    oi.id as order_item_id,
     o.event_id,
     o.buyer_wallet_address,
     o.buyer_name,

@@ -14,6 +14,21 @@
   let walletAddress = "";
   let assigning = false;
 
+  // Search and filter functionality
+  let searchQuery = "";
+  let activeFilter = "all";
+  let showFilterDropdown = false;
+
+  // Filter options
+  const filterOptions = [
+    { id: "all", label: "All Tickets" },
+    { id: "assigned", label: "Assigned" },
+    { id: "unassigned", label: "Unassigned" },
+    { id: "concert", label: "Concert" },
+    { id: "festival", label: "Festival" },
+    { id: "summit", label: "Summit" },
+  ];
+
   onMount(async () => {
     await loadTickets();
   });
@@ -71,19 +86,24 @@
           id: `ticket-${order.order_id}`,
           event_id: order.event_id,
           wallet_address: order.buyer_wallet_address,
-          ticket_number: `TIX-${order.order_id.slice(0, 8)}`,
-          status: "confirmed",
+          ticket_number: `TIX-${order.order_item_id?.slice(0, 8) || order.order_id.slice(0, 8)}`,
+          status: order.payment_status || "confirmed",
           orderId: order.order_id,
+          orderNumber: order.order_number,
+          orderItemId: order.order_item_id,
           orderDate: order.created_at,
           totalAmount: order.total_amount,
+          currency: order.currency || "SOL",
           orderStatus: order.order_status,
           paymentMethod: order.payment_method,
+          paymentStatus: order.payment_status,
+          buyerName: order.buyer_name,
           ticketType: order.ticket_type_name || "Standard",
           price: order.ticket_type_price || 0,
           source: order.payment_method === "free" ? "free" : "paid",
           events: {
             title: order.event_name,
-            description: "Event description",
+            description: order.event_description || "Event details available",
             date: order.event_date,
             location: order.event_location,
           },
@@ -94,6 +114,32 @@
       loading = false;
     }
   }
+
+  // Computed properties for filtering
+  $: filteredTickets = tickets.filter((ticket) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      ticket.events?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.ticketType?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesFilter =
+      activeFilter === "all" ||
+      (activeFilter === "assigned" && ticket.wallet_address) ||
+      (activeFilter === "unassigned" && !ticket.wallet_address) ||
+      (activeFilter === "concert" &&
+        ticket.events?.title?.toLowerCase().includes("concert")) ||
+      (activeFilter === "festival" &&
+        ticket.events?.title?.toLowerCase().includes("festival")) ||
+      (activeFilter === "summit" &&
+        ticket.events?.title?.toLowerCase().includes("summit"));
+
+    return matchesSearch && matchesFilter;
+  });
+
+  // For Web3 tickets, all tickets are considered "assigned" since they have a buyer wallet
+  // The assignment feature is for transferring to different wallets
+  $: unassignedTickets = []; // No unassigned tickets in Web3 system
+  $: assignedTickets = filteredTickets; // All tickets are assigned to buyer
 
   async function assignTicketToWallet(ticketId, walletAddress) {
     try {
@@ -129,12 +175,6 @@
     showQRModal = true;
   }
 
-  function generateQRCode(walletAddress) {
-    // This would generate a QR code containing the wallet address
-    // For now, we'll just return the wallet address as text
-    return walletAddress;
-  }
-
   async function copyToClipboard(text) {
     try {
       await navigator.clipboard.writeText(text);
@@ -144,74 +184,145 @@
     }
   }
 
-  function getStatusColor(status) {
-    switch (status) {
-      case "confirmed":
-        return "text-green-400";
-      case "pending":
-        return "text-yellow-400";
-      case "checked-in":
-        return "text-blue-400";
-      case "cancelled":
-        return "text-red-400";
-      default:
-        return "text-gray-400";
-    }
+  function getEventType(eventTitle) {
+    const title = eventTitle?.toLowerCase() || "";
+    if (title.includes("concert")) return "concert";
+    if (title.includes("festival")) return "festival";
+    if (title.includes("summit")) return "summit";
+    return "other";
   }
 
-  function getStatusBadge(status) {
-    switch (status) {
-      case "confirmed":
-        return "bg-green-100 text-green-800";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "checked-in":
-        return "bg-blue-100 text-blue-800";
-      case "cancelled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
+  function formatPrice(price, currency = "SOL") {
+    if (price === 0) return "Free";
+    return `${price} ${currency}`;
   }
 
-  function getStatusIcon(status) {
-    switch (status) {
-      case "confirmed":
-        return "✓";
-      case "pending":
-        return "⏳";
-      case "checked-in":
-        return "🎫";
-      case "cancelled":
-        return "❌";
-      default:
-        return "❓";
-    }
+  function formatDate(dateString) {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    });
   }
 </script>
 
-<svelte:head>
-  <title>My Tickets - SOS SEATS</title>
-</svelte:head>
-
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
   <!-- Header -->
-  <div class="mb-8">
-    <div class="flex items-center justify-between">
+  <div class="mb-6 sm:mb-8">
+    <div
+      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+    >
       <div>
-        <h1 class="text-3xl font-bold text-white mb-2">My Tickets</h1>
-        <p class="text-gray-400">
+        <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">
+          My Tickets
+        </h1>
+        <p class="text-gray-400 text-sm sm:text-base">
           Manage your purchased tickets and assign them to wallet addresses
         </p>
       </div>
-      <div class="flex items-center space-x-3">
+      <div class="flex items-center justify-between sm:justify-end space-x-3">
+        <div class="text-right">
+          <div class="text-xs sm:text-sm text-gray-400">Your Tickets</div>
+          <div class="text-xl sm:text-2xl font-bold text-white">
+            {tickets.length}
+          </div>
+        </div>
         <button
           on:click={loadTickets}
-          class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
+          class="px-3 sm:px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2"
         >
-          🔄 Refresh
+          <svg
+            class="w-3 h-3 sm:w-4 sm:h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          <span class="hidden sm:inline">Refresh</span>
         </button>
       </div>
+    </div>
+
+    <!-- Search and Action Bar -->
+    <div class="flex flex-col lg:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
+      <!-- Search Bar -->
+      <div class="flex-1 relative">
+        <div
+          class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+        >
+          <svg
+            class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+        </div>
+        <input
+          type="text"
+          bind:value={searchQuery}
+          placeholder="Search tickets..."
+          class="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm sm:text-base"
+        />
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-2 sm:gap-3">
+        <button
+          class="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium text-sm sm:text-base"
+        >
+          <span class="hidden sm:inline">🔍 Q Search</span>
+          <span class="sm:hidden">🔍</span>
+        </button>
+        <button
+          on:click={() => (showFilterDropdown = !showFilterDropdown)}
+          class="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 font-medium flex items-center justify-center gap-1 sm:gap-2 text-sm sm:text-base"
+        >
+          <svg
+            class="w-4 h-4 sm:w-5 sm:h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+            />
+          </svg>
+          <span class="hidden sm:inline">Filter</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div
+      class="flex flex-wrap gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 sm:pb-0"
+    >
+      {#each filterOptions as filter}
+        <button
+          on:click={() => (activeFilter = filter.id)}
+          class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap {activeFilter ===
+          filter.id
+            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}"
+        >
+          {filter.label}
+        </button>
+      {/each}
     </div>
   </div>
 
@@ -220,7 +331,7 @@
     <div class="flex justify-center items-center py-12">
       <div class="text-center">
         <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto mb-4"
+          class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"
         ></div>
         <p class="text-gray-400">Loading your tickets...</p>
       </div>
@@ -258,209 +369,136 @@
       </p>
       <a
         href="/marketplace"
-        class="inline-flex items-center px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+        class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
       >
         <span class="mr-2">🎪</span>
         Browse Events
       </a>
     </div>
   {:else}
-    <!-- Tickets List -->
-    <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-white">
-          Your Tickets ({tickets.length})
-        </h2>
-      </div>
-
-      {#each tickets as ticket (ticket.id)}
-        <div
-          class="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:border-gray-600 transition-colors relative overflow-hidden"
-          in:fly={{ y: 20, duration: 300 }}
-        >
-          <!-- Status Badge -->
-          <div class="absolute top-4 right-4">
-            <span
-              class="px-3 py-1 rounded-full text-xs font-medium {getStatusBadge(
-                ticket.status
-              )}"
-            >
-              <span class="mr-1">{getStatusIcon(ticket.status)}</span>
-              {ticket.status}
-            </span>
-          </div>
-
-          <!-- Ticket Header -->
-          <div class="mb-6">
-            <div class="flex items-start justify-between mb-3">
-              <div class="flex-1">
-                <h3 class="text-2xl font-bold text-white mb-2">
-                  {ticket.events?.title || "Event Title"}
-                </h3>
-                <p class="text-gray-400 text-sm mb-3">
-                  {ticket.events?.description ||
-                    "Event description not available"}
-                </p>
-              </div>
-            </div>
-
-            <!-- Ticket Details Grid -->
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-              <div class="bg-gray-900/50 p-3 rounded-lg">
-                <div class="text-gray-400 text-xs mb-1">Ticket Type</div>
-                <div class="text-white font-medium flex items-center">
-                  <span class="mr-2">🎫</span>
-                  {ticket.ticketType || "Standard"}
-                </div>
-              </div>
-
-              <div class="bg-gray-900/50 p-3 rounded-lg">
-                <div class="text-gray-400 text-xs mb-1">Price</div>
-                <div class="text-white font-medium flex items-center">
-                  <span class="mr-2">💰</span>
-                  ${ticket.price || "0.00"}
-                </div>
-              </div>
-
-              <div class="bg-gray-900/50 p-3 rounded-lg">
-                <div class="text-gray-400 text-xs mb-1">Order Date</div>
-                <div class="text-white font-medium flex items-center">
-                  <span class="mr-2">📅</span>
-                  {new Date(ticket.orderDate).toLocaleDateString()}
-                </div>
-              </div>
-
-              <div class="bg-gray-900/50 p-3 rounded-lg">
-                <div class="text-gray-400 text-xs mb-1">Ticket ID</div>
-                <div class="text-white font-medium flex items-center">
-                  <span class="mr-2">🆔</span>
-                  {ticket.id?.slice(0, 8) || "N/A"}
-                </div>
-              </div>
-
-              <div class="bg-gray-900/50 p-3 rounded-lg">
-                <div class="text-gray-400 text-xs mb-1">Type</div>
-                <div class="text-white font-medium flex items-center">
-                  <span class="mr-2">
-                    {ticket.source === "free" ? "🎁" : "💳"}
-                  </span>
-                  {ticket.source === "free" ? "Free Ticket" : "Paid Ticket"}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Wallet Assignment Section -->
-          <div class="bg-gray-900/30 rounded-lg p-4 mb-6">
-            <h4 class="text-white font-medium mb-3 flex items-center">
-              <span class="mr-2">🎯</span>
-              Wallet Assignment
-            </h4>
-
-            <div class="grid md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">
-                  Assigned Wallet
-                </label>
-                <div class="flex items-center space-x-2">
-                  {#if ticket.wallet_address}
-                    <code
-                      class="bg-gray-800 px-3 py-2 rounded text-sm text-green-400 font-mono border border-green-500/20"
-                    >
-                      {ticket.wallet_address.slice(
-                        0,
-                        8
-                      )}...{ticket.wallet_address.slice(-6)}
-                    </code>
-                    <span class="text-green-400 text-sm font-medium"
-                      >✅ Assigned</span
-                    >
-                  {:else}
-                    <div
-                      class="bg-gray-800 px-3 py-2 rounded text-sm text-yellow-400 border border-yellow-500/20"
-                    >
-                      ⚠️ Not assigned
-                    </div>
-                    <span class="text-yellow-400 text-sm font-medium"
-                      >Needs assignment</span
-                    >
-                  {/if}
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">
-                  QR Code for Entry
-                </label>
-                {#if ticket.wallet_address}
-                  <div
-                    class="bg-white p-3 rounded-lg inline-block border-2 border-green-500/20"
-                  >
-                    <div
-                      class="w-20 h-20 bg-gray-100 rounded flex items-center justify-center"
-                    >
-                      <div class="text-center">
-                        <div class="text-2xl mb-1">📱</div>
-                        <div class="text-xs text-gray-600">QR Code</div>
-                      </div>
-                    </div>
-                  </div>
-                  <p class="text-xs text-green-400 mt-1">
-                    Ready for event entry
-                  </p>
-                {:else}
-                  <div
-                    class="bg-gray-800 p-3 rounded-lg inline-block border-2 border-yellow-500/20"
-                  >
-                    <div
-                      class="w-20 h-20 bg-gray-700 rounded flex items-center justify-center"
-                    >
-                      <div class="text-center">
-                        <div class="text-2xl mb-1">🔒</div>
-                        <div class="text-xs text-gray-400">Locked</div>
-                      </div>
-                    </div>
-                  </div>
-                  <p class="text-xs text-yellow-400 mt-1">
-                    Assign wallet to unlock
-                  </p>
-                {/if}
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div
-            class="flex items-center justify-between pt-4 border-t border-gray-700"
-          >
-            <div class="text-sm text-gray-400">
-              Order ID: {ticket.orderId}
-            </div>
-            <div class="flex space-x-3">
-              <button
-                on:click={() => openAssignmentModal(ticket)}
-                class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
+    <!-- Tickets Content -->
+    <div class="space-y-8">
+      <!-- All Tickets Section -->
+      {#if filteredTickets.length > 0}
+        <div>
+          <h2 class="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">
+            My Tickets
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {#each filteredTickets as ticket (ticket.id)}
+              <div
+                class="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 hover:border-gray-600 transition-colors"
               >
-                {ticket.wallet_address ? "🔄 Reassign" : "🎯 Assign Wallet"}
-              </button>
-              {#if ticket.wallet_address}
-                <button
-                  on:click={() => openQRModal(ticket)}
-                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                >
-                  📱 View QR
-                </button>
-                <button
-                  on:click={() => copyToClipboard(ticket.wallet_address)}
-                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                >
-                  📋 Copy Address
-                </button>
-              {/if}
-            </div>
+                <!-- Ticket Header -->
+                <div class="mb-3 sm:mb-4">
+                  <h3 class="text-lg sm:text-xl font-bold text-white mb-2">
+                    {ticket.events?.title || "Event Title"}
+                  </h3>
+                  <div class="flex items-center gap-2 mb-2 sm:mb-3">
+                    <span
+                      class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full"
+                    >
+                      Active
+                    </span>
+                    <span class="text-gray-400 text-xs sm:text-sm">•</span>
+                    <span class="text-gray-400 text-xs sm:text-sm"
+                      >{ticket.ticketType}</span
+                    >
+                  </div>
+                </div>
+
+                <!-- Ticket Details -->
+                <div class="space-y-3 mb-6">
+                  <div class="flex items-center text-sm">
+                    <svg
+                      class="w-4 h-4 text-gray-400 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <span class="text-gray-300"
+                      >Order Date: {formatDate(ticket.orderDate)}</span
+                    >
+                  </div>
+                  <div class="flex items-center text-sm">
+                    <span class="text-gray-400 mr-2">Ticket ID:</span>
+                    <span class="text-gray-300">{ticket.ticket_number}</span>
+                  </div>
+                  <div class="flex items-center text-sm">
+                    <span class="text-gray-400 mr-2">Buyer Wallet:</span>
+                    <span class="text-green-400 font-mono"
+                      >{ticket.wallet_address.slice(
+                        0,
+                        6
+                      )}...{ticket.wallet_address.slice(-3)}</span
+                    >
+                  </div>
+                  <div class="flex items-center text-sm">
+                    <span class="text-gray-400 mr-2">Price:</span>
+                    <span class="text-white font-medium"
+                      >{formatPrice(ticket.price, ticket.currency)}</span
+                    >
+                  </div>
+                </div>
+
+                <!-- QR Code Section -->
+                <div class="bg-gray-900 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4">
+                  <div class="bg-white rounded-lg p-3 sm:p-4 mb-2 sm:mb-3">
+                    <div
+                      class="w-24 h-24 sm:w-32 sm:h-32 bg-gray-100 rounded flex items-center justify-center mx-auto"
+                    >
+                      <div class="text-center">
+                        <div class="text-xl sm:text-2xl mb-1">📱</div>
+                        <div class="text-xs text-gray-600">QR Code</div>
+                        <div class="text-xs text-gray-500 mt-1">
+                          {ticket.ticket_number}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="text-gray-400 text-xs sm:text-sm text-center">
+                    Scan this QR code for event entry.
+                  </p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="space-y-2 sm:space-y-3">
+                  <button
+                    on:click={() => openQRModal(ticket)}
+                    class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium text-sm sm:text-base flex items-center justify-center gap-2"
+                  >
+                    <span>📱</span>
+                    View QR Code
+                  </button>
+                  <div class="space-y-2 sm:space-y-3">
+                    <label
+                      class="block text-xs sm:text-sm font-medium text-gray-300"
+                      >Transfer to Wallet Address</label
+                    >
+                    <input
+                      type="text"
+                      placeholder="e.g., 1A2b3C4d5E6f7G8h910jK112M3n405p6Q7r8S9t0"
+                      class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 text-sm"
+                    />
+                    <button
+                      class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium text-sm sm:text-base"
+                    >
+                      Transfer Ticket
+                    </button>
+                  </div>
+                </div>
+              </div>
+            {/each}
           </div>
         </div>
-      {/each}
+      {/if}
     </div>
   {/if}
 </div>
@@ -468,11 +506,11 @@
 <!-- Assignment Modal -->
 {#if showAssignmentModal}
   <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
     transition:fade
   >
     <div
-      class="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md mx-4"
+      class="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 w-full max-w-md"
       transition:fly={{ y: 20 }}
     >
       <h3 class="text-xl font-semibold text-white mb-4">
@@ -480,14 +518,14 @@
       </h3>
 
       <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-300 mb-2">
-          Wallet Address
-        </label>
+        <label class="block text-sm font-medium text-gray-300 mb-2"
+          >Wallet Address</label
+        >
         <input
           type="text"
           bind:value={walletAddress}
           placeholder="Enter wallet address (0x...)"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-teal-400"
+          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
         />
         <p class="text-xs text-gray-500 mt-1">
           This wallet will be used for event entry verification
@@ -509,7 +547,7 @@
           on:click={() =>
             assignTicketToWallet(selectedTicket.id, walletAddress)}
           disabled={!walletAddress || assigning}
-          class="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {assigning ? "⏳ Assigning..." : "✅ Assign"}
         </button>
@@ -521,11 +559,11 @@
 <!-- QR Code Modal -->
 {#if showQRModal}
   <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
     transition:fade
   >
     <div
-      class="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md mx-4"
+      class="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 w-full max-w-md"
       transition:fly={{ y: 20 }}
     >
       <h3 class="text-xl font-semibold text-white mb-4">
@@ -541,7 +579,8 @@
               <div class="text-4xl mb-2">📱</div>
               <div class="text-sm text-gray-600">QR Code Placeholder</div>
               <div class="text-xs text-gray-500 mt-1">
-                {selectedTicket?.wallet_address?.slice(0, 12)}...
+                {selectedTicket?.ticket_number ||
+                  `TIX-${selectedTicket?.orderItemId?.slice(0, 8)}`}
               </div>
             </div>
           </div>
@@ -553,10 +592,15 @@
 
       <div class="flex space-x-3">
         <button
-          on:click={() => copyToClipboard(selectedTicket?.wallet_address || "")}
+          on:click={() =>
+            copyToClipboard(
+              selectedTicket?.ticket_number ||
+                `TIX-${selectedTicket?.orderItemId?.slice(0, 8)}` ||
+                ""
+            )}
           class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          📋 Copy Address
+          📋 Copy Ticket ID
         </button>
         <button
           on:click={() => {

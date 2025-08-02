@@ -1498,11 +1498,10 @@ export async function claimFreeTickets(eventId, selectedTickets, userData) {
           ticketType = fallbackTicketType;
         }
 
-        // Create multiple orders for the quantity (one per ticket)
+        // Create tickets one by one using the create_free_ticket_order function
         for (let i = 0; i < quantity; i++) {
           const individualOrderNumber = `${orderNumber}-${i + 1}`;
 
-          // Call the database function that bypasses RLS
           const { data: functionResult, error: functionError } =
             await supabase.rpc("create_free_ticket_order", {
               p_event_id: eventId,
@@ -1521,7 +1520,6 @@ export async function claimFreeTickets(eventId, selectedTickets, userData) {
             orderIds.push(functionResult[0].order_id);
             totalTicketsClaimed++;
             successCount++;
-          } else {
           }
         }
       }
