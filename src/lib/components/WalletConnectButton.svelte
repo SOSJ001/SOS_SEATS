@@ -95,15 +95,19 @@
           `Successfully switched to ${newWalletAddress.slice(0, 6)}...${newWalletAddress.slice(-4)}`
         );
       } else if (authResult?.needsUsername) {
-        // Account doesn't exist - redirect to home and show onboarding
+        // Account doesn't exist - disconnect wallet, redirect to home, and show toast
+        if (walletData?.disconnect) {
+          walletData.disconnect();
+        }
+
         if (currentPath.startsWith("/dashboard")) {
           await goto("/");
         }
-        showUsernameModal = true;
+
         showToast(
-          "info",
-          "New Wallet Detected",
-          "Please complete your account setup to continue."
+          "warning",
+          "Account Not Found",
+          "This wallet is not registered. Please connect with a registered wallet or create a new account."
         );
       } else {
         // Authentication failed for other reasons
