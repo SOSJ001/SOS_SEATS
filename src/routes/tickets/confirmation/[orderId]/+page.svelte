@@ -21,20 +21,17 @@
 
   onMount(async () => {
     try {
-      // Debug: List all orders in database
-      const { orders: allOrders } = await listAllOrders();
       // First check if this is a temporary order stored in localStorage
       const tempOrders = JSON.parse(
         localStorage.getItem("tempFreeTicketOrders") || "[]"
       );
       const tempOrder = tempOrders.find((o: any) => o.id === orderId);
       if (tempOrder) {
-        console.log("Found tempOrder in first check:", tempOrder);
         // This is a temporary order from localStorage
         order = {
           ...tempOrder,
           events: {
-            name: "Event", // We'll need to get this from the event data
+            name: "Event",
             date: new Date().toISOString(),
             location: "Event Location",
           },
@@ -55,7 +52,6 @@
             return acc;
           }, {}),
         };
-        console.log("First tempOrder ticketSummary:", ticketSummary);
       } else {
         // Try to load from database - check both Web3 and traditional sessions
         let userId = null;
@@ -80,9 +76,6 @@
         if (!orderError && orderData && orderData.length > 0) {
           const orderResult = orderData[0];
 
-          console.log("Order data found:", orderResult);
-          console.log("Order ID:", orderId);
-
           // Get all order items for this order to calculate totals
           const { data: orderItemsData, error: itemsError } = await supabase
             .from("order_items")
@@ -96,12 +89,6 @@
             `
             )
             .eq("order_id", orderId);
-
-          console.log("Order items query result:", {
-            orderItemsData: JSON.stringify(orderItemsData),
-            itemsError: JSON.stringify(itemsError),
-            orderItemsLength: orderItemsData?.length || 0,
-          });
 
           let totalTickets = 0;
           let ticketTypes: any = {};
@@ -124,8 +111,6 @@
             });
           } else {
             // Fallback: Calculate tickets from order amount
-            console.log("No order items found, using fallback calculation");
-            console.log("Order result for fallback:", orderResult);
             if (
               orderResult.payment_method === "solana" &&
               orderResult.total_amount
@@ -147,10 +132,6 @@
                   ticket_number: `TKT-${orderResult.order_number}-${i + 1}`,
                 });
               }
-              console.log("Fallback calculation for Solana:", {
-                totalTickets,
-                ticketTypes,
-              });
             } else if (orderResult.payment_method === "free") {
               // For free tickets, assume 1 ticket if no order items found
               totalTickets = 1;
@@ -164,20 +145,8 @@
                   ticket_number: `TKT-${orderResult.order_number}-1`,
                 },
               ];
-              console.log("Fallback calculation for Free:", {
-                totalTickets,
-                ticketTypes,
-              });
             }
           }
-
-          console.log("Calculated totals:", {
-            totalTickets,
-            ticketTypes: JSON.stringify(ticketTypes),
-            orderItems: JSON.stringify(orderItems),
-            hasOrderItems: !!orderItemsData,
-            orderItemsCount: orderItemsData?.length || 0,
-          });
 
           order = {
             id: orderResult.order_id,
@@ -203,8 +172,6 @@
             totalTickets,
             ticketTypes,
           };
-
-          console.log("Final ticketSummary:", ticketSummary);
         } else {
           // If order not found in database, check if it's a temporary order
           const tempOrders = JSON.parse(
@@ -213,7 +180,6 @@
           const tempOrder = tempOrders.find((o: any) => o.id === orderId);
 
           if (tempOrder) {
-            console.log("Found temporary order:", tempOrder);
             order = {
               ...tempOrder,
               events: {
@@ -236,7 +202,6 @@
                 return acc;
               }, {}),
             };
-            console.log("Temporary order ticketSummary:", ticketSummary);
           } else {
             error = "Order not found";
           }
