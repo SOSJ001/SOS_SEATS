@@ -184,7 +184,7 @@ async function uploadEventImage(image, userId1) {
       // const imageId = data[0].id;
       return imageId;
     } else {
-      }
+    }
   } else {
     return;
   }
@@ -314,7 +314,7 @@ export async function updateGuestInvite(guestId) {
     return response;
   } else {
     // update time error
-    }
+  }
 }
 
 //Delete guests
@@ -670,7 +670,7 @@ export async function updateEventWithDetails(
         .eq("event_id", eventId);
 
       if (deleteTicketError) {
-        }
+      }
 
       // Insert new ticket types
       const ticketTypesToInsert = fullEventData.ticket_types.map((ticket) => ({
@@ -703,7 +703,7 @@ export async function updateEventWithDetails(
         .eq("event_id", eventId);
 
       if (deleteVenueError) {
-        }
+      }
 
       // Insert new venue sections
       const venueSectionsToInsert = fullEventData.venue_sections.map(
@@ -735,7 +735,7 @@ export async function updateEventWithDetails(
         .eq("event_id", eventId);
 
       if (deleteSeatingError) {
-        }
+      }
 
       // Insert new seating options
       const { error: seatingInsertError } = await supabase
@@ -945,8 +945,7 @@ export async function loadUserEvents(userId, sessionType = "traditional") {
             if (!imageError && imageData) {
               return { ...event, image: imageData };
             }
-          } catch (imageError) {
-            }
+          } catch (imageError) {}
         }
         return event;
       })
@@ -1522,8 +1521,8 @@ export async function claimFreeTickets(eventId, selectedTickets, userData) {
             orderIds.push(functionResult[0].order_id);
             totalTicketsClaimed++;
             successCount++;
-            } else {
-            }
+          } else {
+          }
         }
       }
     }

@@ -10,10 +10,10 @@
     name: "Ticket Name",
     price: 0,
     description: "",
-    features: []
+    features: [],
   };
 </script>
 
 <div class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
   <slot />
-</div> 
+</div>

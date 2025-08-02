@@ -16,16 +16,15 @@ export async function createNew_wallet() {
 //get balance function
 export async function getBalance(publickey) {
   try {
-     const lamportBalance = await connection.getBalance(
-    new web3.PublicKey(publickey)
-  );
-  const balance = lamportBalance / web3.LAMPORTS_PER_SOL;
-  return balance;
+    const lamportBalance = await connection.getBalance(
+      new web3.PublicKey(publickey)
+    );
+    const balance = lamportBalance / web3.LAMPORTS_PER_SOL;
+    return balance;
   } catch (error) {
-    :", );
-    return null
+    console.error("Error getting balance:", error);
+    return null;
   }
- 
 }
 
 //transfer sol
@@ -51,7 +50,7 @@ export async function transferSol(user_id, from, to, amount) {
     transaction.recentBlockhash = (
       await connection.getLatestBlockhash()
     ).blockhash;
-    
+
     return { transaction, keypair };
   } else {
     return null;
