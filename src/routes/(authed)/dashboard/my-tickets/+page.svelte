@@ -9,10 +9,12 @@
   let loading = true;
   let error = null;
   let selectedTicket = null;
-  let showAssignmentModal = false;
+  let showActionModal = false;
   let showQRModal = false;
+  let showTransferModal = false;
   let walletAddress = "";
   let assigning = false;
+  let copyFeedback = false;
 
   // Search and filter functionality
   let searchQuery = "";
@@ -154,7 +156,7 @@
 
       // Refresh the tickets list
       await loadTickets();
-      showAssignmentModal = false;
+      showTransferModal = false;
       selectedTicket = null;
       walletAddress = "";
     } catch (err) {
@@ -164,10 +166,9 @@
     }
   }
 
-  function openAssignmentModal(ticket) {
+  function openActionModal(ticket) {
     selectedTicket = ticket;
-    walletAddress = ticket.wallet_address || "";
-    showAssignmentModal = true;
+    showActionModal = true;
   }
 
   function openQRModal(ticket) {
@@ -175,10 +176,19 @@
     showQRModal = true;
   }
 
+  function openTransferModal(ticket) {
+    selectedTicket = ticket;
+    walletAddress = ticket.wallet_address || "";
+    showTransferModal = true;
+  }
+
   async function copyToClipboard(text) {
     try {
       await navigator.clipboard.writeText(text);
-      // You could add a toast notification here
+      copyFeedback = true;
+      setTimeout(() => {
+        copyFeedback = false;
+      }, 2000);
     } catch (err) {
       // Silent error handling
     }
@@ -281,10 +291,22 @@
       <!-- Action Buttons -->
       <div class="flex gap-2 sm:gap-3">
         <button
-          class="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium text-sm sm:text-base"
+          class="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium text-sm sm:text-base flex items-center gap-2"
         >
-          <span class="hidden sm:inline">🔍 Q Search</span>
-          <span class="sm:hidden">🔍</span>
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          <span class="hidden sm:inline">Q Search</span>
         </button>
         <button
           on:click={() => (showFilterDropdown = !showFilterDropdown)}
@@ -361,7 +383,19 @@
       <div
         class="mx-auto w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center mb-4"
       >
-        <span class="text-gray-400 text-3xl">🎫</span>
+        <svg
+          class="w-12 h-12 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
+          />
+        </svg>
       </div>
       <h3 class="text-xl font-semibold text-white mb-2">No tickets found</h3>
       <p class="text-gray-400 mb-6">
@@ -371,7 +405,19 @@
         href="/marketplace"
         class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
       >
-        <span class="mr-2">🎪</span>
+        <svg
+          class="w-5 h-5 mr-2"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+          />
+        </svg>
         Browse Events
       </a>
     </div>
@@ -448,51 +494,46 @@
                   </div>
                 </div>
 
-                <!-- QR Code Section -->
-                <div class="bg-gray-900 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4">
-                  <div class="bg-white rounded-lg p-3 sm:p-4 mb-2 sm:mb-3">
-                    <div
-                      class="w-24 h-24 sm:w-32 sm:h-32 bg-gray-100 rounded flex items-center justify-center mx-auto"
-                    >
-                      <div class="text-center">
-                        <div class="text-xl sm:text-2xl mb-1">📱</div>
-                        <div class="text-xs text-gray-600">QR Code</div>
-                        <div class="text-xs text-gray-500 mt-1">
-                          {ticket.ticket_number}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <p class="text-gray-400 text-xs sm:text-sm text-center">
-                    Scan this QR code for event entry.
-                  </p>
-                </div>
-
                 <!-- Action Buttons -->
                 <div class="space-y-2 sm:space-y-3">
                   <button
                     on:click={() => openQRModal(ticket)}
-                    class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium text-sm sm:text-base flex items-center justify-center gap-2"
+                    class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base flex items-center justify-center gap-2"
                   >
-                    <span>📱</span>
+                    <svg
+                      class="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1zm12 0h2a1 1 0 001-1V6a1 1 0 00-1-1h-2a1 1 0 00-1 1v1a1 1 0 001 1zM5 20h2a1 1 0 001-1v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z"
+                      />
+                    </svg>
                     View QR Code
                   </button>
-                  <div class="space-y-2 sm:space-y-3">
-                    <label
-                      class="block text-xs sm:text-sm font-medium text-gray-300"
-                      >Transfer to Wallet Address</label
+                  <button
+                    on:click={() => openTransferModal(ticket)}
+                    class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-lg hover:from-green-600 hover:to-teal-700 transition-all duration-200 font-medium text-sm sm:text-base flex items-center justify-center gap-2"
+                  >
+                    <svg
+                      class="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                    <input
-                      type="text"
-                      placeholder="e.g., 1A2b3C4d5E6f7G8h910jK112M3n405p6Q7r8S9t0"
-                      class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 text-sm"
-                    />
-                    <button
-                      class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium text-sm sm:text-base"
-                    >
-                      Transfer Ticket
-                    </button>
-                  </div>
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                    Transfer Ticket
+                  </button>
                 </div>
               </div>
             {/each}
@@ -503,59 +544,6 @@
   {/if}
 </div>
 
-<!-- Assignment Modal -->
-{#if showAssignmentModal}
-  <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-    transition:fade
-  >
-    <div
-      class="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 w-full max-w-md"
-      transition:fly={{ y: 20 }}
-    >
-      <h3 class="text-xl font-semibold text-white mb-4">
-        🎯 Assign Ticket to Wallet
-      </h3>
-
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-300 mb-2"
-          >Wallet Address</label
-        >
-        <input
-          type="text"
-          bind:value={walletAddress}
-          placeholder="Enter wallet address (0x...)"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-        />
-        <p class="text-xs text-gray-500 mt-1">
-          This wallet will be used for event entry verification
-        </p>
-      </div>
-
-      <div class="flex space-x-3">
-        <button
-          on:click={() => {
-            showAssignmentModal = false;
-            selectedTicket = null;
-            walletAddress = "";
-          }}
-          class="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          on:click={() =>
-            assignTicketToWallet(selectedTicket.id, walletAddress)}
-          disabled={!walletAddress || assigning}
-          class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {assigning ? "⏳ Assigning..." : "✅ Assign"}
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
 <!-- QR Code Modal -->
 {#if showQRModal}
   <div
@@ -563,51 +551,261 @@
     transition:fade
   >
     <div
-      class="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 w-full max-w-md"
+      class="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
       transition:fly={{ y: 20 }}
     >
-      <h3 class="text-xl font-semibold text-white mb-4">
-        📱 QR Code for Entry
+      <h3 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+        <svg
+          class="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1zm12 0h2a1 1 0 001-1V6a1 1 0 00-1-1h-2a1 1 0 00-1 1v1a1 1 0 001 1zM5 20h2a1 1 0 001-1v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z"
+          />
+        </svg>
+        QR Code for Entry
       </h3>
 
-      <div class="text-center mb-6">
-        <div class="bg-white p-4 rounded-lg inline-block mb-4">
-          <div
-            class="w-48 h-48 bg-gray-100 rounded flex items-center justify-center"
-          >
-            <div class="text-center">
-              <div class="text-4xl mb-2">📱</div>
-              <div class="text-sm text-gray-600">QR Code Placeholder</div>
-              <div class="text-xs text-gray-500 mt-1">
-                {selectedTicket?.ticket_number ||
-                  `TIX-${selectedTicket?.orderItemId?.slice(0, 8)}`}
-              </div>
-            </div>
+      <!-- Ticket Info -->
+      <div class="bg-gray-900 rounded-lg p-4 mb-6">
+        <h4 class="text-lg font-medium text-white mb-2">
+          {selectedTicket?.events?.title || "Event Title"}
+        </h4>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-400">Ticket ID:</span>
+            <span class="text-white font-mono"
+              >{selectedTicket?.ticket_number}</span
+            >
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400">Type:</span>
+            <span class="text-white">{selectedTicket?.ticketType}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400">Price:</span>
+            <span class="text-white"
+              >{formatPrice(
+                selectedTicket?.price,
+                selectedTicket?.currency
+              )}</span
+            >
           </div>
         </div>
-        <p class="text-sm text-gray-400">
-          Show this QR code at the event entrance for verification
-        </p>
       </div>
 
-      <div class="flex space-x-3">
+      <!-- QR Code Display -->
+      <div class="text-center mb-6">
+        <div class="bg-white p-6 rounded-lg inline-block mb-4">
+          <div class="w-48 h-48 flex items-center justify-center">
+            {#if selectedTicket?.ticket_number}
+              <img
+                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={encodeURIComponent(
+                  selectedTicket.ticket_number
+                )}"
+                alt="QR Code for {selectedTicket.ticket_number}"
+                class="w-full h-full object-contain"
+              />
+            {:else}
+              <div class="text-center">
+                <svg
+                  class="w-16 h-16 text-gray-400 mb-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1zm12 0h2a1 1 0 001-1V6a1 1 0 00-1-1h-2a1 1 0 00-1 1v1a1 1 0 001 1zM5 20h2a1 1 0 001-1v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z"
+                  />
+                </svg>
+                <div class="text-sm text-gray-600">QR Code</div>
+                <div class="text-xs text-gray-500 mt-1">No ticket number</div>
+              </div>
+            {/if}
+          </div>
+        </div>
+        <p class="text-sm text-gray-400 mb-4">
+          Show this QR code at the event entrance for verification
+        </p>
         <button
-          on:click={() =>
-            copyToClipboard(
-              selectedTicket?.ticket_number ||
-                `TIX-${selectedTicket?.orderItemId?.slice(0, 8)}` ||
-                ""
-            )}
-          class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          on:click={() => copyToClipboard(selectedTicket?.ticket_number || "")}
+          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 mx-auto relative"
         >
-          📋 Copy Ticket ID
+          {#if copyFeedback}
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            Copied!
+          {:else}
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+            Copy Ticket ID
+          {/if}
         </button>
+      </div>
+
+      <!-- Close Button -->
+      <div class="flex justify-end">
         <button
           on:click={() => {
             showQRModal = false;
             selectedTicket = null;
           }}
-          class="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Transfer Modal -->
+{#if showTransferModal}
+  <div
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    transition:fade
+  >
+    <div
+      class="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+      transition:fly={{ y: 20 }}
+    >
+      <h3 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+        <svg
+          class="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+          />
+        </svg>
+        Transfer Ticket
+      </h3>
+
+      <!-- Ticket Info -->
+      <div class="bg-gray-900 rounded-lg p-4 mb-6">
+        <h4 class="text-lg font-medium text-white mb-2">
+          {selectedTicket?.events?.title || "Event Title"}
+        </h4>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-400">Ticket ID:</span>
+            <span class="text-white font-mono"
+              >{selectedTicket?.ticket_number}</span
+            >
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400">Current Owner:</span>
+            <span class="text-green-400 font-mono text-xs">
+              {selectedTicket?.wallet_address?.slice(
+                0,
+                6
+              )}...{selectedTicket?.wallet_address?.slice(-3)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transfer Form -->
+      <div class="space-y-4 mb-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2"
+            >Transfer to Wallet Address</label
+          >
+          <input
+            type="text"
+            bind:value={walletAddress}
+            placeholder="Enter wallet address (0x...)"
+            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 text-sm"
+          />
+          <p class="text-xs text-gray-500 mt-1">
+            This wallet will be used for event entry verification
+          </p>
+        </div>
+
+        <button
+          on:click={() =>
+            assignTicketToWallet(selectedTicket?.id, walletAddress)}
+          disabled={!walletAddress || assigning}
+          class="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-lg hover:from-green-600 hover:to-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+        >
+          {#if assigning}
+            <svg
+              class="w-4 h-4 animate-spin"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            Transferring...
+          {:else}
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+              />
+            </svg>
+            Transfer Ticket
+          {/if}
+        </button>
+      </div>
+
+      <!-- Close Button -->
+      <div class="flex justify-end">
+        <button
+          on:click={() => {
+            showTransferModal = false;
+            selectedTicket = null;
+            walletAddress = "";
+          }}
+          class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
         >
           Close
         </button>
