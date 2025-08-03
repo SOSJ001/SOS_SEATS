@@ -70,9 +70,20 @@
   let claimingTickets = false;
   let processingPayment = false;
   let showPaymentConfirmation = false;
-  let paymentDetails = {
+  let paymentDetails: {
+    totalTickets: number;
+    ticketDetails: Array<{
+      id: number;
+      name: string;
+      price: number;
+      quantity: number;
+    }>;
+    totalAmount: number;
+    fromWallet: string;
+    toWallet: string;
+  } = {
     totalTickets: 0,
-    pricePerTicket: 0,
+    ticketDetails: [],
     totalAmount: 0,
     fromWallet: "",
     toWallet: "HDCrEYrGwPBP2rqX1G7TqChzkN6ckRSpJBVF1YT1YPSF",
@@ -270,6 +281,7 @@
       // Calculate total tickets and price from selected tickets
       let totalTickets = 0;
       let totalPrice = 0;
+      let ticketDetails = [];
 
       for (const [ticketTypeId, quantity] of Object.entries(selectedTickets)) {
         if (quantity > 0) {
@@ -279,6 +291,12 @@
           if (ticketType) {
             totalTickets += quantity;
             totalPrice += ticketType.price * quantity;
+            ticketDetails.push({
+              id: ticketType.id,
+              name: ticketType.name,
+              price: ticketType.price,
+              quantity: quantity,
+            });
           }
         }
       }
@@ -286,7 +304,7 @@
       // Prepare payment details for confirmation dialog
       paymentDetails = {
         totalTickets,
-        pricePerTicket: totalPrice / totalTickets,
+        ticketDetails,
         totalAmount: totalPrice,
         fromWallet: connectedWalletAddress || "",
         toWallet: "HDCrEYrGwPBP2rqX1G7TqChzkN6ckRSpJBVF1YT1YPSF",
@@ -329,11 +347,13 @@
         "Please sign the transaction in your wallet..."
       );
 
-      // Create Solana transaction
+      // Create Solana transaction - use total amount divided by total tickets for average price
+      const averagePricePerTicket =
+        paymentDetails.totalAmount / paymentDetails.totalTickets;
       const result = await purchaseTicketsWithSolana(
         connectedWalletAddress,
         paymentDetails.totalTickets,
-        paymentDetails.pricePerTicket
+        averagePricePerTicket
       );
 
       if (!result || !result.transaction) {
@@ -372,7 +392,7 @@
           wallet_address: connectedWalletAddress,
           name: web3User?.display_name || web3User?.username || "Anonymous",
         },
-        null
+        paymentInfo as any
       );
 
       if (result2.success) {
@@ -946,7 +966,7 @@
 <ConfirmationDialog
   bind:show={showPaymentConfirmation}
   title="Confirm Payment"
-  message="Total Tickets: {paymentDetails.totalTickets} | Price per Ticket: {paymentDetails.pricePerTicket} SOL | Total Amount: {paymentDetails.totalAmount} SOL | From: {paymentDetails.fromWallet.slice(
+  message="Total Tickets: {paymentDetails.totalTickets} | Total Amount: {paymentDetails.totalAmount} SOL | From: {paymentDetails.fromWallet.slice(
     0,
     6
   )}...{paymentDetails.fromWallet.slice(
