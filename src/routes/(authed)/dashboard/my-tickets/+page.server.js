@@ -6,13 +6,6 @@ export async function load({ cookies }) {
     const { user_Id, userName, sessionType, walletAddress } =
       parseSession(cookies);
 
-    console.log("Server-side session data:", {
-      user_Id,
-      userName,
-      sessionType,
-      walletAddress,
-    });
-
     return {
       walletAddress,
       sessionType,

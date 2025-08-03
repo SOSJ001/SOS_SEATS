@@ -1436,7 +1436,6 @@ async function authenticateUserForDatabase(userData) {
           };
         }
       } catch (queryError) {
-        console.warn("Error querying web3_users table:", queryError);
         // Continue to fallback logic
       }
     }
@@ -1457,7 +1456,6 @@ async function authenticateUserForDatabase(userData) {
           };
         }
       } catch (queryError) {
-        console.warn("Error querying web3_users table by ID:", queryError);
         // Continue to fallback logic
       }
     }
@@ -1563,10 +1561,6 @@ export async function claimFreeTickets(
         authResult.user.display_name || authResult.user.username;
     } else {
       // If authentication fails, use the provided user data directly
-      console.warn(
-        "Authentication failed, using provided user data:",
-        authResult.error
-      );
       // Use fallback data if available, otherwise use original userData
       const fallbackData = authResult.fallbackData || userData;
       orderData.buyer_wallet_address = fallbackData.wallet_address;
