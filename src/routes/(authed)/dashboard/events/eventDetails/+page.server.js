@@ -63,31 +63,48 @@ export async function load({ url, cookies }) {
         if (!imageError && imageData) {
           eventWithImage = { ...event, image: imageData };
         }
-      } catch (imageError) {
-        }
+      } catch (imageError) {}
     }
 
-    // Calculate metrics
-    const totalTicketsSold =
-      eventWithImage.ticket_types?.reduce(
-        (sum, ticket) => sum + (ticket.sold_quantity || 0),
-        0
-      ) || 0;
-    const totalRevenue =
-      eventWithImage.ticket_types?.reduce(
-        (sum, ticket) =>
-          sum + (ticket.price || 0) * (ticket.sold_quantity || 0),
-        0
-      ) || 0;
+    // Get real-time event statistics using the database function
+    const { data: stats, error: statsError } = await supabase.rpc(
+      "get_event_statistics",
+      {
+        p_event_id: eventId,
+      }
+    );
+
+    let eventStats = {
+      totalTicketsSold: 0,
+      totalRevenue: 0,
+      attendeesCheckedIn: 0,
+      remainingTickets: 0,
+    };
+
+    if (!statsError && stats && stats.length > 0) {
+      const statistics = stats[0];
+      eventStats = {
+        totalTicketsSold: statistics.total_tickets_sold || 0,
+        totalRevenue: statistics.total_revenue || 0,
+        attendeesCheckedIn: statistics.checked_in_guests || 0,
+        remainingTickets: 0, // Will calculate below
+      };
+    }
+
+    // Get real-time ticket type statistics
+    const { data: ticketTypeStats, error: ticketStatsError } =
+      await supabase.rpc("get_ticket_type_statistics", {
+        p_event_id: eventId,
+      });
+
+    // Calculate total capacity and remaining tickets from ticket types
     const totalCapacity =
       eventWithImage.ticket_types?.reduce(
         (sum, ticket) => sum + (ticket.quantity || 0),
         0
       ) || 0;
-    const remainingTickets = totalCapacity - totalTicketsSold;
-    const attendeesCheckedIn =
-      eventWithImage.guests?.filter((guest) => guest.status === "checked_in")
-        .length || 0;
+
+    eventStats.remainingTickets = totalCapacity - eventStats.totalTicketsSold;
 
     // Format the event data for the frontend
     const formattedEvent = {
@@ -101,12 +118,20 @@ export async function load({ url, cookies }) {
         eventWithImage.image?.file_path ||
         "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=250&fit=crop",
       status: eventWithImage.status,
-      ticketsSold: totalTicketsSold,
+      ticketsSold: eventStats.totalTicketsSold,
       totalCapacity: totalCapacity,
-      totalRevenue: totalRevenue,
-      attendeesCheckedIn: attendeesCheckedIn,
-      remainingTickets: remainingTickets,
+      totalRevenue: eventStats.totalRevenue,
+      attendeesCheckedIn: eventStats.attendeesCheckedIn,
+      remainingTickets: eventStats.remainingTickets,
       ticketTypes:
+        ticketTypeStats?.map((ticket) => ({
+          id: ticket.ticket_type_id,
+          name: ticket.ticket_name,
+          price: ticket.ticket_price,
+          sold: ticket.sold_quantity || 0,
+          remaining: ticket.remaining_quantity || 0,
+          quantity: ticket.total_quantity || 0,
+        })) ||
         eventWithImage.ticket_types?.map((ticket) => ({
           id: ticket.id,
           name: ticket.name,
@@ -114,7 +139,8 @@ export async function load({ url, cookies }) {
           sold: ticket.sold_quantity || 0,
           remaining: (ticket.quantity || 0) - (ticket.sold_quantity || 0),
           quantity: ticket.quantity || 0,
-        })) || [],
+        })) ||
+        [],
       guests:
         eventWithImage.guests?.map((guest) => ({
           id: guest.id,

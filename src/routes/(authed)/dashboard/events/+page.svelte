@@ -52,7 +52,7 @@
       }
     } catch (err) {
       error = "Failed to load events";
-      } finally {
+    } finally {
       isLoading = false;
     }
   }
@@ -85,7 +85,12 @@
   }
 
   function getTicketsSold(event) {
-    // Calculate total tickets sold from ticket_types
+    // Use real-time statistics if available, otherwise fall back to ticket_types
+    if (event.realTimeStats) {
+      return event.realTimeStats.totalTicketsSold.toLocaleString();
+    }
+
+    // Fallback to calculating from ticket_types
     const totalSold =
       event.ticket_types?.reduce(
         (sum, ticket) => sum + (ticket.sold_quantity || 0),
@@ -95,7 +100,12 @@
   }
 
   function getRevenue(event) {
-    // Calculate total revenue from ticket_types
+    // Use real-time statistics if available, otherwise fall back to ticket_types
+    if (event.realTimeStats) {
+      return `$${event.realTimeStats.totalRevenue.toLocaleString()}`;
+    }
+
+    // Fallback to calculating from ticket_types
     const totalRevenue =
       event.ticket_types?.reduce((sum, ticket) => {
         return sum + (ticket.price || 0) * (ticket.sold_quantity || 0);
@@ -180,7 +190,7 @@
   function shareEvent(event) {
     selectedEventForSharing = event;
     showShareModal = true;
-    }
+  }
 
   // Close share modal
   function closeShareModal() {

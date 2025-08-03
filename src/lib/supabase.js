@@ -931,9 +931,12 @@ export async function loadUserEvents(userId, sessionType = "traditional") {
       return [];
     }
 
-    // Load images separately for each event that has an image_id
-    const eventsWithImages = await Promise.all(
+    // Load images and real-time statistics for each event
+    const eventsWithImagesAndStats = await Promise.all(
       events.map(async (event) => {
+        let eventWithImage = event;
+
+        // Load image data if event has an image_id
         if (event.image_id) {
           try {
             const { data: imageData, error: imageError } = await supabase
@@ -943,15 +946,50 @@ export async function loadUserEvents(userId, sessionType = "traditional") {
               .single();
 
             if (!imageError && imageData) {
-              return { ...event, image: imageData };
+              eventWithImage = { ...event, image: imageData };
             }
           } catch (imageError) {}
         }
-        return event;
+
+        // Get real-time statistics for this event
+        try {
+          const { data: stats, error: statsError } = await supabase.rpc(
+            "get_event_statistics",
+            {
+              p_event_id: event.id,
+            }
+          );
+
+          if (!statsError && stats && stats.length > 0) {
+            const statistics = stats[0];
+            eventWithImage = {
+              ...eventWithImage,
+              realTimeStats: {
+                totalTicketsSold: statistics.total_tickets_sold || 0,
+                totalRevenue: statistics.total_revenue || 0,
+                attendeesCheckedIn: statistics.checked_in_guests || 0,
+                totalGuests: statistics.total_guests || 0,
+              },
+            };
+          }
+        } catch (statsError) {
+          // If stats fail, continue without them
+          eventWithImage = {
+            ...eventWithImage,
+            realTimeStats: {
+              totalTicketsSold: 0,
+              totalRevenue: 0,
+              attendeesCheckedIn: 0,
+              totalGuests: 0,
+            },
+          };
+        }
+
+        return eventWithImage;
       })
     );
 
-    return eventsWithImages;
+    return eventsWithImagesAndStats;
   } catch (error) {
     return [];
   }
@@ -1384,39 +1422,59 @@ async function authenticateUserForDatabase(userData) {
   try {
     // If we have a wallet address, try to get the user from web3_users table
     if (userData.wallet_address) {
-      const { data: web3User, error } = await supabase
-        .from("web3_users")
-        .select("id, wallet_address, username, display_name")
-        .eq("wallet_address", userData.wallet_address)
-        .single();
+      try {
+        const { data: web3User, error } = await supabase
+          .from("web3_users")
+          .select("id, wallet_address, username, display_name")
+          .eq("wallet_address", userData.wallet_address)
+          .single();
 
-      if (!error && web3User) {
-        return {
-          success: true,
-          user: web3User,
-        };
+        if (!error && web3User) {
+          return {
+            success: true,
+            user: web3User,
+          };
+        }
+      } catch (queryError) {
+        console.warn("Error querying web3_users table:", queryError);
+        // Continue to fallback logic
       }
     }
 
     // If we have a user ID, try to get the user
     if (userData.id) {
-      const { data: user, error } = await supabase
-        .from("web3_users")
-        .select("id, wallet_address, username, display_name")
-        .eq("id", userData.id)
-        .single();
+      try {
+        const { data: user, error } = await supabase
+          .from("web3_users")
+          .select("id, wallet_address, username, display_name")
+          .eq("id", userData.id)
+          .single();
 
-      if (!error && user) {
-        return {
-          success: true,
-          user: user,
-        };
+        if (!error && user) {
+          return {
+            success: true,
+            user: user,
+          };
+        }
+      } catch (queryError) {
+        console.warn("Error querying web3_users table by ID:", queryError);
+        // Continue to fallback logic
       }
     }
 
-    return { success: false, error: "User not found in database" };
+    // If all queries fail, return the original user data as fallback
+    return {
+      success: false,
+      error: "User not found in database, using provided data",
+      fallbackData: userData,
+    };
   } catch (error) {
-    return { success: false, error: error.message };
+    console.error("Authentication error:", error);
+    return {
+      success: false,
+      error: error.message,
+      fallbackData: userData,
+    };
   }
 }
 
@@ -1433,47 +1491,14 @@ export async function claimFreeTickets(
       paymentInfo ? "PAID" : "FREE"
     }-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create the order with Web3 user data
-    const orderData = {
-      event_id: eventId,
-      buyer_id: userData.id || null,
-      buyer_wallet_address: userData.wallet_address || null,
-      buyer_email: userData.email || null,
-      buyer_name: userData.name || userData.display_name || "Anonymous",
-      order_number: orderNumber,
-      total_amount: paymentInfo ? paymentInfo.amount : 0, // Use payment amount if provided
-      currency: paymentInfo ? "SOL" : "USD",
-      payment_method: paymentInfo ? paymentInfo.paymentMethod : "free",
-      payment_status: paymentInfo ? "completed" : "completed", // Both are immediately completed
-      transaction_hash: paymentInfo ? paymentInfo.transactionSignature : null,
-      order_status: "confirmed",
-    };
-
-    // TEMPORARY FIX: Ensure we have a wallet address for testing
-    if (!orderData.buyer_wallet_address) {
-      orderData.buyer_wallet_address = "0x1234567890abcdef";
-    }
-
-    // Try to authenticate user for database operations
-    const authResult = await authenticateUserForDatabase(userData);
-    if (authResult.success) {
-      // Update order data with authenticated user info
-      orderData.buyer_id = authResult.user.id;
-      orderData.buyer_wallet_address = authResult.user.wallet_address;
-      orderData.buyer_name =
-        authResult.user.display_name || authResult.user.username;
-    }
-
-    // Process each selected ticket type using the bypass function
-    let totalTicketsClaimed = 0;
-    let orderIds = [];
-    let successCount = 0;
+    // Calculate total amount and get ticket type details
+    let totalAmount = 0;
+    let ticketTypeDetails = [];
 
     for (const [selectedTicketTypeId, quantity] of Object.entries(
       selectedTickets
     )) {
       if (quantity > 0) {
-        // Get ticket type details to verify it exists
         const ticketTypeIdToUse =
           typeof selectedTicketTypeId === "string"
             ? selectedTicketTypeId
@@ -1486,173 +1511,187 @@ export async function claimFreeTickets(
           .single();
 
         if (ticketError) {
-          // Try to get ticket type by name as fallback
-          const { data: fallbackTicketType, error: fallbackError } =
-            await supabase
-              .from("ticket_types")
-              .select("*")
-              .eq("event_id", eventId)
-              .limit(1)
-              .single();
-          if (fallbackError || !fallbackTicketType) {
-            return {
-              success: false,
-              error: "Failed to get ticket type details",
-            };
-          }
-          ticketType = fallbackTicketType;
+          return {
+            success: false,
+            error: "Failed to get ticket type details",
+          };
         }
 
-        // Create tickets one by one using the appropriate function based on payment type
-        for (let i = 0; i < quantity; i++) {
-          const individualOrderNumber = `${orderNumber}-${i + 1}`;
+        // Use actual price from database, convert to number if it's a string
+        const ticketPrice =
+          typeof ticketType.price === "string"
+            ? parseFloat(ticketType.price)
+            : ticketType.price;
 
-          let functionResult, functionError;
-
-          if (paymentInfo) {
-            // Use create_paid_ticket_order for paid tickets
-            const { data: paidResult, error: paidError } = await supabase.rpc(
-              "create_paid_ticket_order",
-              {
-                p_event_id: eventId,
-                p_buyer_wallet_address: orderData.buyer_wallet_address,
-                p_buyer_name: orderData.buyer_name,
-                p_order_number: individualOrderNumber,
-                p_ticket_type_id: ticketType.id,
-                p_total_amount: paymentInfo.amount, // Use the total amount for the order
-                p_currency:
-                  paymentInfo.paymentMethod === "solana" ? "SOL" : "USD",
-                p_transaction_hash: paymentInfo.transactionSignature,
-              }
-            );
-            functionResult = paidResult;
-            functionError = paidError;
-          } else {
-            // Use create_free_ticket_order for free tickets
-            const { data: freeResult, error: freeError } = await supabase.rpc(
-              "create_free_ticket_order",
-              {
-                p_event_id: eventId,
-                p_buyer_wallet_address: orderData.buyer_wallet_address,
-                p_buyer_name: orderData.buyer_name,
-                p_order_number: individualOrderNumber,
-                p_ticket_type_id: ticketType.id,
-              }
-            );
-            functionResult = freeResult;
-            functionError = freeError;
-          }
-
-          if (
-            !functionError &&
-            functionResult &&
-            functionResult.length > 0 &&
-            functionResult[0].success
-          ) {
-            orderIds.push(functionResult[0].order_id);
-            totalTicketsClaimed++;
-            successCount++;
-          }
-        }
+        totalAmount += ticketPrice * quantity;
+        ticketTypeDetails.push({
+          id: ticketType.id,
+          name: ticketType.name,
+          price: ticketPrice,
+          quantity: quantity,
+        });
       }
     }
 
-    // If we successfully created at least one ticket in the database
-    if (successCount > 0) {
+    // Create the order with Web3 user data
+    const orderData = {
+      event_id: eventId,
+      buyer_id: userData.id || null,
+      buyer_wallet_address: userData.wallet_address || null,
+      buyer_email: userData.email || null,
+      buyer_name: userData.name || userData.display_name || "Anonymous",
+      order_number: orderNumber,
+      total_amount: paymentInfo ? paymentInfo.amount : totalAmount,
+      currency: paymentInfo ? "USDC" : "USD", // Changed to USDC for paid tickets
+      payment_method: paymentInfo ? paymentInfo.paymentMethod : "free",
+      payment_status: paymentInfo ? "completed" : "completed",
+      transaction_hash: paymentInfo ? paymentInfo.transactionSignature : null,
+      order_status: "confirmed",
+    };
+
+    // TEMPORARY FIX: Ensure we have a wallet address for testing
+    if (!orderData.buyer_wallet_address) {
+      orderData.buyer_wallet_address = "0x1234567890abcdef";
+    }
+
+    // Try to authenticate user for database operations
+    const authResult = await authenticateUserForDatabase(userData);
+    if (authResult.success) {
+      orderData.buyer_id = authResult.user.id;
+      orderData.buyer_wallet_address = authResult.user.wallet_address;
+      orderData.buyer_name =
+        authResult.user.display_name || authResult.user.username;
+    } else {
+      // If authentication fails, use the provided user data directly
+      console.warn(
+        "Authentication failed, using provided user data:",
+        authResult.error
+      );
+      // Use fallback data if available, otherwise use original userData
+      const fallbackData = authResult.fallbackData || userData;
+      orderData.buyer_wallet_address = fallbackData.wallet_address;
+      orderData.buyer_name =
+        fallbackData.name || fallbackData.display_name || "Anonymous";
+    }
+
+    // Create one order with multiple order items
+    let orderId = null;
+    let totalTicketsClaimed = 0;
+
+    if (paymentInfo) {
+      const testResult = await supabase.rpc(
+        "create_paid_ticket_order_with_items",
+        {
+          p_event_id: eventId,
+          p_buyer_wallet_address: orderData.buyer_wallet_address,
+          p_buyer_name: orderData.buyer_name,
+          p_order_number: orderNumber,
+          p_ticket_details: ticketTypeDetails,
+          p_total_amount: paymentInfo.amount,
+          p_currency: "USDC",
+          p_transaction_hash: paymentInfo.transactionSignature,
+        }
+      );
+      if (testResult.error) {
+        console.error("Function call error:", testResult.error);
+        return {
+          success: false,
+          error: `Database function error: ${testResult.error.message}`,
+        };
+      }
+      const paidResult = testResult.data;
+      const paidError = testResult.error;
+
+      if (
+        paidError ||
+        !paidResult ||
+        paidResult.length === 0 ||
+        !paidResult[0].success
+      ) {
+        console.error("Paid ticket order creation failed:", {
+          paidError,
+          paidResult,
+          orderData,
+          ticketTypeDetails,
+        });
+
+        // Check if it's a quantity error
+        const errorMessage =
+          paidResult?.[0]?.error_message ||
+          paidError?.message ||
+          "Failed to create paid ticket order";
+        if (errorMessage.includes("Not enough tickets available")) {
+          return {
+            success: false,
+            error:
+              "Sorry, some tickets are no longer available. Please refresh the page and try again.",
+          };
+        }
+
+        return {
+          success: false,
+          error: errorMessage,
+        };
+      }
+      orderId = paidResult[0].order_id;
+      totalTicketsClaimed = paidResult[0].tickets_claimed;
+    } else {
+      // Use create_free_ticket_order for free tickets - create one order with multiple items
+      const { data: freeResult, error: freeError } = await supabase.rpc(
+        "create_free_ticket_order_with_items",
+        {
+          p_event_id: eventId,
+          p_buyer_wallet_address: orderData.buyer_wallet_address,
+          p_buyer_name: orderData.buyer_name,
+          p_order_number: orderNumber,
+          p_ticket_details: ticketTypeDetails,
+        }
+      );
+
+      if (
+        freeError ||
+        !freeResult ||
+        freeResult.length === 0 ||
+        !freeResult[0].success
+      ) {
+        // Check if it's a quantity error
+        const errorMessage =
+          freeResult?.[0]?.error_message ||
+          freeError?.message ||
+          "Failed to create free ticket order";
+        if (errorMessage.includes("Not enough tickets available")) {
+          throw new Error(
+            "Sorry, some tickets are no longer available. Please refresh the page and try again."
+          );
+        }
+
+        throw new Error(errorMessage);
+      }
+      orderId = freeResult[0].order_id;
+      totalTicketsClaimed = freeResult[0].tickets_claimed;
+    }
+
+    // If we successfully created the order
+    if (orderId && totalTicketsClaimed > 0) {
       return {
         success: true,
-        orderId: orderIds[0], // Return the first order ID
-        orderNumber: orderData.order_number,
+        orderId: orderId,
+        orderNumber: orderNumber,
         ticketsClaimed: totalTicketsClaimed,
-        isTemporary: false,
-        allOrderIds: orderIds, // Include all order IDs for reference
+        message: `Successfully claimed ${totalTicketsClaimed} ticket(s)`,
       };
     } else {
-      // Fallback to localStorage
-      const tempOrder = {
-        id: `temp-${Date.now()}`,
-        ...orderData,
-        created_at: new Date().toISOString(),
-        tickets: [],
-      };
-
-      // Create ticket records for localStorage
-      let totalTickets = 0;
-      for (const [selectedTicketTypeId, quantity] of Object.entries(
-        selectedTickets
-      )) {
-        if (quantity > 0) {
-          const ticketTypeIdToUse =
-            typeof selectedTicketTypeId === "string"
-              ? selectedTicketTypeId
-              : selectedTicketTypeId.toString();
-
-          let { data: ticketType, error: ticketError } = await supabase
-            .from("ticket_types")
-            .select("*")
-            .eq("id", ticketTypeIdToUse)
-            .single();
-
-          if (ticketError) {
-            const { data: fallbackTicketType, error: fallbackError } =
-              await supabase
-                .from("ticket_types")
-                .select("*")
-                .eq("event_id", eventId)
-                .limit(1)
-                .single();
-            if (fallbackError || !fallbackTicketType) {
-              return {
-                success: false,
-                error: "Failed to get ticket type details",
-              };
-            }
-            ticketType = fallbackTicketType;
-          }
-
-          // Create ticket records for localStorage
-          for (let i = 0; i < quantity; i++) {
-            const ticketNumber = await generateTicketNumber();
-            if (!ticketNumber) {
-              return {
-                success: false,
-                error: "Failed to generate ticket number",
-              };
-            }
-            tempOrder.tickets.push({
-              id: `ticket-${Date.now()}-${i}`,
-              ticket_type_id: ticketTypeIdToUse,
-              ticket_type_name: ticketType.name,
-              ticket_number: ticketNumber,
-              quantity: 1,
-              unit_price: 0,
-              total_price: 0,
-            });
-            totalTickets++;
-          }
-        }
-      }
-
-      // Store the temporary order in localStorage
-      const existingOrders = JSON.parse(
-        localStorage.getItem("tempFreeTicketOrders") || "[]"
-      );
-      existingOrders.push(tempOrder);
-      localStorage.setItem(
-        "tempFreeTicketOrders",
-        JSON.stringify(existingOrders)
-      );
-
       return {
-        success: true,
-        orderId: tempOrder.id,
-        orderNumber: orderData.order_number,
-        ticketsClaimed: totalTickets,
-        isTemporary: true,
+        success: false,
+        error: "Failed to create order",
       };
     }
   } catch (error) {
-    return { success: false, error: error.message };
+    console.error("Error claiming tickets:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to claim tickets",
+    };
   }
 }
 

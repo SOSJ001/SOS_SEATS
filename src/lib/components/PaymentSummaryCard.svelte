@@ -9,8 +9,8 @@
   <div class="flex items-center justify-between mb-6">
     <span class="text-xl font-semibold text-white">Total:</span>
     <span class="text-2xl font-bold text-white"
-      >{currency === "SOL"
-        ? `${totalPrice * pricePerTicket} SOL`
+      >{currency === "SOL" || currency === "USDC"
+        ? `${totalPrice} ${currency}`
         : `${currency} ${totalPrice.toFixed(2)}`}</span
     >
   </div>

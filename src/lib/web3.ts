@@ -66,14 +66,14 @@ export async function transferSol(
 export async function purchaseTicketsWithSolana(
   fromWalletAddress: string,
   ticketQuantity: number,
-  pricePerTicket: number = 0.01
+  pricePerTicket: number
 ) {
   try {
     // Default receiving wallet address
     const receivingWalletAddress =
       "HDCrEYrGwPBP2rqX1G7TqChzkN6ckRSpJBVF1YT1YPSF";
 
-    // Calculate total amount
+    // Calculate total amount using the provided price per ticket
     const totalAmount = ticketQuantity * pricePerTicket;
 
     // Check if wallet is connected
@@ -100,7 +100,7 @@ export async function purchaseTicketsWithSolana(
       })
     );
 
-    // Set fee payer
+    // Set the fee payer
     transaction.feePayer = new web3.PublicKey(fromWalletAddress);
 
     // Get recent blockhash
@@ -108,19 +108,18 @@ export async function purchaseTicketsWithSolana(
     transaction.recentBlockhash = blockhash;
 
     return {
-      success: true,
       transaction,
-      totalAmount,
-      receivingWalletAddress,
-      fromWalletAddress,
-      ticketQuantity,
+      paymentDetails: {
+        amount: totalAmount,
+        currency: "USDC", // Changed to USDC
+        receivingWallet: receivingWalletAddress,
+        buyerWallet: fromWalletAddress,
+        paymentMethod: "solana",
+      },
     };
-  } catch (error: any) {
-    console.error("Error creating purchase transaction:", error);
-    return {
-      success: false,
-      error: error.message,
-    };
+  } catch (error) {
+    console.error("Error creating Solana transaction:", error);
+    throw error;
   }
 }
 

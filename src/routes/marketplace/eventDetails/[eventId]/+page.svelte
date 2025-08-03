@@ -12,7 +12,12 @@
     purchaseTicketsWithSolana,
     sendTransactionWithWallet,
   } from "$lib/web3";
-  import { sessionFromDb, walletStore, web3UserStore } from "$lib/store";
+  import {
+    sessionFromDb,
+    walletStore,
+    web3UserStore,
+    showToast,
+  } from "$lib/store";
   import EventHeroSection from "$lib/components/EventHeroSection.svelte";
   import EventDetailsCard from "$lib/components/EventDetailsCard.svelte";
   import TicketSelectionCard from "$lib/components/TicketSelectionCard.svelte";
@@ -22,6 +27,7 @@
   import QuantitySelector from "$lib/components/QuantitySelector.svelte";
   import BackButton from "$lib/components/BackButton.svelte";
   import ShareButton from "$lib/components/ShareButton.svelte";
+  import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
 
   // Get event ID from URL params and load event data
   $: eventId = $page.params.eventId;
@@ -63,6 +69,14 @@
   let pageLoaded = false;
   let claimingTickets = false;
   let processingPayment = false;
+  let showPaymentConfirmation = false;
+  let paymentDetails = {
+    totalTickets: 0,
+    pricePerTicket: 0,
+    totalAmount: 0,
+    fromWallet: "",
+    toWallet: "HDCrEYrGwPBP2rqX1G7TqChzkN6ckRSpJBVF1YT1YPSF",
+  };
 
   // Wallet connection state
   $: connectedWalletAddress = $walletStore?.address || null;
@@ -91,32 +105,47 @@
     // Validate against multiple constraints
     const maxSeatsPerOrder = event?.seating_options?.max_seats_per_order || 10;
     const eventTotalCapacity = event?.total_capacity || 100;
-    const ticketTypeCapacity =
-      ticketType.available_quantity || eventTotalCapacity;
+    const ticketTypeCapacity = ticketType.available_quantity;
 
     // Calculate current totals
     const otherTicketsTotal = Object.entries(selectedTickets)
       .filter(([id]) => parseInt(id) !== ticketId)
       .reduce((sum, [, qty]) => sum + qty, 0);
 
+    // Check if tickets are sold out
+    if (ticketTypeCapacity <= 0) {
+      showToast(
+        "error",
+        "Sold Out",
+        `Sorry, ${ticketType.name} tickets are sold out.`
+      );
+      return;
+    }
+
     // Validation checks - max seats per order is PER TICKET TYPE
     if (newQuantity > maxSeatsPerOrder) {
-      alert(
+      showToast(
+        "warning",
+        "Quantity Limit",
         `Cannot select more than ${maxSeatsPerOrder} tickets of this type per order.`
       );
       return;
     }
 
     if (newQuantity > ticketTypeCapacity) {
-      alert(
-        `Cannot select more than ${ticketTypeCapacity} tickets for ${ticketType.name}.`
+      showToast(
+        "warning",
+        "Limited Availability",
+        `Sorry, only ${ticketTypeCapacity} ${ticketType.name} tickets are available. You cannot select ${newQuantity} tickets.`
       );
       return;
     }
 
     // Check if total across all ticket types exceeds event capacity
     if (otherTicketsTotal + newQuantity > eventTotalCapacity) {
-      alert(
+      showToast(
+        "warning",
+        "Event Capacity",
         `Cannot select more than ${eventTotalCapacity} tickets total for this event.`
       );
       return;
@@ -124,6 +153,15 @@
 
     selectedTickets[ticketId] = newQuantity;
     selectedTickets = { ...selectedTickets };
+
+    // Show success toast for quantity changes
+    if (newQuantity > 0) {
+      showToast(
+        "success",
+        "Quantity Updated",
+        `Selected ${newQuantity} ${ticketType.name} ticket(s).`
+      );
+    }
   }
 
   function handleAddToCart(ticketId: number) {
@@ -133,31 +171,46 @@
     const currentQty = selectedTickets[ticketId] || 0;
     const maxSeatsPerOrder = event?.seating_options?.max_seats_per_order || 10;
     const eventTotalCapacity = event?.total_capacity || 100;
-    const ticketTypeCapacity =
-      ticketType.available_quantity || eventTotalCapacity;
+    const ticketTypeCapacity = ticketType.available_quantity;
 
     const otherTicketsTotal = Object.entries(selectedTickets)
       .filter(([id]) => parseInt(id) !== ticketId)
       .reduce((sum, [, qty]) => sum + qty, 0);
 
+    // Check if tickets are sold out
+    if (ticketTypeCapacity <= 0) {
+      showToast(
+        "error",
+        "Sold Out",
+        `Sorry, ${ticketType.name} tickets are sold out.`
+      );
+      return;
+    }
+
     // Validation checks - max seats per order is PER TICKET TYPE
     if (currentQty + 1 > maxSeatsPerOrder) {
-      alert(
+      showToast(
+        "warning",
+        "Quantity Limit",
         `Cannot select more than ${maxSeatsPerOrder} tickets of this type per order.`
       );
       return;
     }
 
     if (currentQty + 1 > ticketTypeCapacity) {
-      alert(
-        `Cannot select more than ${ticketTypeCapacity} tickets for ${ticketType.name}.`
+      showToast(
+        "warning",
+        "Limited Availability",
+        `Sorry, only ${ticketTypeCapacity} ${ticketType.name} tickets are available. You cannot select ${currentQty + 1} tickets.`
       );
       return;
     }
 
     // Check if total across all ticket types exceeds event capacity
     if (otherTicketsTotal + currentQty + 1 > eventTotalCapacity) {
-      alert(
+      showToast(
+        "warning",
+        "Event Capacity",
         `Cannot select more than ${eventTotalCapacity} tickets total for this event.`
       );
       return;
@@ -165,12 +218,22 @@
 
     selectedTickets[ticketId] = currentQty + 1;
     selectedTickets = { ...selectedTickets };
+
+    showToast(
+      "success",
+      "Added to Cart",
+      `Added 1 ${ticketType.name} ticket to your selection.`
+    );
   }
 
   async function handlePayWithSolana() {
     // Validate wallet connection
     if (!connectedWalletAddress) {
-      alert("Please connect your wallet first to purchase tickets.");
+      showToast(
+        "error",
+        "Wallet Required",
+        "Please connect your wallet first to purchase tickets."
+      );
       return;
     }
 
@@ -181,7 +244,11 @@
     );
 
     if (totalSelected === 0) {
-      alert("Please select at least 1 ticket to purchase.");
+      showToast(
+        "warning",
+        "No Tickets Selected",
+        "Please select at least 1 ticket to purchase."
+      );
       return;
     }
 
@@ -193,93 +260,141 @@
     processingPayment = true;
 
     try {
-      // Calculate total tickets and price
-      const totalTickets = totalSelected;
-      const pricePerTicket = 0.01; // Default price as specified
-      const totalPrice = totalTickets * pricePerTicket;
-
-      // Show confirmation dialog
-      const confirmed = confirm(
-        `Confirm Purchase:\n\n` +
-          `Tickets: ${totalTickets}\n` +
-          `Price per ticket: ${pricePerTicket} SOL\n` +
-          `Total: ${totalPrice} SOL\n\n` +
-          `From: ${connectedWalletAddress.slice(0, 6)}...${connectedWalletAddress.slice(-4)}\n` +
-          `To: HDCrEYrGwPBP2rqX1G7TqChzkN6ckRSpJBVF1YT1YPSF\n\n` +
-          `Proceed with purchase?`
+      // Show loading toast
+      showToast(
+        "info",
+        "Processing Payment",
+        "Please sign the transaction in your wallet..."
       );
 
-      if (!confirmed) {
-        processingPayment = false;
-        return;
+      // Calculate total tickets and price from selected tickets
+      let totalTickets = 0;
+      let totalPrice = 0;
+
+      for (const [ticketTypeId, quantity] of Object.entries(selectedTickets)) {
+        if (quantity > 0) {
+          const ticketType = ticketTypes.find(
+            (t) => t.id.toString() === ticketTypeId.toString()
+          );
+          if (ticketType) {
+            totalTickets += quantity;
+            totalPrice += ticketType.price * quantity;
+          }
+        }
       }
 
-      // Create purchase transaction
-      const purchaseResult = await purchaseTicketsWithSolana(
-        connectedWalletAddress,
+      // Prepare payment details for confirmation dialog
+      paymentDetails = {
         totalTickets,
-        pricePerTicket
-      );
-
-      if (!purchaseResult.success) {
-        throw new Error(purchaseResult.error);
-      }
-
-      // Send transaction
-      const sendResult = await sendTransactionWithWallet(
-        purchaseResult.transaction!
-      );
-
-      if (!sendResult.success) {
-        throw new Error(sendResult.error);
-      }
-
-      // Success! Create order in database
-      const userData = {
-        id: null,
-        email: null,
-        name: web3User?.display_name || web3User?.username || "Web3 User",
-        wallet_address: connectedWalletAddress,
+        pricePerTicket: totalPrice / totalTickets,
+        totalAmount: totalPrice,
+        fromWallet: connectedWalletAddress || "",
+        toWallet: "HDCrEYrGwPBP2rqX1G7TqChzkN6ckRSpJBVF1YT1YPSF",
       };
 
-      // Call the ticket claiming function with payment info
-      const result = await claimFreeTickets(
-        event.id,
-        selectedTickets,
-        userData,
-        {
-          paymentMethod: "solana",
-          transactionSignature: sendResult.signature,
-          amount: purchaseResult.totalAmount || 0,
-          receivingWallet: purchaseResult.receivingWalletAddress || "",
-          buyerWallet: purchaseResult.fromWalletAddress || "",
-        } as any
-      );
+      // Show confirmation dialog
+      showPaymentConfirmation = true;
+      return;
 
-      if (result.success) {
-        alert(
-          `🎉 Payment successful!\n\n` +
-            `Transaction: ${sendResult.signature.slice(0, 8)}...${sendResult.signature.slice(-8)}\n` +
-            `Amount: ${purchaseResult.totalAmount} SOL\n` +
-            `Tickets: ${totalTickets}\n\n` +
-            `Redirecting to your ticket confirmation...`
-        );
-
-        // Reset selected tickets
-        selectedTickets = {};
-        selectedTickets = { ...selectedTickets };
-
-        // Redirect to ticket confirmation page
-        goto(`/tickets/confirmation/${result.orderId}`);
-      } else {
-        throw new Error(result.error || "Failed to create order");
-      }
-    } catch (error: any) {
-      alert(
-        `❌ Payment failed: ${error?.message || "Unknown error"}\n\nPlease try again.`
+      // Payment processing will be handled by processPayment() after confirmation
+    } catch (error) {
+      console.error("Payment setup error:", error);
+      showToast(
+        "error",
+        "Setup Failed",
+        `Failed to prepare payment: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } finally {
       processingPayment = false;
+    }
+  }
+
+  async function processPayment() {
+    if (!connectedWalletAddress) {
+      showToast(
+        "error",
+        "Wallet Required",
+        "Please connect your wallet first to purchase tickets."
+      );
+      return;
+    }
+
+    processingPayment = true;
+
+    try {
+      // Show loading toast
+      showToast(
+        "info",
+        "Processing Payment",
+        "Please sign the transaction in your wallet..."
+      );
+
+      // Create Solana transaction
+      const result = await purchaseTicketsWithSolana(
+        connectedWalletAddress,
+        paymentDetails.totalTickets,
+        paymentDetails.pricePerTicket
+      );
+
+      if (!result || !result.transaction) {
+        throw new Error("Failed to create transaction");
+      }
+
+      // Send transaction
+      const transactionResult = await sendTransactionWithWallet(
+        result.transaction
+      );
+
+      if (!transactionResult.success) {
+        throw new Error(transactionResult.error || "Transaction failed");
+      }
+
+      // Show success toast for transaction signing
+      showToast(
+        "success",
+        "Transaction Signed",
+        "Payment successful! Creating your tickets..."
+      );
+
+      // Record the purchase in database
+      const paymentInfo = {
+        paymentMethod: "solana",
+        transactionSignature: transactionResult.signature,
+        amount: result.paymentDetails.amount,
+        receivingWallet: result.paymentDetails.receivingWallet,
+        buyerWallet: result.paymentDetails.buyerWallet,
+      };
+
+      const result2 = await claimFreeTickets(
+        eventId,
+        selectedTickets,
+        {
+          wallet_address: connectedWalletAddress,
+          name: web3User?.display_name || web3User?.username || "Anonymous",
+        },
+        null
+      );
+
+      if (result2.success) {
+        showToast(
+          "success",
+          "Payment Successful",
+          `Transaction: ${transactionResult.signature}\n\nRedirecting to confirmation page...`
+        );
+        goto(`/tickets/confirmation/${result2.orderId}`);
+      } else {
+        throw new Error(result2.error || "Failed to record purchase");
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      showToast(
+        "error",
+        "Payment Failed",
+        `Payment failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    } finally {
+      processingPayment = false;
+      showPaymentConfirmation = false;
     }
   }
 
@@ -293,14 +408,20 @@
     const eventTotalCapacity = event?.total_capacity || 100;
 
     if (totalSelected === 0) {
-      alert("Please select at least 1 ticket.");
+      showToast(
+        "warning",
+        "No Tickets Selected",
+        "Please select at least 1 ticket."
+      );
       return;
     }
 
     // Check if any individual ticket type exceeds max seats per order
     for (const [ticketId, quantity] of Object.entries(selectedTickets)) {
       if (quantity > maxSeatsPerOrder) {
-        alert(
+        showToast(
+          "warning",
+          "Quantity Limit",
           `Cannot select more than ${maxSeatsPerOrder} tickets of any type per order.`
         );
         return;
@@ -308,7 +429,9 @@
     }
 
     if (totalSelected > eventTotalCapacity) {
-      alert(
+      showToast(
+        "warning",
+        "Event Capacity",
         `Cannot select more than ${eventTotalCapacity} tickets total for this event.`
       );
       return;
@@ -322,6 +445,9 @@
     claimingTickets = true;
 
     try {
+      // Show loading toast
+      showToast("info", "Processing Claim", "Creating your free tickets...");
+
       // Get current user session - try Web3 first, then fallback to traditional
       let userData: {
         id: string | null;
@@ -406,16 +532,11 @@
       );
 
       if (result.success) {
-        // Success! Show brief confirmation before redirect
-        if (result.isTemporary) {
-          alert(
-            `🎉 Successfully claimed ${result.ticketsClaimed} free ticket(s)!\n\nNote: Order stored locally (database access restricted).\n\nRedirecting to your ticket confirmation...`
-          );
-        } else {
-          alert(
-            `🎉 Successfully claimed ${result.ticketsClaimed} free ticket(s)!\n\nRedirecting to your ticket confirmation...`
-          );
-        }
+        showToast(
+          "success",
+          "Free Tickets Claimed",
+          `🎉 Successfully claimed ${result.ticketsClaimed} ticket(s)!\n\nOrder: ${result.orderNumber}\n\nRedirecting to confirmation...`
+        );
 
         // Reset selected tickets
         selectedTickets = {};
@@ -424,13 +545,12 @@
         // Redirect to ticket confirmation page
         goto(`/tickets/confirmation/${result.orderId}`);
       } else {
-        // Handle error
-        alert(
-          `❌ Failed to claim tickets: ${result.error}\n\nPlease try again or contact support.`
-        );
+        throw new Error(result.error || "Failed to claim tickets");
       }
     } catch (error: any) {
-      alert(
+      showToast(
+        "error",
+        "Claim Failed",
         `❌ An error occurred while claiming tickets: ${error?.message || "Unknown error"}\n\nPlease try again.`
       );
     } finally {
@@ -444,12 +564,18 @@
       const eventData = await getEventById(eventId);
 
       if (eventData) {
-        // Determine if event is free based on price or is_free_event flag
+        // Determine if event is free based on all ticket types having zero price
         const isFreeEvent =
           eventData.is_free_event ||
-          eventData.ticket_types?.[0]?.price === 0 ||
-          eventData.ticket_types?.[0]?.price === "0" ||
-          eventData.ticket_types?.[0]?.price === "NLe 0";
+          (eventData.ticket_types &&
+            eventData.ticket_types.length > 0 &&
+            eventData.ticket_types.every((ticket: any) => {
+              const price =
+                typeof ticket.price === "string"
+                  ? parseFloat(ticket.price)
+                  : ticket.price;
+              return price === 0 || price === null || price === undefined;
+            }));
 
         event = {
           id: eventData.id,
@@ -484,11 +610,16 @@
           ticketTypes = eventData.ticket_types.map((ticket: any) => ({
             id: ticket.id,
             name: ticket.name,
-            price: ticket.price,
+            price:
+              typeof ticket.price === "string"
+                ? parseFloat(ticket.price)
+                : ticket.price,
             description: ticket.description,
             features: ticket.benefits || [],
-            available_quantity:
-              ticket.available_quantity || eventData.total_capacity || 100,
+            available_quantity: Math.max(
+              0,
+              (ticket.quantity || 0) - (ticket.sold_quantity || 0)
+            ),
           }));
         } else {
           // Fallback for events without ticket types
@@ -613,6 +744,22 @@
         <div class="space-y-6">
           {#each ticketTypes as ticket}
             <TicketSelectionCard {ticket}>
+              <!-- Sold Out Overlay -->
+              {#if ticket.available_quantity <= 0}
+                <div
+                  class="absolute inset-0 bg-gray-900/80 rounded-xl flex items-center justify-center z-10"
+                >
+                  <div class="text-center">
+                    <div class="text-red-400 text-2xl font-bold mb-2">
+                      SOLD OUT
+                    </div>
+                    <div class="text-gray-400 text-sm">
+                      No tickets available
+                    </div>
+                  </div>
+                </div>
+              {/if}
+
               <div class="flex items-center justify-between mb-4">
                 <div class="flex-1">
                   <h3 class="text-xl font-bold text-white mb-2">
@@ -651,12 +798,27 @@
                     Max {event?.seating_options?.max_seats_per_order || 10} per ticket
                     type
                   </div>
+                  <!-- Available Quantity Display -->
+                  <div
+                    class="text-xs mt-1 {ticket.available_quantity <= 0
+                      ? 'text-red-400'
+                      : ticket.available_quantity < 10
+                        ? 'text-yellow-400'
+                        : 'text-gray-400'}"
+                  >
+                    {ticket.available_quantity <= 0
+                      ? "Sold Out"
+                      : ticket.available_quantity < 10
+                        ? `Only ${ticket.available_quantity} left!`
+                        : `${ticket.available_quantity} available`}
+                  </div>
                 </div>
               </div>
 
               <div class="flex items-center gap-4">
                 <QuantitySelector
                   quantity={selectedTickets[ticket.id] || 0}
+                  availableQuantity={ticket.available_quantity}
                   onQuantityChange={(newQuantity) =>
                     handleQuantityChange(ticket.id, newQuantity)}
                 />
@@ -664,6 +826,7 @@
                   text={ticket.price === 0 ? "Select Quantity" : "Add to Cart"}
                   onClick={() => handleAddToCart(ticket.id)}
                   class_="flex-1"
+                  disabled={ticket.available_quantity <= 0}
                 />
               </div>
             </TicketSelectionCard>
@@ -672,8 +835,14 @@
           <!-- Payment Summary -->
           <PaymentSummaryCard
             {totalPrice}
-            currency={event?.is_free_event ? "NLe" : "SOL"}
-            pricePerTicket={0.01}
+            currency={event?.is_free_event ? "USD" : "USDC"}
+            pricePerTicket={event?.is_free_event
+              ? 0
+              : totalPrice /
+                Object.values(selectedTickets).reduce(
+                  (sum, qty) => sum + qty,
+                  0
+                )}
           >
             <!-- Max seats per order info -->
             <div
@@ -772,6 +941,32 @@
     </div>
   {/if}
 </div>
+
+<!-- Payment Confirmation Dialog -->
+<ConfirmationDialog
+  bind:show={showPaymentConfirmation}
+  title="Confirm Payment"
+  message="Total Tickets: {paymentDetails.totalTickets} | Price per Ticket: {paymentDetails.pricePerTicket} SOL | Total Amount: {paymentDetails.totalAmount} SOL | From: {paymentDetails.fromWallet.slice(
+    0,
+    6
+  )}...{paymentDetails.fromWallet.slice(
+    -4
+  )} | To: {paymentDetails.toWallet.slice(
+    0,
+    6
+  )}...{paymentDetails.toWallet.slice(
+    -4
+  )} | ⚠️ Please ensure you have sufficient SOL balance in your wallet."
+  confirmText="Confirm Payment"
+  cancelText="Cancel"
+  confirmVariant="success"
+  loading={processingPayment}
+  on:confirm={processPayment}
+  on:cancel={() => {
+    showPaymentConfirmation = false;
+    processingPayment = false;
+  }}
+/>
 
 <style>
   /* Page load animation */

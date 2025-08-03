@@ -14,6 +14,8 @@
   };
 </script>
 
-<div class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
+<div
+  class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700 relative"
+>
   <slot />
 </div>
