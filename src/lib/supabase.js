@@ -1697,6 +1697,13 @@ export async function transferTicket(
   reason = null
 ) {
   try {
+    console.log("Calling transfer_ticket with:", {
+      orderItemId,
+      fromWallet,
+      toWallet,
+      reason,
+    });
+
     const { data, error } = await supabase.rpc("transfer_ticket", {
       p_order_item_id: orderItemId,
       p_from_wallet: fromWallet,
@@ -1704,8 +1711,27 @@ export async function transferTicket(
       p_reason: reason,
     });
 
-    if (error) throw error;
-    return { success: data, error: null };
+    console.log("Database response:", { data, error });
+
+    if (error) {
+      console.error("Database error:", error);
+      throw error;
+    }
+
+    // The database function returns a table with success and message
+    // We need to check if the first row indicates success
+    if (data && data.length > 0) {
+      const result = data[0];
+      console.log("Transfer result:", result);
+
+      if (result.success) {
+        return { success: true, error: null, message: result.message };
+      } else {
+        return { success: false, error: result.message || "Transfer failed" };
+      }
+    } else {
+      return { success: false, error: "No response from database" };
+    }
   } catch (error) {
     console.error("Error transferring ticket:", error);
     return { success: false, error: error.message };

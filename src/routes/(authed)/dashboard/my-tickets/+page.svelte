@@ -313,15 +313,53 @@
     try {
       assigning = true;
 
-      // Use the new transfer function
-      const { success, error: transferError } = await transferTicket(
-        selectedTicket.orderItemId,
-        selectedTicket.wallet_address, // Current owner
+      // Get the order item ID from the selected ticket
+      const orderItemId =
+        selectedTicket?.orderItemId || selectedTicket?.order_item_id;
+      const currentOwner = selectedTicket?.wallet_address;
+
+      if (!orderItemId) {
+        throw new Error("Ticket ID not found");
+      }
+
+      if (!currentOwner) {
+        throw new Error("Current owner not found");
+      }
+
+      if (!walletAddress || walletAddress.trim() === "") {
+        throw new Error("Please enter a valid wallet address");
+      }
+
+      // Basic wallet address validation
+      const trimmedWallet = walletAddress.trim();
+      if (trimmedWallet.length < 10) {
+        throw new Error("Wallet address seems too short");
+      }
+
+      // Check if it's the same wallet
+      if (trimmedWallet.toLowerCase() === currentOwner.toLowerCase()) {
+        throw new Error("Cannot transfer to the same wallet address");
+      }
+
+      console.log("Transferring ticket:", {
+        orderItemId,
+        fromWallet: currentOwner,
+        toWallet: walletAddress,
+      });
+
+      // Use the transfer function
+      const result = await transferTicket(
+        orderItemId,
+        currentOwner,
         walletAddress,
         "Transfer via My Tickets page"
       );
 
-      if (!success) throw new Error(transferError || "Transfer failed");
+      console.log("Transfer result:", result);
+
+      if (!result.success) {
+        throw new Error(result.error || "Transfer failed");
+      }
 
       // Show success toast
       showToast(
@@ -336,6 +374,7 @@
       selectedTicket = null;
       walletAddress = "";
     } catch (err) {
+      console.error("Transfer error:", err);
       // Show error toast
       showToast("error", "Transfer Failed", err.message || "Transfer failed");
     } finally {
@@ -1264,8 +1303,7 @@
         </div>
 
         <button
-          on:click={() =>
-            assignTicketToWallet(selectedTicket?.id, walletAddress)}
+          on:click={() => assignTicketToWallet(null, walletAddress)}
           disabled={!walletAddress || assigning}
           class="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-lg hover:from-green-600 hover:to-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
         >

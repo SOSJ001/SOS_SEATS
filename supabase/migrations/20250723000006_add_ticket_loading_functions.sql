@@ -115,7 +115,7 @@ BEGIN
     LEFT JOIN order_items oi ON oi.order_id = o.id
     LEFT JOIN events e ON e.id = o.event_id
     LEFT JOIN ticket_types tt ON tt.id = oi.ticket_type_id
-    WHERE (oi.current_owner = p_wallet_address OR o.buyer_wallet_address = p_wallet_address)
+    WHERE oi.current_owner = p_wallet_address
     ORDER BY o.created_at DESC;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
