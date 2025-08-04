@@ -93,12 +93,118 @@
         { p_wallet_address: userWalletAddress }
       );
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error("Database function error:", fetchError);
+
+        // If the function doesn't exist, try a fallback approach
+        if (
+          fetchError.message.includes("function") &&
+          fetchError.message.includes("does not exist")
+        ) {
+          console.log("Database function not found, trying fallback...");
+
+          // Try to load orders directly from the orders table
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from("orders")
+            .select(
+              `
+              *,
+              events(name, description, date, location),
+              order_items(
+                *,
+                ticket_types(name, price)
+              )
+            `
+            )
+            .eq("buyer_wallet_address", userWalletAddress)
+            .order("created_at", { ascending: false });
+
+          if (fallbackError) {
+            throw new Error(`Fallback query failed: ${fallbackError.message}`);
+          }
+
+          // Transform fallback data to match expected format
+          // Handle multiple order items per order
+          const ticketArray = [];
+          fallbackData?.forEach((order) => {
+            if (order.order_items && order.order_items.length > 0) {
+              // Create a ticket for each order item
+              order.order_items.forEach((orderItem, index) => {
+                ticketArray.push({
+                  id: `ticket-${order.id}-${orderItem.id || index}`,
+                  event_id: order.event_id,
+                  wallet_address: order.buyer_wallet_address,
+                  original_buyer_wallet: order.buyer_wallet_address,
+                  ticket_number: `TIX-${orderItem.id?.slice(0, 8) || order.id?.slice(0, 8)}`,
+                  status: order.payment_status || "confirmed",
+                  orderId: order.id,
+                  orderNumber: order.order_number,
+                  orderItemId: orderItem.id,
+                  orderDate: order.created_at,
+                  totalAmount: order.total_amount,
+                  currency: order.currency || "SOL",
+                  orderStatus: order.order_status,
+                  paymentMethod: order.payment_method,
+                  paymentStatus: order.payment_status,
+                  buyerName: order.buyer_name,
+                  ticketType: orderItem.ticket_types?.name || "Standard",
+                  price: orderItem.ticket_types?.price || 0,
+                  source: order.payment_method === "free" ? "free" : "paid",
+                  isTransferred: false,
+                  events: {
+                    title: order.events?.name,
+                    description:
+                      order.events?.description || "Event details available",
+                    date: order.events?.date,
+                    location: order.events?.location,
+                  },
+                });
+              });
+            } else {
+              // Fallback for orders without order items
+              ticketArray.push({
+                id: `ticket-${order.id}`,
+                event_id: order.event_id,
+                wallet_address: order.buyer_wallet_address,
+                original_buyer_wallet: order.buyer_wallet_address,
+                ticket_number: `TIX-${order.id?.slice(0, 8)}`,
+                status: order.payment_status || "confirmed",
+                orderId: order.id,
+                orderNumber: order.order_number,
+                orderItemId: null,
+                orderDate: order.created_at,
+                totalAmount: order.total_amount,
+                currency: order.currency || "SOL",
+                orderStatus: order.order_status,
+                paymentMethod: order.payment_method,
+                paymentStatus: order.payment_status,
+                buyerName: order.buyer_name,
+                ticketType: "Standard",
+                price: 0,
+                source: order.payment_method === "free" ? "free" : "paid",
+                isTransferred: false,
+                events: {
+                  title: order.events?.name,
+                  description:
+                    order.events?.description || "Event details available",
+                  date: order.events?.date,
+                  location: order.events?.location,
+                },
+              });
+            }
+          });
+          tickets = ticketArray;
+
+          return; // Exit early since we handled the fallback
+        }
+
+        throw new Error(`Database function error: ${fetchError.message}`);
+      }
 
       // Transform the data to match the expected format
       tickets =
-        ordersData?.map((order) => ({
-          id: `ticket-${order.order_id}`,
+        ordersData?.map((order, index) => ({
+          id: `ticket-${order.order_id}-${order.order_item_id || index}`,
           event_id: order.event_id,
           wallet_address: order.current_owner, // Use current owner
           original_buyer_wallet: order.original_buyer_wallet,
@@ -125,6 +231,16 @@
             location: order.event_location,
           },
         })) || [];
+
+      // Debug: Check for duplicate IDs
+      const ticketIds = tickets.map((t) => t.id);
+      const uniqueIds = new Set(ticketIds);
+      if (ticketIds.length !== uniqueIds.size) {
+        console.warn(
+          "Duplicate ticket IDs found:",
+          ticketIds.filter((id, index) => ticketIds.indexOf(id) !== index)
+        );
+      }
     } catch (err) {
       error = "Failed to load tickets. Please try again.";
     } finally {
@@ -450,6 +566,42 @@
       <p class="text-gray-400 mb-6">
         You haven't purchased any tickets with this wallet yet.
       </p>
+
+      <!-- Debug Information -->
+      <div
+        class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6 text-left"
+      >
+        <h4 class="text-sm font-semibold text-gray-300 mb-2">
+          Debug Information:
+        </h4>
+        <div class="text-xs text-gray-400 space-y-1">
+          <p>Wallet Address: {data?.walletAddress || "Not found"}</p>
+          <p>Session Type: {data?.sessionType || "Unknown"}</p>
+          <p>User Name: {data?.userName || "Unknown"}</p>
+          <p>Tickets Array Length: {tickets.length}</p>
+          <p>Loading State: {loading}</p>
+          <p>Error State: {error || "None"}</p>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button
+            on:click={() =>
+              window.open(
+                `/api/test-tickets?wallet=${data?.walletAddress || ""}`,
+                "_blank"
+              )}
+            class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+          >
+            Test Database Functions
+          </button>
+          <button
+            on:click={() => window.open("/api/check-db", "_blank")}
+            class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors"
+          >
+            Check Database State
+          </button>
+        </div>
+      </div>
+
       <a
         href="/marketplace"
         class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
@@ -479,6 +631,59 @@
           <h2 class="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">
             My Tickets
           </h2>
+
+          <!-- Ticket Summary Card -->
+          <div class="bg-gray-800 rounded-xl p-6 mb-6 border border-gray-700">
+            <h3 class="text-lg font-bold text-white mb-4">Ticket Summary</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-white">
+                  {filteredTickets.length}
+                </div>
+                <div class="text-gray-400 text-sm">Total Tickets</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-green-400">
+                  {filteredTickets.filter((t) => t.paymentStatus === "paid")
+                    .length}
+                </div>
+                <div class="text-gray-400 text-sm">Paid Tickets</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-blue-400">
+                  {filteredTickets.filter((t) => t.source === "free").length}
+                </div>
+                <div class="text-gray-400 text-sm">Free Tickets</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-purple-400">
+                  {new Set(filteredTickets.map((t) => t.event_id)).size}
+                </div>
+                <div class="text-gray-400 text-sm">Unique Events</div>
+              </div>
+            </div>
+
+            <!-- Ticket Types Breakdown -->
+            <div class="mt-4 pt-4 border-t border-gray-700">
+              <h4 class="text-sm font-semibold text-gray-300 mb-2">
+                Ticket Types
+              </h4>
+              <div class="flex flex-wrap gap-2">
+                {#each Object.entries(filteredTickets.reduce((acc, ticket) => {
+                    const type = ticket.ticketType || "Standard";
+                    acc[type] = (acc[type] || 0) + 1;
+                    return acc;
+                  }, {})) as [type, count]}
+                  <span
+                    class="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-sm"
+                  >
+                    {type}: {count}
+                  </span>
+                {/each}
+              </div>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {#each filteredTickets as ticket (ticket.id)}
               <div
@@ -493,17 +698,27 @@
                     <span
                       class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full"
                     >
-                      Active
+                      {ticket.paymentStatus === "paid"
+                        ? "Active"
+                        : ticket.paymentStatus}
                     </span>
                     <span class="text-gray-400 text-xs sm:text-sm">•</span>
                     <span class="text-gray-400 text-xs sm:text-sm"
                       >{ticket.ticketType}</span
                     >
+                    {#if ticket.source === "free"}
+                      <span class="text-gray-400 text-xs sm:text-sm">•</span>
+                      <span
+                        class="text-green-400 text-xs sm:text-sm font-medium"
+                        >Free</span
+                      >
+                    {/if}
                   </div>
                 </div>
 
-                <!-- Ticket Details -->
+                <!-- Enhanced Ticket Details -->
                 <div class="space-y-3 mb-6">
+                  <!-- Event Date -->
                   <div class="flex items-center text-sm">
                     <svg
                       class="w-4 h-4 text-gray-400 mr-2"
@@ -519,13 +734,73 @@
                       />
                     </svg>
                     <span class="text-gray-300"
+                      >Event Date: {formatDate(ticket.events?.date)}</span
+                    >
+                  </div>
+
+                  <!-- Event Location -->
+                  <div class="flex items-center text-sm">
+                    <svg
+                      class="w-4 h-4 text-gray-400 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                    <span class="text-gray-300"
+                      >Location: {ticket.events?.location || "TBD"}</span
+                    >
+                  </div>
+
+                  <!-- Order Date -->
+                  <div class="flex items-center text-sm">
+                    <svg
+                      class="w-4 h-4 text-gray-400 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span class="text-gray-300"
                       >Order Date: {formatDate(ticket.orderDate)}</span
                     >
                   </div>
+
+                  <!-- Order Number -->
+                  <div class="flex items-center text-sm">
+                    <span class="text-gray-400 mr-2">Order #:</span>
+                    <span class="text-gray-300 font-mono"
+                      >{ticket.orderNumber}</span
+                    >
+                  </div>
+
+                  <!-- Ticket ID -->
                   <div class="flex items-center text-sm">
                     <span class="text-gray-400 mr-2">Ticket ID:</span>
-                    <span class="text-gray-300">{ticket.ticket_number}</span>
+                    <span class="text-gray-300 font-mono"
+                      >{ticket.ticket_number}</span
+                    >
                   </div>
+
+                  <!-- Current Owner -->
                   <div class="flex items-center text-sm">
                     <span class="text-gray-400 mr-2">Current Owner:</span>
                     <span class="text-green-400 font-mono"
@@ -542,12 +817,63 @@
                       </span>
                     {/if}
                   </div>
-                  <div class="flex items-center text-sm">
-                    <span class="text-gray-400 mr-2">Price:</span>
-                    <span class="text-white font-medium"
-                      >{formatPrice(ticket.price, ticket.currency)}</span
-                    >
+
+                  <!-- Original Buyer (if different) -->
+                  {#if ticket.original_buyer_wallet && ticket.original_buyer_wallet !== ticket.wallet_address}
+                    <div class="flex items-center text-sm">
+                      <span class="text-gray-400 mr-2">Original Buyer:</span>
+                      <span class="text-blue-400 font-mono"
+                        >{ticket.original_buyer_wallet.slice(
+                          0,
+                          6
+                        )}...{ticket.original_buyer_wallet.slice(-3)}</span
+                      >
+                    </div>
+                  {/if}
+
+                  <!-- Price and Payment Info -->
+                  <div class="flex items-center justify-between text-sm">
+                    <div class="flex items-center">
+                      <span class="text-gray-400 mr-2">Price:</span>
+                      <span class="text-white font-medium"
+                        >{formatPrice(ticket.price, ticket.currency)}</span
+                      >
+                    </div>
+                    <div class="flex items-center">
+                      <span class="text-gray-400 mr-2">Payment:</span>
+                      <span class="text-green-400 font-medium capitalize"
+                        >{ticket.paymentStatus}</span
+                      >
+                    </div>
                   </div>
+
+                  <!-- Payment Method -->
+                  <div class="flex items-center text-sm">
+                    <span class="text-gray-400 mr-2">Payment Method:</span>
+                    <span class="text-white">
+                      {#if ticket.paymentMethod === "free"}
+                        <span class="text-green-400">Free Ticket</span>
+                      {:else if ticket.paymentMethod === "solana"}
+                        <span class="text-blue-400">💎 Solana</span>
+                      {:else}
+                        <span class="text-gray-300">{ticket.paymentMethod}</span
+                        >
+                      {/if}
+                    </span>
+                  </div>
+
+                  <!-- Total Amount (if different from individual price) -->
+                  {#if ticket.totalAmount && ticket.totalAmount !== ticket.price}
+                    <div class="flex items-center text-sm">
+                      <span class="text-gray-400 mr-2">Total Amount:</span>
+                      <span class="text-white font-medium"
+                        >{formatPrice(
+                          ticket.totalAmount,
+                          ticket.currency
+                        )}</span
+                      >
+                    </div>
+                  {/if}
                 </div>
 
                 <!-- Action Buttons -->
@@ -593,6 +919,25 @@
                 </div>
               </div>
             {/each}
+          </div>
+
+          <!-- Important Information Section -->
+          <div
+            class="mt-8 bg-blue-900/20 border border-blue-500/30 rounded-lg p-6"
+          >
+            <h4 class="text-blue-300 font-semibold mb-3">
+              Important Information
+            </h4>
+            <ul class="text-gray-300 space-y-2 text-sm">
+              <li>• Your tickets are confirmed and ready for the events</li>
+              <li>
+                • Please arrive at least 15 minutes before each event starts
+              </li>
+              <li>• Bring a valid ID for ticket verification</li>
+              <li>• Tickets can be transferred to other wallet addresses</li>
+              <li>• Free tickets are non-refundable but transferable</li>
+              <li>• Contact support if you have any questions</li>
+            </ul>
           </div>
         </div>
       {/if}
