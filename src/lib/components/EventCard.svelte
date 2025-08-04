@@ -18,7 +18,6 @@
   let paymentOptions = false;
   let isHovered = false;
 
-  // Debug logging
   $: if (event) {
   }
 </script>

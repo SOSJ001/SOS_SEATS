@@ -1413,7 +1413,6 @@ export async function loadUserOrders(userId, walletAddress = null) {
   }
 }
 
-// Debug function to list all orders
 export async function listAllOrders() {
   try {
     const { data: orders, error } = await supabase.rpc("list_all_orders");
@@ -1706,11 +1705,6 @@ export async function claimFreeTickets(
       transaction_hash: paymentInfo ? paymentInfo.transactionSignature : null,
       order_status: "confirmed",
     };
-
-    // TEMPORARY FIX: Ensure we have a wallet address for testing
-    if (!orderData.buyer_wallet_address) {
-      orderData.buyer_wallet_address = "0x1234567890abcdef";
-    }
 
     // Try to authenticate user for database operations
     const authResult = await authenticateUserForDatabase(userData);

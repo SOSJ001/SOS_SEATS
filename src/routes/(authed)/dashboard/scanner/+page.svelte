@@ -101,16 +101,12 @@
     }
 
     try {
-      console.log("Processing scan result:", walletAddress);
-
       // Validate and check in the ticket
       const result = await validateAndCheckInTicket(
         walletAddress,
         selectedEvent,
         null
       );
-
-      console.log("Validation result:", result);
 
       if (result.success) {
         // Success - ticket checked in

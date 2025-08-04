@@ -129,15 +129,11 @@
       }
 
       if (fetchError) {
-        console.error("Database function error:", fetchError);
-
         // If the function doesn't exist, try a fallback approach
         if (
           fetchError.message.includes("function") &&
           fetchError.message.includes("does not exist")
         ) {
-          console.log("Database function not found, trying fallback...");
-
           // Try to load orders directly from the orders table
           const { data: fallbackData, error: fallbackError } = await supabase
             .from("orders")
@@ -267,7 +263,6 @@
           },
         })) || [];
 
-      // Debug: Check for duplicate IDs
       const ticketIds = tickets.map((t) => t.id);
       const uniqueIds = new Set(ticketIds);
       if (ticketIds.length !== uniqueIds.size) {
@@ -341,12 +336,6 @@
         throw new Error("Cannot transfer to the same wallet address");
       }
 
-      console.log("Transferring ticket:", {
-        orderItemId,
-        fromWallet: currentOwner,
-        toWallet: walletAddress,
-      });
-
       // Use the transfer function
       const result = await transferTicket(
         orderItemId,
@@ -354,8 +343,6 @@
         walletAddress,
         "Transfer via My Tickets page"
       );
-
-      console.log("Transfer result:", result);
 
       if (!result.success) {
         throw new Error(result.error || "Transfer failed");
@@ -583,41 +570,6 @@
       <p class="text-gray-400 mb-6">
         You haven't purchased any tickets with this wallet yet.
       </p>
-
-      <!-- Debug Information -->
-      <div
-        class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6 text-left"
-      >
-        <h4 class="text-sm font-semibold text-gray-300 mb-2">
-          Debug Information:
-        </h4>
-        <div class="text-xs text-gray-400 space-y-1">
-          <p>Wallet Address: {data?.walletAddress || "Not found"}</p>
-          <p>Session Type: {data?.sessionType || "Unknown"}</p>
-          <p>User Name: {data?.userName || "Unknown"}</p>
-          <p>Tickets Array Length: {tickets.length}</p>
-          <p>Loading State: {loading}</p>
-          <p>Error State: {error || "None"}</p>
-        </div>
-        <div class="flex gap-2 mt-3">
-          <button
-            on:click={() =>
-              window.open(
-                `/api/test-tickets?wallet=${data?.walletAddress || ""}`,
-                "_blank"
-              )}
-            class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
-          >
-            Test Database Functions
-          </button>
-          <button
-            on:click={() => window.open("/api/check-db", "_blank")}
-            class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors"
-          >
-            Check Database State
-          </button>
-        </div>
-      </div>
 
       <a
         href="/marketplace"

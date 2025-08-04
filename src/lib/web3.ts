@@ -7,6 +7,41 @@ export const connection = new web3.Connection(
   web3.clusterApiUrl("devnet", "confirmed")
 );
 
+// Helper function to get the currently connected wallet
+function getConnectedWallet() {
+  if (typeof window === "undefined") return null;
+
+  // Check which wallet is currently connected
+  if ((window as any).solana?.isConnected) {
+    return (window as any).solana;
+  }
+  if ((window as any).solflare?.isConnected) {
+    return (window as any).solflare;
+  }
+  if ((window as any).backpack?.isConnected) {
+    return (window as any).backpack;
+  }
+
+  return null;
+}
+
+// Helper function to get any available wallet (for fallback)
+function getAvailableWallet() {
+  if (typeof window === "undefined") return null;
+
+  if ((window as any).solana && (window as any).solana.isPhantom) {
+    return (window as any).solana;
+  }
+  if ((window as any).solflare) {
+    return (window as any).solflare;
+  }
+  if ((window as any).backpack) {
+    return (window as any).backpack;
+  }
+
+  return null;
+}
+
 // check if owner has created a wallet
 export async function createNew_wallet() {
   const wallet = web3.Keypair.generate();
@@ -126,22 +161,24 @@ export async function purchaseTicketsWithSolana(
 // Send transaction using connected wallet
 export async function sendTransactionWithWallet(transaction: web3.Transaction) {
   try {
-    // Get the connected wallet (Phantom, Solflare, etc.)
-    let wallet: any = null;
+    // Get the connected wallet using helper function
+    let wallet = getConnectedWallet();
 
-    if (typeof window !== "undefined") {
-      if ((window as any).solana && (window as any).solana.isPhantom) {
-        wallet = (window as any).solana;
-      } else if ((window as any).solflare) {
-        wallet = (window as any).solflare;
-      } else if ((window as any).backpack) {
-        wallet = (window as any).backpack;
-      }
+    // If no wallet is connected, try to find any available wallet
+    if (!wallet) {
+      wallet = getAvailableWallet();
     }
 
     if (!wallet) {
       throw new Error(
         "No wallet extension found. Please install Phantom, Solflare, or Backpack."
+      );
+    }
+
+    // Check if wallet is connected
+    if (!wallet.isConnected) {
+      throw new Error(
+        "Wallet is not connected. Please connect your wallet first."
       );
     }
 

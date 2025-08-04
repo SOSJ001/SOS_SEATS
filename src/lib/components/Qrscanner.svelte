@@ -38,7 +38,7 @@
           // Success callback
           if (!isProcessing) {
             isProcessing = true;
-            console.log("QR Code detected:", decodedText);
+
             onScan(decodedText);
 
             // Stop scanning after successful detection
@@ -49,7 +49,6 @@
         },
         (errorMessage) => {
           // Error callback - just log, don't show to user
-          console.log("QR scan error:", errorMessage);
         }
       );
 
