@@ -93,6 +93,41 @@
         { p_wallet_address: userWalletAddress }
       );
 
+      if (!fetchError && ordersData) {
+        // Process the data from the main database function
+        const ticketArray = ordersData.map((order) => ({
+          id: `ticket-${order.order_id}-${order.order_item_id}`,
+          event_id: order.event_id,
+          wallet_address: order.current_owner,
+          original_buyer_wallet: order.original_buyer_wallet,
+          ticket_number: `TIX-${order.order_item_id?.slice(0, 8)}`,
+          status: order.payment_status || "confirmed",
+          orderId: order.order_id,
+          orderNumber: order.order_number,
+          orderItemId: order.order_item_id,
+          order_item_id: order.order_item_id, // Add this for consistency
+          orderDate: order.created_at,
+          totalAmount: order.total_amount,
+          currency: order.currency || "SOL",
+          orderStatus: order.order_status,
+          paymentMethod: order.payment_method,
+          paymentStatus: order.payment_status,
+          buyerName: order.original_buyer_name,
+          ticketType: order.ticket_type_name || "Standard",
+          price: order.ticket_type_price || 0,
+          source: order.payment_method === "free" ? "free" : "paid",
+          isTransferred: order.current_owner !== order.original_buyer_wallet,
+          events: {
+            title: order.event_name,
+            description: order.event_description || "Event details available",
+            date: order.event_date,
+            location: order.event_location,
+          },
+        }));
+        tickets = ticketArray;
+        return;
+      }
+
       if (fetchError) {
         console.error("Database function error:", fetchError);
 
@@ -131,7 +166,7 @@
               // Create a ticket for each order item
               order.order_items.forEach((orderItem, index) => {
                 ticketArray.push({
-                  id: `ticket-${order.id}-${orderItem.id || index}`,
+                  id: `ticket-${order.id}-${orderItem.id || `item-${index}`}`,
                   event_id: order.event_id,
                   wallet_address: order.buyer_wallet_address,
                   original_buyer_wallet: order.buyer_wallet_address,
@@ -204,7 +239,7 @@
       // Transform the data to match the expected format
       tickets =
         ordersData?.map((order, index) => ({
-          id: `ticket-${order.order_id}-${order.order_item_id || index}`,
+          id: `ticket-${order.order_id}-${order.order_item_id || `item-${index}`}`,
           event_id: order.event_id,
           wallet_address: order.current_owner, // Use current owner
           original_buyer_wallet: order.original_buyer_wallet,
@@ -383,126 +418,50 @@
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
   <!-- Header -->
+  <div class="text-left mb-6 sm:mb-8">
+    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">
+      My Tickets
+    </h1>
+    <p class="text-gray-400 text-base sm:text-lg">
+      Manage your purchased tickets and assign them to wallet addresses
+    </p>
+  </div>
+
+  <!-- Search and Filter Section -->
   <div class="mb-6 sm:mb-8">
-    <div
-      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-    >
-      <div>
-        <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">
-          My Tickets
-        </h1>
-        <p class="text-gray-400 text-sm sm:text-base">
-          Manage your purchased tickets and assign them to wallet addresses
-        </p>
-      </div>
-      <div class="flex items-center justify-between sm:justify-end space-x-3">
-        <div class="text-right">
-          <div class="text-xs sm:text-sm text-gray-400">Your Tickets</div>
-          <div class="text-xl sm:text-2xl font-bold text-white">
-            {tickets.length}
-          </div>
-        </div>
-        <button
-          on:click={loadTickets}
-          class="px-3 sm:px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2"
+    <!-- Search Bar -->
+    <div class="relative mb-4">
+      <div
+        class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+      >
+        <svg
+          class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <svg
-            class="w-3 h-3 sm:w-4 sm:h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          <span class="hidden sm:inline">Refresh</span>
-        </button>
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
       </div>
+      <input
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Search tickets..."
+        class="w-full pl-10 pr-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+      />
     </div>
 
-    <!-- Search and Action Bar -->
-    <div class="flex flex-col lg:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
-      <!-- Search Bar -->
-      <div class="flex-1 relative">
-        <div
-          class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-        >
-          <svg
-            class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-        </div>
-        <input
-          type="text"
-          bind:value={searchQuery}
-          placeholder="Search tickets..."
-          class="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm sm:text-base"
-        />
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="flex gap-2 sm:gap-3">
-        <button
-          class="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium text-sm sm:text-base flex items-center gap-2"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          <span class="hidden sm:inline">Q Search</span>
-        </button>
-        <button
-          on:click={() => (showFilterDropdown = !showFilterDropdown)}
-          class="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 font-medium flex items-center justify-center gap-1 sm:gap-2 text-sm sm:text-base"
-        >
-          <svg
-            class="w-4 h-4 sm:w-5 sm:h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-            />
-          </svg>
-          <span class="hidden sm:inline">Filter</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Filter Tabs -->
-    <div
-      class="flex flex-wrap gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 sm:pb-0"
-    >
+    <!-- Filter Buttons -->
+    <div class="flex flex-wrap gap-2">
       {#each filterOptions as filter}
         <button
           on:click={() => (activeFilter = filter.id)}
-          class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap {activeFilter ===
+          class="px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base {activeFilter ===
           filter.id
             ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
             : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}"
@@ -510,6 +469,25 @@
           {filter.label}
         </button>
       {/each}
+      <button
+        on:click={loadTickets}
+        class="px-3 sm:px-4 py-2 bg-gray-800 text-gray-300 hover:bg-gray-700 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+      >
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
+        </svg>
+        <span class="hidden sm:inline">Refresh</span>
+      </button>
     </div>
   </div>
 
@@ -628,229 +606,337 @@
       <!-- All Tickets Section -->
       {#if filteredTickets.length > 0}
         <div>
-          <h2 class="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">
-            My Tickets
-          </h2>
-
-          <!-- Ticket Summary Card -->
-          <div class="bg-gray-800 rounded-xl p-6 mb-6 border border-gray-700">
-            <h3 class="text-lg font-bold text-white mb-4">Ticket Summary</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Ticket Statistics Section -->
+          <div
+            class="bg-gray-800 rounded-xl p-4 sm:p-6 mb-6 border border-gray-700"
+          >
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <!-- Total Tickets -->
               <div class="text-center">
-                <div class="text-2xl font-bold text-white">
+                <div class="text-2xl sm:text-3xl font-bold text-purple-500">
                   {filteredTickets.length}
                 </div>
-                <div class="text-gray-400 text-sm">Total Tickets</div>
+                <div class="text-gray-400 text-xs sm:text-sm mt-1">
+                  Total Tickets
+                </div>
               </div>
+
+              <!-- Paid Tickets -->
               <div class="text-center">
-                <div class="text-2xl font-bold text-green-400">
+                <div class="text-2xl sm:text-3xl font-bold text-green-500">
                   {filteredTickets.filter((t) => t.paymentStatus === "paid")
                     .length}
                 </div>
-                <div class="text-gray-400 text-sm">Paid Tickets</div>
+                <div class="text-gray-400 text-xs sm:text-sm mt-1">
+                  Paid Tickets
+                </div>
               </div>
+
+              <!-- Free Tickets -->
               <div class="text-center">
-                <div class="text-2xl font-bold text-blue-400">
+                <div class="text-2xl sm:text-3xl font-bold text-yellow-500">
                   {filteredTickets.filter((t) => t.source === "free").length}
                 </div>
-                <div class="text-gray-400 text-sm">Free Tickets</div>
+                <div class="text-gray-400 text-xs sm:text-sm mt-1">
+                  Free Tickets
+                </div>
               </div>
+
+              <!-- Unique Events -->
               <div class="text-center">
-                <div class="text-2xl font-bold text-purple-400">
+                <div class="text-2xl sm:text-3xl font-bold text-blue-500">
                   {new Set(filteredTickets.map((t) => t.event_id)).size}
                 </div>
-                <div class="text-gray-400 text-sm">Unique Events</div>
-              </div>
-            </div>
-
-            <!-- Ticket Types Breakdown -->
-            <div class="mt-4 pt-4 border-t border-gray-700">
-              <h4 class="text-sm font-semibold text-gray-300 mb-2">
-                Ticket Types
-              </h4>
-              <div class="flex flex-wrap gap-2">
-                {#each Object.entries(filteredTickets.reduce((acc, ticket) => {
-                    const type = ticket.ticketType || "Standard";
-                    acc[type] = (acc[type] || 0) + 1;
-                    return acc;
-                  }, {})) as [type, count]}
-                  <span
-                    class="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-sm"
-                  >
-                    {type}: {count}
-                  </span>
-                {/each}
+                <div class="text-gray-400 text-xs sm:text-sm mt-1">
+                  Unique Events
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          <!-- Ticket Types Section -->
+          <div class="bg-gray-800 rounded-xl p-6 mb-6 border border-gray-700">
+            <h3 class="text-lg font-bold text-white mb-4">Ticket Types</h3>
+            <div class="flex flex-wrap gap-2">
+              {#each Object.entries(filteredTickets.reduce((acc, ticket) => {
+                  const type = ticket.ticketType || "Standard";
+                  acc[type] = (acc[type] || 0) + 1;
+                  return acc;
+                }, {})) as [type, count]}
+                <span
+                  class="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-sm"
+                >
+                  {type}: {count}
+                </span>
+              {/each}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {#each filteredTickets as ticket (ticket.id)}
               <div
-                class="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 hover:border-gray-600 transition-colors"
+                class="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 hover:border-gray-600 transition-colors"
               >
                 <!-- Ticket Header -->
-                <div class="mb-3 sm:mb-4">
-                  <h3 class="text-lg sm:text-xl font-bold text-white mb-2">
+                <div
+                  class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4 sm:mb-6"
+                >
+                  <h3 class="text-lg sm:text-xl font-bold text-white">
                     {ticket.events?.title || "Event Title"}
                   </h3>
-                  <div class="flex items-center gap-2 mb-2 sm:mb-3">
-                    <span
-                      class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full"
-                    >
-                      {ticket.paymentStatus === "paid"
-                        ? "Active"
-                        : ticket.paymentStatus}
-                    </span>
-                    <span class="text-gray-400 text-xs sm:text-sm">•</span>
-                    <span class="text-gray-400 text-xs sm:text-sm"
-                      >{ticket.ticketType}</span
-                    >
-                    {#if ticket.source === "free"}
-                      <span class="text-gray-400 text-xs sm:text-sm">•</span>
-                      <span
-                        class="text-green-400 text-xs sm:text-sm font-medium"
-                        >Free</span
-                      >
-                    {/if}
-                  </div>
+                  <span
+                    class="px-3 py-1 bg-green-600 text-white text-xs font-semibold rounded-full uppercase tracking-wide self-start sm:self-auto"
+                  >
+                    {ticket.paymentStatus === "paid"
+                      ? "Completed"
+                      : ticket.paymentStatus}
+                  </span>
                 </div>
 
-                <!-- Enhanced Ticket Details -->
-                <div class="space-y-3 mb-6">
+                <!-- Ticket Details Grid -->
+                <div class="grid grid-cols-1 gap-2 sm:gap-4 mb-4 sm:mb-6">
                   <!-- Event Date -->
-                  <div class="flex items-center text-sm">
-                    <svg
-                      class="w-4 h-4 text-gray-400 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                    <span class="text-gray-300"
-                      >Event Date: {formatDate(ticket.events?.date)}</span
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                      <svg
+                        class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-2 sm:mr-3 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      <span class="text-gray-400 font-medium text-xs sm:text-sm"
+                        >Event Date</span
+                      >
+                    </div>
+                    <span
+                      class="text-white font-semibold text-xs sm:text-sm text-right"
+                      >{formatDate(ticket.events?.date)}</span
                     >
                   </div>
 
-                  <!-- Event Location -->
-                  <div class="flex items-center text-sm">
-                    <svg
-                      class="w-4 h-4 text-gray-400 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    <span class="text-gray-300"
-                      >Location: {ticket.events?.location || "TBD"}</span
+                  <!-- Location -->
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                      <svg
+                        class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-2 sm:mr-3 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                        />
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                      <span class="text-gray-400 font-medium text-xs sm:text-sm"
+                        >Location</span
+                      >
+                    </div>
+                    <span
+                      class="text-white font-semibold text-xs sm:text-sm text-right"
+                      >{ticket.events?.location || "TBD"}</span
                     >
                   </div>
 
                   <!-- Order Date -->
-                  <div class="flex items-center text-sm">
-                    <svg
-                      class="w-4 h-4 text-gray-400 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <span class="text-gray-300"
-                      >Order Date: {formatDate(ticket.orderDate)}</span
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                      <svg
+                        class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-2 sm:mr-3 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span class="text-gray-400 font-medium text-xs sm:text-sm"
+                        >Order Date</span
+                      >
+                    </div>
+                    <span
+                      class="text-white font-semibold text-xs sm:text-sm text-right"
+                      >{formatDate(ticket.orderDate)}</span
                     >
                   </div>
 
                   <!-- Order Number -->
-                  <div class="flex items-center text-sm">
-                    <span class="text-gray-400 mr-2">Order #:</span>
-                    <span class="text-gray-300 font-mono"
-                      >{ticket.orderNumber}</span
-                    >
-                  </div>
-
-                  <!-- Ticket ID -->
-                  <div class="flex items-center text-sm">
-                    <span class="text-gray-400 mr-2">Ticket ID:</span>
-                    <span class="text-gray-300 font-mono"
-                      >{ticket.ticket_number}</span
-                    >
-                  </div>
-
-                  <!-- Current Owner -->
-                  <div class="flex items-center text-sm">
-                    <span class="text-gray-400 mr-2">Current Owner:</span>
-                    <span class="text-green-400 font-mono"
-                      >{ticket.wallet_address.slice(
-                        0,
-                        6
-                      )}...{ticket.wallet_address.slice(-3)}</span
-                    >
-                    {#if ticket.isTransferred}
-                      <span
-                        class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full"
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                      <svg
+                        class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-2 sm:mr-3 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        Transferred
-                      </span>
-                    {/if}
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
+                        />
+                      </svg>
+                      <span class="text-gray-400 font-medium text-xs sm:text-sm"
+                        >Order Number</span
+                      >
+                    </div>
+                    <span
+                      class="text-white font-mono font-semibold text-xs sm:text-sm text-right"
+                      >#{ticket.orderNumber}</span
+                    >
                   </div>
 
-                  <!-- Original Buyer (if different) -->
-                  {#if ticket.original_buyer_wallet && ticket.original_buyer_wallet !== ticket.wallet_address}
-                    <div class="flex items-center text-sm">
-                      <span class="text-gray-400 mr-2">Original Buyer:</span>
-                      <span class="text-blue-400 font-mono"
-                        >{ticket.original_buyer_wallet.slice(
+                  <!-- Ticket # -->
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                      <svg
+                        class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-2 sm:mr-3 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
+                        />
+                      </svg>
+                      <span class="text-gray-400 font-medium text-xs sm:text-sm"
+                        >Ticket #</span
+                      >
+                    </div>
+                    <span
+                      class="text-white font-mono font-semibold text-xs sm:text-sm text-right"
+                      >{ticket.orderItemId ||
+                        ticket.order_item_id ||
+                        "N/A"}</span
+                    >
+                  </div>
+
+                  <!-- Owner -->
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                      <svg
+                        class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-2 sm:mr-3 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
+                      <span class="text-gray-400 font-medium">Owner</span>
+                    </div>
+                    <div class="flex items-center">
+                      <span class="text-green-400 font-mono font-semibold">
+                        {ticket.wallet_address.slice(
                           0,
                           6
-                        )}...{ticket.original_buyer_wallet.slice(-3)}</span
-                      >
+                        )}...{ticket.wallet_address.slice(-3)}
+                      </span>
+                      {#if ticket.isTransferred}
+                        <span
+                          class="ml-2 px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded-full"
+                        >
+                          Transferred
+                        </span>
+                      {/if}
                     </div>
-                  {/if}
+                  </div>
 
-                  <!-- Price and Payment Info -->
-                  <div class="flex items-center justify-between text-sm">
+                  <!-- Price -->
+                  <div class="flex items-center justify-between">
                     <div class="flex items-center">
-                      <span class="text-gray-400 mr-2">Price:</span>
-                      <span class="text-white font-medium"
-                        >{formatPrice(ticket.price, ticket.currency)}</span
+                      <svg
+                        class="w-5 h-5 text-gray-400 mr-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                        />
+                      </svg>
+                      <span class="text-gray-400 font-medium">Price</span>
+                    </div>
+                    <span class="text-white font-semibold"
+                      >{formatPrice(ticket.price, ticket.currency)}</span
+                    >
+                  </div>
+
+                  <!-- Payment Status -->
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                      <svg
+                        class="w-5 h-5 text-gray-400 mr-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                        />
+                      </svg>
+                      <span class="text-gray-400 font-medium"
+                        >Payment Status</span
                       >
                     </div>
-                    <div class="flex items-center">
-                      <span class="text-gray-400 mr-2">Payment:</span>
-                      <span class="text-green-400 font-medium capitalize"
-                        >{ticket.paymentStatus}</span
-                      >
-                    </div>
+                    <span class="text-green-400 font-semibold capitalize"
+                      >{ticket.paymentStatus}</span
+                    >
                   </div>
 
                   <!-- Payment Method -->
-                  <div class="flex items-center text-sm">
-                    <span class="text-gray-400 mr-2">Payment Method:</span>
-                    <span class="text-white">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                      <svg
+                        class="w-5 h-5 text-gray-400 mr-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                        />
+                      </svg>
+                      <span class="text-gray-400 font-medium"
+                        >Payment Method</span
+                      >
+                    </div>
+                    <span class="text-white font-semibold">
                       {#if ticket.paymentMethod === "free"}
                         <span class="text-green-400">Free Ticket</span>
                       {:else if ticket.paymentMethod === "solana"}
@@ -861,19 +947,20 @@
                       {/if}
                     </span>
                   </div>
+                </div>
 
-                  <!-- Total Amount (if different from individual price) -->
-                  {#if ticket.totalAmount && ticket.totalAmount !== ticket.price}
-                    <div class="flex items-center text-sm">
-                      <span class="text-gray-400 mr-2">Total Amount:</span>
-                      <span class="text-white font-medium"
-                        >{formatPrice(
-                          ticket.totalAmount,
-                          ticket.currency
-                        )}</span
-                      >
-                    </div>
-                  {/if}
+                <!-- Divider -->
+                <div class="border-t border-gray-700 mb-6"></div>
+
+                <!-- Total Amount -->
+                <div class="flex items-center justify-between mb-6">
+                  <span class="text-white font-bold text-lg">Total Amount</span>
+                  <span class="text-blue-400 font-bold text-lg">
+                    {formatPrice(
+                      ticket.totalAmount || ticket.price,
+                      ticket.currency
+                    )}
+                  </span>
                 </div>
 
                 <!-- Action Buttons -->
@@ -979,9 +1066,11 @@
         </h4>
         <div class="space-y-2 text-sm">
           <div class="flex justify-between">
-            <span class="text-gray-400">Ticket ID:</span>
+            <span class="text-gray-400">Ticket #:</span>
             <span class="text-white font-mono"
-              >{selectedTicket?.ticket_number}</span
+              >{selectedTicket?.orderItemId ||
+                selectedTicket?.order_item_id ||
+                selectedTicket?.ticket_number}</span
             >
           </div>
           <div class="flex justify-between">
@@ -1004,12 +1093,12 @@
       <div class="text-center mb-6">
         <div class="bg-white p-6 rounded-lg inline-block mb-4">
           <div class="w-48 h-48 flex items-center justify-center">
-            {#if selectedTicket?.ticket_number}
+            {#if selectedTicket?.wallet_address}
               <img
                 src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={encodeURIComponent(
-                  selectedTicket.ticket_number
+                  selectedTicket?.wallet_address
                 )}"
-                alt="QR Code for {selectedTicket.ticket_number}"
+                alt="QR Code for {selectedTicket?.wallet_address}"
                 class="w-full h-full object-contain"
               />
             {:else}
@@ -1037,7 +1126,7 @@
           Show this QR code at the event entrance for verification
         </p>
         <button
-          on:click={() => copyToClipboard(selectedTicket?.ticket_number || "")}
+          on:click={() => copyToClipboard(selectedTicket?.wallet_address || "")}
           class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 mx-auto relative"
         >
           {#if copyFeedback}
@@ -1069,7 +1158,7 @@
                 d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
               />
             </svg>
-            Copy Ticket ID
+            Copy Wallet Address
           {/if}
         </button>
       </div>
@@ -1124,9 +1213,11 @@
         </h4>
         <div class="space-y-2 text-sm">
           <div class="flex justify-between">
-            <span class="text-gray-400">Ticket ID:</span>
+            <span class="text-gray-400">Ticket #:</span>
             <span class="text-white font-mono"
-              >{selectedTicket?.ticket_number}</span
+              >{selectedTicket?.orderItemId ||
+                selectedTicket?.order_item_id ||
+                selectedTicket?.ticket_number}</span
             >
           </div>
           <div class="flex justify-between">
@@ -1155,10 +1246,13 @@
       <!-- Transfer Form -->
       <div class="space-y-4 mb-6">
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2"
+          <label
+            for="wallet-address"
+            class="block text-sm font-medium text-gray-300 mb-2"
             >Transfer to Wallet Address</label
           >
           <input
+            id="wallet-address"
             type="text"
             bind:value={walletAddress}
             placeholder="Enter wallet address (0x...)"
