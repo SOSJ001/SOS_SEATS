@@ -69,8 +69,8 @@
     if (savedData) {
       const parsed = JSON.parse(savedData);
       eventData = parsed;
-      } else {
-      }
+    } else {
+    }
   });
 
   function formatDate(dateString: string | undefined): string {

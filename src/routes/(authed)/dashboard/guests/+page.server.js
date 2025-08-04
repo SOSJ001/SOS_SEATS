@@ -1,30 +1,29 @@
 //@ts-nocheck
-import { loadGuestsRows } from "$lib/supabase";
+import {
+  loadGuestsRows,
+  loadUserEventsForSelector,
+  getUserIdFromCookies,
+} from "$lib/supabase";
 
 export async function load({ cookies }) {
-     let userSession = cookies.get("userSession");
-     let web3Session = cookies.get("web3Session");
-     let user_Id = null;
+  // Use the helper function to get user ID
+  const user_Id = getUserIdFromCookies(cookies);
 
-     // Check traditional session first
-     if (userSession) {
-       try {
-         const sessionData = JSON.parse(userSession);
-         user_Id = sessionData.id;
-       } catch (error) {
-         }
-     }
-     
-     // Check Web3 session if no traditional session
-     if (!user_Id && web3Session) {
-       try {
-         const sessionData = JSON.parse(web3Session);
-         if (sessionData.type === 'web3' && sessionData.user) {
-           user_Id = sessionData.user.id;
-         }
-       } catch (error) {
-         }
-     }
-    let loadGuestsData = await loadGuestsRows(user_Id);
-    return{loadGuestsData}
+  // Load both events and guests data
+  try {
+    const [guestsData, eventsData] = await Promise.all([
+      loadGuestsRows(user_Id),
+      loadUserEventsForSelector(user_Id),
+    ]);
+
+    return {
+      guestsData,
+      eventsData,
+    };
+  } catch (error) {
+    return {
+      guestsData: { data: [], error: error.message },
+      eventsData: { data: [], error: error.message },
+    };
+  }
 }
