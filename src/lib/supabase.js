@@ -1755,3 +1755,54 @@ export async function loadTicketsByCurrentOwner(walletAddress) {
     return { data: null, error: error.message };
   }
 }
+
+// Validate and check in a ticket by wallet address (QR code)
+export async function validateAndCheckInTicket(
+  walletAddress,
+  eventId,
+  checkInLocation = null
+) {
+  try {
+    console.log("Validating ticket:", {
+      walletAddress,
+      eventId,
+      checkInLocation,
+    });
+    const { data, error } = await supabase.rpc("validate_and_check_in_ticket", {
+      p_wallet_address: walletAddress,
+      p_event_id: eventId,
+      p_check_in_location: checkInLocation,
+    });
+
+    console.log("Validation response:", { data, error });
+    if (error) {
+      console.error("Error validating ticket:", error);
+      throw error;
+    }
+
+    if (data && data.length > 0) {
+      const result = data[0];
+      return {
+        success: result.success,
+        message: result.message,
+        ticketInfo: result.ticket_info,
+        error: null,
+      };
+    } else {
+      return {
+        success: false,
+        message: "No response from database",
+        ticketInfo: null,
+        error: "No response from database",
+      };
+    }
+  } catch (error) {
+    console.error("Error in validateAndCheckInTicket:", error);
+    return {
+      success: false,
+      message: error.message || "Validation failed",
+      ticketInfo: null,
+      error: error.message,
+    };
+  }
+}

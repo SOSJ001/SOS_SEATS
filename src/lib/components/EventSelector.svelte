@@ -10,7 +10,10 @@
 </script>
 
 <div class="mb-6">
-  <label for="event-select" class="block text-sm font-medium text-gray-300 mb-2">
+  <label
+    for="event-select"
+    class="block text-sm font-medium text-gray-300 mb-2"
+  >
     Select Event to Scan
   </label>
   <select
