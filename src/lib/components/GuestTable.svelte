@@ -7,7 +7,7 @@
     id: string;
     name: string;
     wallet_address: string;
-    status: "Checked In" | "Pending" | "VIP";
+    status: string; // Changed to string to handle all status types
     avatar: string;
     selected?: boolean;
   }> = [];
@@ -35,22 +35,56 @@
     dispatch("selectionChange", { selectedGuests, selectAll });
   }
 
-  function checkInGuest(guestId: string) {
-    dispatch("checkIn", { guestId });
+  function viewGuestDetails(guest: any) {
+    dispatch("viewDetails", { guest });
   }
 
-  function deleteGuest(guestId: string) {
-    dispatch("delete", { guestId });
-  }
-
-  function getStatusColor(status: string) {
+  function getCheckInStatus(guest: any) {
+    // Handle different status formats according to schema
+    const status = guest.status?.toLowerCase();
     switch (status) {
-      case "Checked In":
+      case "checked-in":
+        return "Checked In";
+      case "confirmed":
+        return "Confirmed";
+      case "pending":
+        return "Pending";
+      case "cancelled":
+        return "Cancelled";
+      default:
+        return guest.status || "Pending";
+    }
+  }
+
+  function getCheckInColor(guest: any) {
+    const status = guest.status?.toLowerCase();
+    switch (status) {
+      case "checked-in":
         return "text-green-400";
-      case "VIP":
-        return "text-purple-400";
+      case "confirmed":
+        return "text-blue-400";
+      case "pending":
+        return "text-yellow-400";
+      case "cancelled":
+        return "text-red-400";
       default:
         return "text-gray-300";
+    }
+  }
+
+  function getStatusBadgeColor(guest: any) {
+    const status = guest.status?.toLowerCase();
+    switch (status) {
+      case "checked-in":
+        return "bg-green-500";
+      case "confirmed":
+        return "bg-blue-500";
+      case "pending":
+        return "bg-yellow-500";
+      case "cancelled":
+        return "bg-red-500";
+      default:
+        return "bg-gray-500";
     }
   }
 </script>
@@ -100,38 +134,40 @@
             </td>
             <td class="py-4 px-6 text-gray-300">{guest.wallet_address}</td>
             <td class="py-4 px-6">
-              <span class="{getStatusColor(guest.status)} font-medium">
-                {guest.status}
+              <span
+                class="px-2 py-1 rounded-full text-xs font-medium {getStatusBadgeColor(
+                  guest
+                )} text-white"
+              >
+                {getCheckInStatus(guest)}
               </span>
             </td>
             <td class="py-4 px-6">
-              <div class="flex gap-2">
-                <button
-                  on:click={() => checkInGuest(guest.id)}
-                  class="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 text-sm flex items-center gap-1"
+              <button
+                on:click={() => viewGuestDetails(guest)}
+                class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 text-sm flex items-center gap-1"
+              >
+                <svg
+                  class="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <svg
-                    class="w-3 h-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  Check In
-                </button>
-                <button
-                  on:click={() => deleteGuest(guest.id)}
-                  class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200 text-sm"
-                >
-                  Delete
-                </button>
-              </div>
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+                View Details
+              </button>
             </td>
           </tr>
         {/each}
@@ -181,11 +217,11 @@
               />
             </div>
             <span
-              class="{getStatusColor(
-                guest.status
-              )} font-medium text-xs sm:text-sm"
+              class="px-2 py-1 rounded-full text-xs font-medium {getStatusBadgeColor(
+                guest
+              )} text-white"
             >
-              {guest.status}
+              {getCheckInStatus(guest)}
             </span>
           </div>
 
@@ -219,8 +255,8 @@
           <!-- Action Buttons -->
           <div class="flex gap-2">
             <button
-              on:click={() => checkInGuest(guest.id)}
-              class="flex-1 px-2 sm:px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 text-xs sm:text-sm flex items-center justify-center gap-1"
+              on:click={() => viewGuestDetails(guest)}
+              class="flex-1 px-2 sm:px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 text-xs sm:text-sm flex items-center justify-center gap-1"
             >
               <svg
                 class="w-3 h-3"
@@ -232,16 +268,16 @@
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M5 13l4 4L19 7"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                 />
               </svg>
-              Check In
-            </button>
-            <button
-              on:click={() => deleteGuest(guest.id)}
-              class="flex-1 px-2 sm:px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200 text-xs sm:text-sm"
-            >
-              Delete
+              View Details
             </button>
           </div>
         </div>

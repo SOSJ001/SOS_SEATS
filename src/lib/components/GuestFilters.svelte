@@ -9,9 +9,10 @@
 
   const filters = [
     { id: "all", label: "All" },
-    { id: "checked-in", label: "Checked In" },
     { id: "pending", label: "Pending" },
-    { id: "vip", label: "VIP" },
+    { id: "confirmed", label: "Confirmed" },
+    { id: "checked-in", label: "Checked In" },
+    { id: "cancelled", label: "Cancelled" },
   ];
 
   function handleSearch() {

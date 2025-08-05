@@ -4,6 +4,8 @@
   import EventSelector from "$lib/components/EventSelector.svelte";
   import GuestFilters from "$lib/components/GuestFilters.svelte";
   import GuestTable from "$lib/components/GuestTable.svelte";
+  import GuestDetailsModal from "$lib/components/GuestDetailsModal.svelte";
+  import { supabase } from "$lib/supabase.js";
 
   // Accept data from server
   export let data;
@@ -17,32 +19,61 @@
 
   // Initialize with dynamic data from server
   // Transform events data to match expected format (title -> name)
-  let events = (data.eventsData?.data || []).map((event) => ({
+  let events = (data.eventsData?.data || []).map((event: any) => ({
     id: event.id,
-    name: event.title, // Transform title to name for compatibility
+    name: event.title || event.name, // Handle both title and name fields
     date: event.date,
   }));
 
+  console.log("Events data:", events);
+
   // Transform guests data to match expected format
-  let guests = (data.guestsData?.data || []).map((guest) => ({
+  let guests = (data.guestsData?.data || []).map((guest: any) => ({
     id: guest.id,
-    name: guest.name,
+    name:
+      guest.name || `${guest.first_name || ""} ${guest.last_name || ""}`.trim(),
     wallet_address: formatWalletAddress(guest.wallet_address || ""),
-    status: guest.status as "Checked In" | "Pending" | "VIP", // Type assertion for compatibility
-    avatar: guest.avatar,
+    status: guest.status, // Keep original status from database (pending, confirmed, checked-in, cancelled)
+    avatar:
+      guest.avatar ||
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMCIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44MyAyLjE2IDQuODMgNC44M1MxNC42NyAxNC42NyAxMiAxNC42N1M3LjE3IDEyLjUxIDcuMTcgOS44M1M5LjMzIDUgMTIgNXptMCAxMmM0LjQyIDAgOC4xNy0yLjE2IDEwLjQyLTUuNDJDMjAuMTUgMTUuNjYgMTYuNDIgMTggMTIgMThzLTguMTUtMi4zNC0xMC40Mi01LjQyQzMuODMgMTQuODQgNy41OCAxNyAxMiAxN3oiLz4KPC9zdmc+Cjwvc3ZnPgo=",
     // Additional properties for extended functionality
-    ticket_number: guest.ticket_number,
+    ticket_number:
+      guest.order_item_id ||
+      guest.ticket_number ||
+      `TIX-${guest.id?.slice(0, 8)}`, // Use order_item_id as ticket number, fallback to ticket_number or generated ID
     phone: guest.phone,
     wallet_address_full: guest.wallet_address, // Keep full address for search
     seat_number: guest.seat_number,
     check_in_time: guest.check_in_time,
     event_id: guest.event_id,
-    event_title: guest.event_title,
-    ticket_type: guest.ticket_type,
-    ticket_price: guest.ticket_price,
-    venue_section: guest.venue_section,
+    event_title: guest.event_title || guest.event_name,
+    event_date: guest.event_date,
+    ticket_type: guest.ticket_type_name || guest.ticket_type,
+    ticket_price: guest.ticket_type_price || guest.ticket_price,
+    venue_section: guest.venue_section_name || guest.venue_section,
     special_requirements: guest.special_requirements,
+    created_at: guest.created_at,
+    order_number: guest.order_number,
+    payment_method: guest.payment_method,
+    payment_status: guest.payment_status,
+    // Add current owner information
+    current_owner: guest.current_owner,
+    // Keep original data for modal
+    first_name: guest.first_name,
+    last_name: guest.last_name,
+    email: guest.email,
+    ticket_type_name: guest.ticket_type_name,
+    ticket_type_price: guest.ticket_type_price,
+    venue_section_name: guest.venue_section_name,
+    event_name: guest.event_name,
+    order_item_id: guest.order_item_id, // Include order_item_id
   }));
+
+  // Debug logging
+  console.log("Raw guests data:", data.guestsData?.data);
+  console.log("Transformed guests:", guests);
+  console.log("Events data:", data.eventsData?.data);
 
   // Error handling - extract error messages properly
   let eventsError = data.eventsData?.error
@@ -62,6 +93,10 @@
   let selectedGuests: string[] = [];
   let selectAll = false;
   let filteredGuests = guests;
+
+  // Modal state
+  let showGuestDetailsModal = false;
+  let selectedGuest: any = null;
 
   onMount(() => {
     // Initialize filtered guests with the loaded data
@@ -91,62 +126,71 @@
   function filterGuests() {
     let filtered = guests;
 
+    // Debug logging
+    console.log("Filtering guests. Total guests:", guests.length);
+    console.log("Selected event:", selectedEvent);
+    console.log("Active filter:", activeFilter);
+    console.log("Search query:", searchQuery);
+
     // Filter by event
     if (selectedEvent !== "all") {
       filtered = filtered.filter(
-        (guest) => String(guest.event_id) === String(selectedEvent)
+        (guest: any) => String(guest.event_id) === String(selectedEvent)
       );
+      console.log("After event filter:", filtered.length);
     }
 
     // Filter by status
     if (activeFilter !== "all") {
-      filtered = filtered.filter((guest) => {
+      filtered = filtered.filter((guest: any) => {
+        const guestStatus = guest.status?.toLowerCase();
+
         switch (activeFilter) {
           case "checked-in":
-            return guest.status === "Checked In";
+            return guestStatus === "checked-in";
           case "pending":
-            return guest.status === "Pending";
+            return guestStatus === "pending";
           case "vip":
-            return guest.status === "VIP";
+            return guestStatus === "vip";
+          case "confirmed":
+            return guestStatus === "confirmed";
+          case "cancelled":
+            return guestStatus === "cancelled";
           default:
             return true;
         }
       });
+      console.log("After status filter:", filtered.length);
     }
 
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(
-        (guest) =>
+        (guest: any) =>
           guest.name.toLowerCase().includes(query) ||
           guest.wallet_address_full?.toLowerCase().includes(query) ||
           guest.status.toLowerCase().includes(query)
       );
+      console.log("After search filter:", filtered.length);
     }
 
     filteredGuests = filtered;
+    console.log("Final filtered guests:", filteredGuests.length);
   }
 
-  function handleCheckIn(event: CustomEvent) {
-    const guestId = event.detail.guestId;
-    const guestIndex = guests.findIndex((g) => g.id === guestId);
-    if (guestIndex !== -1) {
-      guests[guestIndex].status = "Checked In";
-      guests = [...guests]; // Trigger reactivity
-      filterGuests();
-    }
+  function handleViewDetails(event: CustomEvent) {
+    selectedGuest = event.detail.guest;
+    showGuestDetailsModal = true;
   }
 
-  function handleDelete(event: CustomEvent) {
-    const guestId = event.detail.guestId;
-    guests = guests.filter((g) => g.id !== guestId);
-    selectedGuests = selectedGuests.filter((id) => id !== guestId);
-    filterGuests();
+  function handleCloseModal() {
+    showGuestDetailsModal = false;
+    selectedGuest = null;
   }
 
   function handleDeleteSelected() {
-    guests = guests.filter((g) => !selectedGuests.includes(g.id));
+    guests = guests.filter((g: any) => !selectedGuests.includes(g.id));
     selectedGuests = [];
     selectAll = false;
     filterGuests();
@@ -230,8 +274,7 @@
         {selectedGuests}
         {selectAll}
         on:selectionChange={handleSelectionChange}
-        on:checkIn={handleCheckIn}
-        on:delete={handleDelete}
+        on:viewDetails={handleViewDetails}
       />
     </div>
   {:else if events.length > 0}
@@ -309,4 +352,11 @@
       />
     </svg>
   </button>
+
+  <!-- Guest Details Modal -->
+  <GuestDetailsModal
+    bind:show={showGuestDetailsModal}
+    guest={selectedGuest}
+    on:close={handleCloseModal}
+  />
 </div>

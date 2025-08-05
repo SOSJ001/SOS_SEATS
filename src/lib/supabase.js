@@ -260,10 +260,22 @@ export async function loadGuestsRows(user_id) {
     // Get all guests for all events - SIMPLIFIED QUERY
     const eventIds = events.map((event) => event.id);
 
-    // Try a simple query first without joins
+    // Get guests with order_items join to get current owner information
     const { data: guests, error: guestsError } = await supabase
       .from("guests")
-      .select("*")
+      .select(
+        `
+        *,
+        order_items!inner(
+          current_owner,
+          orders(
+            order_number,
+            payment_method,
+            payment_status
+          )
+        )
+      `
+      )
       .in("event_id", eventIds)
       .order("created_at", { ascending: false });
 
@@ -298,35 +310,48 @@ export async function loadGuestsRows(user_id) {
       venueSections?.forEach((vs) => (venueSectionMap[vs.id] = vs));
 
       // Transform the data to match the expected format
-      const transformedGuests = guests.map((guest) => ({
-        id: guest.id,
-        name: `${guest.first_name} ${guest.last_name}`,
-        email: guest.email,
-        status:
-          guest.status === "checked-in"
-            ? "Checked In"
-            : guest.status === "pending"
-            ? "Pending"
-            : guest.status === "confirmed"
-            ? "Confirmed"
-            : guest.status === "cancelled"
-            ? "Cancelled"
-            : "Pending",
-        avatar:
-          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMCIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44MyAyLjE2IDQuODMgNC44M1MxNC42NyAxNC42NyAxMiAxNC42N1M3LjE3IDEyLjUxIDcuMTcgOS44M1M5LjMzIDUgMTIgNXptMCAxMmM0LjQyIDAgOC4xNy0yLjE2IDEwLjQyLTUuNDJDMjAuMTUgMTUuNjYgMTYuNDIgMTggMTIgMThzLTguMTUtMi4zNC0xMC40Mi01LjQyQzMuODMgMTQuODQgNy41OCAxNyAxMiAxN3oiLz4KPC9zdmc+Cjwvc3ZnPgo=",
-        ticket_number: guest.ticket_number,
-        phone: guest.phone,
-        wallet_address: guest.wallet_address,
-        seat_number: guest.seat_number,
-        check_in_time: guest.check_in_time,
-        event_id: guest.event_id,
-        event_title:
-          events.find((e) => e.id === guest.event_id)?.name || "Unknown Event",
-        ticket_type: ticketTypeMap[guest.ticket_type_id]?.name || "General",
-        ticket_price: ticketTypeMap[guest.ticket_type_id]?.price || 0,
-        venue_section: venueSectionMap[guest.venue_section_id]?.name || null,
-        special_requirements: guest.special_requirements,
-      }));
+      const transformedGuests = guests.map((guest) => {
+        // Get the current owner from order_items, fallback to guest wallet_address
+        const currentOwner =
+          guest.order_items?.[0]?.current_owner || guest.wallet_address;
+        const orderData = guest.order_items?.[0]?.orders;
+
+        return {
+          id: guest.id,
+          name: `${guest.first_name} ${guest.last_name}`,
+          email: guest.email,
+          status:
+            guest.status === "checked-in"
+              ? "Checked In"
+              : guest.status === "pending"
+              ? "Pending"
+              : guest.status === "confirmed"
+              ? "Confirmed"
+              : guest.status === "cancelled"
+              ? "Cancelled"
+              : "Pending",
+          avatar:
+            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMCIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44MyAyLjE2IDQuODMgNC44M1MxNC42NyAxNC42NyAxMiAxNC42N1M3LjE3IDEyLjUxIDcuMTcgOS44M1M5LjMzIDUgMTIgNXptMCAxMmM0LjQyIDAgOC4xNy0yLjE2IDEwLjQyLTUuNDJDMjAuMTUgMTUuNjYgMTYuNDIgMTggMTIgMThzLTguMTUtMi4zNC0xMC40Mi01LjQyQzMuODMgMTQuODQgNy41OCAxNyAxMiAxN3oiLz4KPC9zdmc+Cjwvc3ZnPgo=",
+          ticket_number: guest.ticket_number,
+          phone: guest.phone,
+          wallet_address: currentOwner, // Use current owner instead of original buyer
+          seat_number: guest.seat_number,
+          check_in_time: guest.check_in_time,
+          event_id: guest.event_id,
+          event_title:
+            events.find((e) => e.id === guest.event_id)?.name ||
+            "Unknown Event",
+          event_date: events.find((e) => e.id === guest.event_id)?.date || null,
+          ticket_type: ticketTypeMap[guest.ticket_type_id]?.name || "General",
+          ticket_price: ticketTypeMap[guest.ticket_type_id]?.price || 0,
+          venue_section: venueSectionMap[guest.venue_section_id]?.name || null,
+          special_requirements: guest.special_requirements,
+          created_at: guest.created_at,
+          order_number: orderData?.order_number || `GUEST-${guest.id}`,
+          payment_method: orderData?.payment_method || "Free",
+          payment_status: orderData?.payment_status || "Completed",
+        };
+      });
 
       return { data: transformedGuests, error: null };
     } else {
@@ -1993,6 +2018,8 @@ export function getUserIdFromCookies(cookies) {
 // Bypass function for development - uses direct SQL to get around RLS
 export async function loadGuestsRowsBypass(user_id) {
   try {
+    console.log("loadGuestsRowsBypass: Starting with user_id:", user_id);
+
     // Use direct SQL to bypass RLS
     const { data: guests, error: guestsError } = await supabase.rpc(
       "get_guests_for_user",
@@ -2001,46 +2028,80 @@ export async function loadGuestsRowsBypass(user_id) {
       }
     );
 
+    console.log("loadGuestsRowsBypass: Database response:", {
+      hasData: !!guests,
+      dataLength: guests?.length || 0,
+      error: guestsError,
+      firstGuest: guests?.[0],
+    });
+
     if (guestsError) {
+      console.error("loadGuestsRowsBypass: Database error:", guestsError);
       return { data: [], error: guestsError };
     }
 
     if (guests && guests.length > 0) {
-      // Transform the data to match the expected format
-      const transformedGuests = guests.map((guest) => ({
-        id: guest.id,
-        name: `${guest.first_name} ${guest.last_name}`,
-        email: guest.email,
-        status:
-          guest.status === "checked-in"
-            ? "Checked In"
-            : guest.status === "pending"
-            ? "Pending"
-            : guest.status === "confirmed"
-            ? "Confirmed"
-            : guest.status === "cancelled"
-            ? "Cancelled"
-            : "Pending",
-        avatar:
-          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMCIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44MyAyLjE2IDQuODMgNC44M1MxNC42NyAxNC42NyAxMiAxNC42N1M3LjE3IDEyLjUxIDcuMTcgOS44M1M5LjMzIDUgMTIgNXptMCAxMmM0LjQyIDAgOC4xNy0yLjE2IDEwLjQyLTUuNDJDMjAuMTUgMTUuNjYgMTYuNDIgMTggMTIgMThzLTguMTUtMi4zNC0xMC40Mi01LjQyQzMuODMgMTQuODQgNy41OCAxNyAxMiAxN3oiLz4KPC9zdmc+Cjwvc3ZnPgo=",
-        ticket_number: guest.ticket_number,
-        phone: guest.phone,
-        wallet_address: guest.wallet_address,
-        seat_number: guest.seat_number,
-        check_in_time: guest.check_in_time,
-        event_id: guest.event_id,
-        event_title: guest.event_name || "Unknown Event",
-        ticket_type: guest.ticket_type_name || "General",
-        ticket_price: guest.ticket_type_price || 0,
-        venue_section: guest.venue_section_name || null,
-        special_requirements: guest.special_requirements,
-      }));
+      console.log(
+        "loadGuestsRowsBypass: Transforming",
+        guests.length,
+        "guests"
+      );
 
+      // Transform the data to match the expected format
+      const transformedGuests = guests.map((guest) => {
+        // The bypass function should already return current_owner from the database function
+        const currentOwner = guest.current_owner || guest.wallet_address;
+
+        return {
+          id: guest.id,
+          name: `${guest.first_name} ${guest.last_name}`,
+          email: guest.email,
+          status: guest.status, // Keep original status
+          avatar:
+            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMCIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44MyAyLjE2IDQuODMgNC44M1MxNC42NyAxNC42NyAxMiAxNC42N1M3LjE3IDEyLjUxIDcuMTcgOS44M1M5LjMzIDUgMTIgNXptMCAxMmM0LjQyIDAgOC4xNy0yLjE2IDEwLjQyLTUuNDJDMjAuMTUgMTUuNjYgMTYuNDIgMTggMTIgMThzLTguMTUtMi4zNC0xMC40Mi01LjQyQzMuODMgMTQuODQgNy41OCAxNyAxMiAxN3oiLz4KPC9zdmc+Cjwvc3ZnPgo=",
+          ticket_number:
+            guest.order_item_id ||
+            guest.ticket_number ||
+            `TIX-${guest.id?.slice(0, 8)}`, // Use order_item_id as ticket number, fallback to ticket_number or generated ID
+          phone: guest.phone,
+          wallet_address: currentOwner, // Use current owner instead of original buyer
+          seat_number: guest.seat_number,
+          check_in_time: guest.check_in_time,
+          event_id: guest.event_id,
+          event_title: guest.event_name || "Unknown Event",
+          event_date: guest.event_date || null,
+          ticket_type: guest.ticket_type_name || "General",
+          ticket_price: guest.ticket_type_price || 0,
+          venue_section: guest.venue_section_name || null,
+          special_requirements: guest.special_requirements,
+          created_at: guest.created_at,
+          order_number: guest.order_number || `GUEST-${guest.id}`,
+          payment_method: guest.payment_method || "Free",
+          payment_status: guest.payment_status || "Completed",
+          // Add original fields for client-side processing
+          first_name: guest.first_name,
+          last_name: guest.last_name,
+          current_owner: guest.current_owner,
+          ticket_type_name: guest.ticket_type_name,
+          ticket_type_price: guest.ticket_type_price,
+          venue_section_name: guest.venue_section_name,
+          event_name: guest.event_name,
+          order_item_id: guest.order_item_id, // Include order_item_id
+        };
+      });
+
+      console.log(
+        "loadGuestsRowsBypass: Returning",
+        transformedGuests.length,
+        "transformed guests"
+      );
       return { data: transformedGuests, error: null };
     } else {
+      console.log("loadGuestsRowsBypass: No guests found");
       return { data: [], error: null };
     }
   } catch (error) {
+    console.error("loadGuestsRowsBypass: Exception:", error);
     return { data: [], error: error.message };
   }
 }
