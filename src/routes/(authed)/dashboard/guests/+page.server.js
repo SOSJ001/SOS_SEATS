@@ -1,6 +1,7 @@
 //@ts-nocheck
 import {
   loadGuestsRows,
+  loadGuestsRowsBypass,
   loadUserEventsForSelector,
   getUserIdFromCookies,
 } from "$lib/supabase";
@@ -15,6 +16,17 @@ export async function load({ cookies }) {
       loadGuestsRows(user_Id),
       loadUserEventsForSelector(user_Id),
     ]);
+
+    // If the regular function fails, try the bypass function
+    if (guestsData.error) {
+      const bypassData = await loadGuestsRowsBypass(user_Id);
+      if (!bypassData.error) {
+        return {
+          guestsData: bypassData,
+          eventsData,
+        };
+      }
+    }
 
     return {
       guestsData,
