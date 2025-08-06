@@ -5,10 +5,9 @@
   import GuestFilters from "$lib/components/GuestFilters.svelte";
   import GuestTable from "$lib/components/GuestTable.svelte";
   import GuestDetailsModal from "$lib/components/GuestDetailsModal.svelte";
-  import { supabase } from "$lib/supabase.js";
-
+  
   // Accept data from server
-  export let data;
+  export let data: any;
 
   // Helper function to format wallet address
   function formatWalletAddress(walletAddress: string): string {
