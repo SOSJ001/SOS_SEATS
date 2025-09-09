@@ -2018,8 +2018,6 @@ export function getUserIdFromCookies(cookies) {
 // Bypass function for development - uses direct SQL to get around RLS
 export async function loadGuestsRowsBypass(user_id) {
   try {
-    console.log("loadGuestsRowsBypass: Starting with user_id:", user_id);
-
     // Use direct SQL to bypass RLS
     const { data: guests, error: guestsError } = await supabase.rpc(
       "get_guests_for_user",
@@ -2028,25 +2026,12 @@ export async function loadGuestsRowsBypass(user_id) {
       }
     );
 
-    console.log("loadGuestsRowsBypass: Database response:", {
-      hasData: !!guests,
-      dataLength: guests?.length || 0,
-      error: guestsError,
-      firstGuest: guests?.[0],
-    });
-
     if (guestsError) {
       console.error("loadGuestsRowsBypass: Database error:", guestsError);
       return { data: [], error: guestsError };
     }
 
     if (guests && guests.length > 0) {
-      console.log(
-        "loadGuestsRowsBypass: Transforming",
-        guests.length,
-        "guests"
-      );
-
       // Transform the data to match the expected format
       const transformedGuests = guests.map((guest) => {
         // The bypass function should already return current_owner from the database function
@@ -2090,14 +2075,8 @@ export async function loadGuestsRowsBypass(user_id) {
         };
       });
 
-      console.log(
-        "loadGuestsRowsBypass: Returning",
-        transformedGuests.length,
-        "transformed guests"
-      );
       return { data: transformedGuests, error: null };
     } else {
-      console.log("loadGuestsRowsBypass: No guests found");
       return { data: [], error: null };
     }
   } catch (error) {

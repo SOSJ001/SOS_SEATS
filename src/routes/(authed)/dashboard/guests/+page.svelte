@@ -5,7 +5,7 @@
   import GuestFilters from "$lib/components/GuestFilters.svelte";
   import GuestTable from "$lib/components/GuestTable.svelte";
   import GuestDetailsModal from "$lib/components/GuestDetailsModal.svelte";
-  
+
   // Accept data from server
   export let data: any;
 
@@ -23,8 +23,6 @@
     name: event.title || event.name, // Handle both title and name fields
     date: event.date,
   }));
-
-  console.log("Events data:", events);
 
   // Transform guests data to match expected format
   let guests = (data.guestsData?.data || []).map((guest: any) => ({
@@ -68,11 +66,6 @@
     event_name: guest.event_name,
     order_item_id: guest.order_item_id, // Include order_item_id
   }));
-
-  // Debug logging
-  console.log("Raw guests data:", data.guestsData?.data);
-  console.log("Transformed guests:", guests);
-  console.log("Events data:", data.eventsData?.data);
 
   // Error handling - extract error messages properly
   let eventsError = data.eventsData?.error
@@ -125,18 +118,11 @@
   function filterGuests() {
     let filtered = guests;
 
-    // Debug logging
-    console.log("Filtering guests. Total guests:", guests.length);
-    console.log("Selected event:", selectedEvent);
-    console.log("Active filter:", activeFilter);
-    console.log("Search query:", searchQuery);
-
     // Filter by event
     if (selectedEvent !== "all") {
       filtered = filtered.filter(
         (guest: any) => String(guest.event_id) === String(selectedEvent)
       );
-      console.log("After event filter:", filtered.length);
     }
 
     // Filter by status
@@ -159,7 +145,6 @@
             return true;
         }
       });
-      console.log("After status filter:", filtered.length);
     }
 
     // Filter by search query
@@ -171,11 +156,9 @@
           guest.wallet_address_full?.toLowerCase().includes(query) ||
           guest.status.toLowerCase().includes(query)
       );
-      console.log("After search filter:", filtered.length);
     }
 
     filteredGuests = filtered;
-    console.log("Final filtered guests:", filteredGuests.length);
   }
 
   function handleViewDetails(event: CustomEvent) {
