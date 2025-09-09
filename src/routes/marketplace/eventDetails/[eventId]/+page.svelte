@@ -28,6 +28,7 @@
   import BackButton from "$lib/components/BackButton.svelte";
   import ShareButton from "$lib/components/ShareButton.svelte";
   import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
+  import GuestCheckoutModal from "$lib/components/GuestCheckoutModal.svelte";
 
   // Get event ID from URL params and load event data
   $: eventId = $page.params.eventId;
@@ -70,6 +71,7 @@
   let claimingTickets = false;
   let processingPayment = false;
   let showPaymentConfirmation = false;
+  let showGuestCheckout = false;
   let paymentDetails: {
     totalTickets: number;
     ticketDetails: Array<{
@@ -416,6 +418,50 @@
       processingPayment = false;
       showPaymentConfirmation = false;
     }
+  }
+
+  async function handleGuestCheckout() {
+    // Validate ticket selection
+    const totalSelected = Object.values(selectedTickets).reduce(
+      (sum, qty) => sum + qty,
+      0
+    );
+
+    if (totalSelected === 0) {
+      showToast(
+        "warning",
+        "No Tickets Selected",
+        "Please select at least 1 ticket to purchase."
+      );
+      return;
+    }
+
+    // Show guest checkout modal
+    showGuestCheckout = true;
+  }
+
+  function handleGuestPaymentSuccess(event: CustomEvent) {
+    const { accessToken, paymentMethod } = event.detail;
+    const paymentMethodText =
+      paymentMethod === "orange_money" ? "Orange Money" : "Card";
+    showToast(
+      "success",
+      "Payment Successful!",
+      `Your ${paymentMethodText} payment was processed. Tickets are ready for download.`
+    );
+    showGuestCheckout = false;
+    // Redirect to guest ticket page
+    goto(`/tickets/guest/${accessToken}`);
+  }
+
+  function handleConnectWalletFromGuest() {
+    showGuestCheckout = false;
+    // Trigger wallet connection (you can implement this based on your existing wallet connection logic)
+    showToast(
+      "info",
+      "Connect Wallet",
+      "Please connect your wallet to access Web3 features."
+    );
   }
 
   async function handleGetFreeTicket() {
@@ -924,17 +970,74 @@
                 disabled={claimingTickets || !connectedWalletAddress}
               />
             {:else}
-              <GradientButton
-                text={processingPayment
-                  ? "Processing Payment..."
-                  : "Pay with Solana"}
-                onClick={handlePayWithSolana}
-                icon={processingPayment ? "loading" : "wallet"}
-                class_="w-full"
-                disabled={totalPrice === 0 ||
-                  processingPayment ||
-                  !connectedWalletAddress}
-              />
+              <!-- Paid Event: Show different buttons based on wallet connection -->
+              {#if connectedWalletAddress}
+                <!-- Web3 User: Show Solana payment -->
+                <GradientButton
+                  text={processingPayment
+                    ? "Processing Payment..."
+                    : "Pay with Solana"}
+                  onClick={handlePayWithSolana}
+                  icon={processingPayment ? "loading" : "wallet"}
+                  class_="w-full"
+                  disabled={totalPrice === 0 || processingPayment}
+                />
+                <div
+                  class="mt-2 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg"
+                >
+                  <div class="flex items-center gap-2 mb-1">
+                    <svg
+                      class="w-4 h-4 text-blue-400"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                        clip-rule="evenodd"
+                      ></path>
+                    </svg>
+                    <span class="text-xs font-semibold text-blue-400"
+                      >Web3 Benefits</span
+                    >
+                  </div>
+                  <p class="text-xs text-blue-300">
+                    Lower fees • Transferable • Verifiable on blockchain
+                  </p>
+                </div>
+              {:else}
+                <!-- Non-Web3 User: Show Guest Checkout -->
+                <GradientButton
+                  text="💳 Guest Checkout"
+                  onClick={handleGuestCheckout}
+                  icon="credit-card"
+                  class_="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+                  disabled={totalPrice === 0}
+                />
+                <div
+                  class="mt-2 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg"
+                >
+                  <div class="flex items-center gap-2 mb-1">
+                    <svg
+                      class="w-4 h-4 text-purple-400"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                        clip-rule="evenodd"
+                      ></path>
+                    </svg>
+                    <span class="text-xs font-semibold text-purple-400"
+                      >Want Web3 benefits?</span
+                    >
+                  </div>
+                  <p class="text-xs text-purple-300">
+                    Connect wallet for lower fees & transferable tickets
+                  </p>
+                </div>
+              {/if}
             {/if}
           </PaymentSummaryCard>
         </div>
@@ -969,17 +1072,19 @@
   }}
 />
 
+<!-- Guest Checkout Modal -->
+<GuestCheckoutModal
+  bind:show={showGuestCheckout}
+  totalAmount={totalPrice}
+  eventName={event?.name || "Event"}
+  on:success={handleGuestPaymentSuccess}
+  on:connectWallet={handleConnectWalletFromGuest}
+  on:close={() => (showGuestCheckout = false)}
+/>
+
 <style>
   /* Page load animation */
   .transition-all {
     transition-property: all;
-  }
-
-  .duration-1000 {
-    transition-duration: 1000ms;
-  }
-
-  .ease-out {
-    transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
   }
 </style>
