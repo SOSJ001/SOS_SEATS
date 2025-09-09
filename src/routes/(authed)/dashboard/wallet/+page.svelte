@@ -5,7 +5,7 @@
   import NetworkStatus from "$lib/components/NetworkStatus.svelte";
   import { onMount } from "svelte";
 
-  export let data;
+  export const data = undefined;
 
   // Animation states
   let isLoaded = false;

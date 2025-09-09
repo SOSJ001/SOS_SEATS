@@ -16,7 +16,7 @@
   import ScrollAnimation from "$lib/components/ScrollAnimation.svelte";
   import ScrollToTop from "$lib/components/ScrollToTop.svelte";
 
-  export let data;
+  export const data = undefined;
 </script>
 
 <div class="bg-gray-800 items-center text-white overflow-hidden">

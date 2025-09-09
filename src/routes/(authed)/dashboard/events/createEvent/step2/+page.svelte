@@ -165,11 +165,15 @@
 
     <!-- Tags -->
     <div>
-      <label class="block text-sm font-medium text-gray-300 mb-2">
+      <label
+        for="event-tags"
+        class="block text-sm font-medium text-gray-300 mb-2"
+      >
         Event Tags
       </label>
       <div class="flex flex-col sm:flex-row gap-2 mb-2">
         <input
+          id="event-tags"
           type="text"
           bind:value={newTag}
           on:keydown={(e) => e.key === "Enter" && addTag()}
@@ -205,7 +209,10 @@
 
     <!-- Image Upload -->
     <div>
-      <label class="block text-sm font-medium text-gray-300 mb-2">
+      <label
+        for="image-upload"
+        class="block text-sm font-medium text-gray-300 mb-2"
+      >
         Event Image
       </label>
 
@@ -215,7 +222,7 @@
           <div class="relative inline-block">
             <img
               src={imagePreview}
-              alt="Event image preview"
+              alt=""
               class="max-w-full h-64 object-cover rounded-lg border border-gray-600"
             />
             <button
@@ -361,9 +368,9 @@
 
     <!-- Social Media -->
     <div>
-      <label class="block text-sm font-medium text-gray-300 mb-4">
+      <h3 class="block text-sm font-medium text-gray-300 mb-4">
         Social Media Links
-      </label>
+      </h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
           <label

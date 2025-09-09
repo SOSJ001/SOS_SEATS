@@ -252,9 +252,9 @@
 
     <!-- Free Event Toggle -->
     <div class="bg-gray-800 rounded-xl p-6">
-      <label class="block text-sm font-medium text-gray-300 mb-4">
+      <h3 class="block text-sm font-medium text-gray-300 mb-4">
         Is this a free event?
-      </label>
+      </h3>
       <div class="flex gap-6">
         <label class="flex items-center">
           <input
@@ -298,10 +298,14 @@
         >
           <!-- Ticket Name -->
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-2">
+            <label
+              for="ticket-name-{ticketIndex}"
+              class="block text-sm font-medium text-gray-300 mb-2"
+            >
               Ticket Name *
             </label>
             <input
+              id="ticket-name-{ticketIndex}"
               type="text"
               bind:value={ticket.name}
               class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
@@ -320,10 +324,14 @@
 
           <!-- Price -->
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-2">
+            <label
+              for="ticket-price-{ticketIndex}"
+              class="block text-sm font-medium text-gray-300 mb-2"
+            >
               Price {eventData.is_free_event ? "(Free)" : "($) *"}
             </label>
             <input
+              id="ticket-price-{ticketIndex}"
               type="number"
               bind:value={ticket.price}
               min="0"
@@ -351,10 +359,14 @@
         >
           <!-- Quantity -->
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-2">
+            <label
+              for="ticket-quantity-{ticketIndex}"
+              class="block text-sm font-medium text-gray-300 mb-2"
+            >
               Available Quantity *
             </label>
             <input
+              id="ticket-quantity-{ticketIndex}"
               type="number"
               bind:value={ticket.quantity}
               min="1"
@@ -374,10 +386,14 @@
 
           <!-- Description -->
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-2">
+            <label
+              for="ticket-description-{ticketIndex}"
+              class="block text-sm font-medium text-gray-300 mb-2"
+            >
               Description
             </label>
             <input
+              id="ticket-description-{ticketIndex}"
               type="text"
               bind:value={ticket.description}
               class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
@@ -388,9 +404,9 @@
 
         <!-- Benefits -->
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">
+          <h4 class="block text-sm font-medium text-gray-300 mb-2">
             Benefits/Features
-          </label>
+          </h4>
           <div class="space-y-2">
             {#each ticket.benefits as benefit, benefitIndex}
               <div class="flex gap-2">
@@ -436,9 +452,7 @@
 
     <!-- Seating Type -->
     <div>
-      <label class="block text-sm font-medium text-gray-300 mb-4">
-        Seating Type
-      </label>
+      <h3 class="block text-sm font-medium text-gray-300 mb-4">Seating Type</h3>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <label class="relative">
           <input
@@ -617,9 +631,9 @@
     {#if eventData.seating_type === "assigned"}
       <div>
         <div class="flex justify-between items-center mb-4">
-          <label class="block text-sm font-medium text-gray-300">
+          <h4 class="block text-sm font-medium text-gray-300">
             Venue Sections
-          </label>
+          </h4>
           <button
             on:click={addSection}
             class="text-teal-400 hover:text-teal-300 text-sm"
@@ -646,10 +660,14 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">
+                    <label
+                      for="section-name-{sectionIndex}"
+                      class="block text-xs font-medium text-gray-400 mb-1"
+                    >
                       Section Name
                     </label>
                     <input
+                      id="section-name-{sectionIndex}"
                       type="text"
                       bind:value={section.name}
                       class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"
@@ -658,10 +676,14 @@
                   </div>
 
                   <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">
+                    <label
+                      for="section-capacity-{sectionIndex}"
+                      class="block text-xs font-medium text-gray-400 mb-1"
+                    >
                       Capacity
                     </label>
                     <input
+                      id="section-capacity-{sectionIndex}"
                       type="number"
                       bind:value={section.capacity}
                       min="1"
@@ -671,10 +693,14 @@
                   </div>
 
                   <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">
+                    <label
+                      for="section-price-{sectionIndex}"
+                      class="block text-xs font-medium text-gray-400 mb-1"
+                    >
                       Price {eventData.is_free_event ? "(Free)" : "($)"}
                     </label>
                     <input
+                      id="section-price-{sectionIndex}"
                       type="number"
                       bind:value={section.price}
                       min="0"
@@ -688,10 +714,14 @@
                   </div>
 
                   <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">
+                    <label
+                      for="section-description-{sectionIndex}"
+                      class="block text-xs font-medium text-gray-400 mb-1"
+                    >
                       Description
                     </label>
                     <input
+                      id="section-description-{sectionIndex}"
                       type="text"
                       bind:value={section.description}
                       class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"

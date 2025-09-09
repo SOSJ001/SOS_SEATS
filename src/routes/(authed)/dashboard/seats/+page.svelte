@@ -5,7 +5,7 @@
   import EventSelector from "$lib/components/EventSelector.svelte";
   import { onMount } from "svelte";
 
-  export let data;
+  export const data = undefined;
 
   // Sample events data
   let events = [
@@ -61,23 +61,33 @@
 
 <div class="min-h-screen bg-gray-900 text-white">
   <!-- Header -->
-  <div class="mb-8 transition-all duration-1000 transform {isLoaded ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}">
+  <div
+    class="mb-8 transition-all duration-1000 transform {isLoaded
+      ? 'translate-y-0 opacity-100'
+      : 'translate-y-8 opacity-0'}"
+  >
     <h1 class="text-3xl font-bold text-white mb-2">Seat Management</h1>
-    <p class="text-gray-400">Manage seating arrangements and ticket assignments</p>
+    <p class="text-gray-400">
+      Manage seating arrangements and ticket assignments
+    </p>
   </div>
 
   <!-- Event Selector -->
-  <div class="mb-6 transition-all duration-1000 transform {showContent ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}">
-    <label class="block text-sm font-medium text-gray-400 mb-2">Select Event</label>
-    <EventSelector
-      selectedEvent={selectedEvent}
-      {events}
-      onEventChange={handleEventChange}
-    />
+  <div
+    class="mb-6 transition-all duration-1000 transform {showContent
+      ? 'translate-y-0 opacity-100'
+      : 'translate-y-8 opacity-0'}"
+  >
+    <h2 class="block text-sm font-medium text-gray-400 mb-2">Select Event</h2>
+    <EventSelector {selectedEvent} {events} onEventChange={handleEventChange} />
   </div>
 
   <!-- Main Content Grid -->
-  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 transition-all duration-1000 transform {showContent ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}">
+  <div
+    class="grid grid-cols-1 lg:grid-cols-4 gap-6 transition-all duration-1000 transform {showContent
+      ? 'translate-y-0 opacity-100'
+      : 'translate-y-8 opacity-0'}"
+  >
     <!-- Left Column - Bulk Operations and Seat Map -->
     <div class="lg:col-span-3 space-y-6">
       <!-- Bulk Operations -->
@@ -89,10 +99,7 @@
       />
 
       <!-- Seat Map -->
-      <SeatMap
-        {selectedSeat}
-        onSeatClick={handleSeatClick}
-      />
+      <SeatMap {selectedSeat} onSeatClick={handleSeatClick} />
     </div>
 
     <!-- Right Column - Seat Details -->
