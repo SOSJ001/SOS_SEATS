@@ -29,7 +29,8 @@
           events = result.events.map((event) => ({
             id: event.id,
             title: event.name,
-            date: formatEventDate(event.date, event.time),
+            date: formatEventDate(event.date, event.time), // Formatted date for display
+            rawDate: event.date, // Raw date for filtering
             location: event.location,
             image:
               event.image?.file_path ||
@@ -166,23 +167,34 @@
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.location.toLowerCase().includes(searchQuery.toLowerCase());
 
+      if (!matchesSearch) return false;
+
       const eventStatus = event.status?.toLowerCase();
 
+      // Parse event date to determine if it's in the past
+      const eventDate = new Date(event.rawDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+      const isEventInPast = eventDate < today;
+
       if (activeFilter === "upcoming") {
-        const isUpcoming =
-          matchesSearch &&
-          (eventStatus === "live" || eventStatus === "published");
-        return isUpcoming;
+        // Upcoming events: live/published status AND not in the past
+        return (
+          (eventStatus === "live" || eventStatus === "published") &&
+          !isEventInPast
+        );
       } else if (activeFilter === "past") {
-        const isPast =
-          matchesSearch &&
-          (eventStatus === "completed" || eventStatus === "cancelled");
-        return isPast;
+        // Past events: either explicitly completed/cancelled OR event date is in the past
+        return (
+          eventStatus === "completed" ||
+          eventStatus === "cancelled" ||
+          isEventInPast
+        );
       } else if (activeFilter === "drafts") {
-        const isDraft = matchesSearch && eventStatus === "draft";
-        return isDraft;
+        // Draft events: only draft status
+        return eventStatus === "draft";
       }
-      return matchesSearch;
+      return true;
     });
   }
 
@@ -196,6 +208,40 @@
   function closeShareModal() {
     showShareModal = false;
     selectedEventForSharing = null;
+  }
+
+  // Get appropriate empty state message based on filter
+  function getEmptyStateMessage() {
+    if (searchQuery.trim()) {
+      return {
+        title: "No events found",
+        message:
+          "Try adjusting your search criteria or check a different filter.",
+      };
+    }
+
+    switch (activeFilter) {
+      case "upcoming":
+        return {
+          title: "No upcoming events",
+          message: "You don't have any live or published events scheduled.",
+        };
+      case "past":
+        return {
+          title: "No past events",
+          message: "You haven't completed any events yet.",
+        };
+      case "drafts":
+        return {
+          title: "No drafts found",
+          message: "You don't have any draft events.",
+        };
+      default:
+        return {
+          title: "No events found",
+          message: "Create your first event to get started!",
+        };
+    }
   }
 </script>
 
@@ -289,16 +335,36 @@
       </button>
     </div>
   {:else if filteredEvents.length === 0}
-    <div class="col-span-full text-center py-12">
-      <p class="text-gray-400 mb-4">
-        No events found. Create your first event to get started!
-      </p>
-      <a
-        href="/dashboard/events/createEvent"
-        class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
+    <div class="text-center py-12" in:fade={{ duration: 300 }}>
+      <svg
+        class="mx-auto h-12 w-12 text-gray-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
       >
-        Create Event
-      </a>
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+        />
+      </svg>
+      <h3 class="mt-2 text-sm font-medium text-gray-300">
+        {getEmptyStateMessage().title}
+      </h3>
+      <p class="mt-1 text-sm text-gray-500">
+        {getEmptyStateMessage().message}
+      </p>
+      {#if events.length === 0}
+        <div class="mt-4">
+          <a
+            href="/dashboard/events/createEvent"
+            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
+          >
+            Create Event
+          </a>
+        </div>
+      {/if}
     </div>
   {:else}
     <!-- Events Grid -->
@@ -401,29 +467,6 @@
           </div>
         </div>
       {/each}
-    </div>
-  {/if}
-
-  <!-- Empty State -->
-  {#if !isLoading && !error && filteredEvents.length === 0}
-    <div class="text-center py-12" in:fade={{ duration: 300 }}>
-      <svg
-        class="mx-auto h-12 w-12 text-gray-400"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-        />
-      </svg>
-      <h3 class="mt-2 text-sm font-medium text-gray-300">No events found</h3>
-      <p class="mt-1 text-sm text-gray-500">
-        Try adjusting your search or filter criteria.
-      </p>
     </div>
   {/if}
 </div>
