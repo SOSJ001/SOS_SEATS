@@ -419,6 +419,16 @@
   }
 
   async function handleGetFreeTicket() {
+    // Check if wallet is connected - required for free tickets
+    if (!connectedWalletAddress) {
+      showToast(
+        "warning",
+        "Wallet Required",
+        "Please connect your wallet to claim free tickets. This ensures your tickets are properly linked to your wallet address."
+      );
+      return;
+    }
+
     // Validate quantity doesn't exceed available capacity
     const totalSelected = Object.values(selectedTickets).reduce(
       (sum, qty) => sum + qty,
@@ -468,80 +478,51 @@
       // Show loading toast
       showToast("info", "Processing Claim", "Creating your free tickets...");
 
-      // Get current user session - try Web3 first, then fallback to traditional
+      // Get current user session - wallet is required for free tickets
       let userData: {
         id: string | null;
         email: string | null;
         name: string;
-        wallet_address: string | null;
+        wallet_address: string;
       } = {
         id: null,
         email: null,
-        name: "Event Attendee",
-        wallet_address: null,
+        name: "Web3 User",
+        wallet_address: connectedWalletAddress, // We know this exists due to the check above
       };
 
-      // Get the connected wallet address from the store (already available as reactive variables)
-
-      // Try to get Web3 session first
+      // Try to get Web3 session and profile for better user data
       const web3Session = await verifyWeb3Session();
 
       if (web3Session.success && web3Session.user) {
-        // Use the connected wallet address if available, otherwise fall back to session
-        const walletAddressToUse =
-          connectedWalletAddress || web3Session.user.wallet_address;
+        // Get Web3 user profile
+        const profile = await getWeb3UserProfile(connectedWalletAddress);
 
-        if (walletAddressToUse && walletAddressToUse !== "undefined") {
-          // Get Web3 user profile
-          const profile = await getWeb3UserProfile(walletAddressToUse);
-
-          if (profile.success && profile.user) {
-            userData = {
-              id: profile.user.id,
-              email: null, // Web3 users don't have email
-              name:
-                profile.user.display_name ||
-                profile.user.username ||
-                "Web3 User",
-              wallet_address: profile.user.wallet_address,
-            };
-          } else {
-            // Use basic Web3 session data with connected wallet
-            userData = {
-              id: web3Session.user.id,
-              email: null,
-              name: web3Session.user.username || "Web3 User",
-              wallet_address: walletAddressToUse,
-            };
-          }
+        if (profile.success && profile.user) {
+          userData = {
+            id: profile.user.id,
+            email: null, // Web3 users don't have email
+            name:
+              profile.user.display_name || profile.user.username || "Web3 User",
+            wallet_address: profile.user.wallet_address,
+          };
         } else {
-          // No valid wallet address, use basic session data
+          // Use basic Web3 session data with connected wallet
           userData = {
             id: web3Session.user.id,
             email: null,
             name: web3Session.user.username || "Web3 User",
-            wallet_address: "0x1234567890abcdef" as string, // Fallback wallet address
+            wallet_address: connectedWalletAddress,
           };
         }
       } else {
-        // No Web3 session, try to use connected wallet directly
-        if (connectedWalletAddress) {
-          userData = {
-            id: null,
-            email: null,
-            name: web3User?.display_name || web3User?.username || "Web3 User",
-            wallet_address: connectedWalletAddress,
-          };
-        } else {
-          // Fallback to traditional session
-          const currentSession = $sessionFromDb;
-          userData = {
-            id: currentSession,
-            email: null,
-            name: "Event Attendee",
-            wallet_address: "0x1234567890abcdef" as string, // Fallback wallet address
-          };
-        }
+        // Use connected wallet directly
+        userData = {
+          id: null,
+          email: null,
+          name: web3User?.display_name || web3User?.username || "Web3 User",
+          wallet_address: connectedWalletAddress,
+        };
       }
 
       // Call the actual free ticket claiming function
@@ -926,7 +907,7 @@
               {#if !connectedWalletAddress}
                 <div class="text-xs text-yellow-400 mt-1">
                   {event?.is_free_event
-                    ? "Connect your wallet to claim tickets with your address"
+                    ? "Wallet connection required to claim free tickets"
                     : "Connect your wallet to purchase tickets with SOL"}
                 </div>
               {/if}
@@ -940,7 +921,7 @@
                 onClick={handleGetFreeTicket}
                 icon={claimingTickets ? "loading" : "ticket"}
                 class_="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                disabled={claimingTickets}
+                disabled={claimingTickets || !connectedWalletAddress}
               />
             {:else}
               <GradientButton

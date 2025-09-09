@@ -132,7 +132,13 @@
                 <span class="text-white font-medium">{guest.name}</span>
               </div>
             </td>
-            <td class="py-4 px-6 text-gray-300">{guest.wallet_address}</td>
+            <td class="py-4 px-6 text-gray-300">
+              {#if guest.wallet_address}
+                {guest.wallet_address}
+              {:else}
+                <span class="text-gray-500 italic">No Wallet</span>
+              {/if}
+            </td>
             <td class="py-4 px-6">
               <span
                 class="px-2 py-1 rounded-full text-xs font-medium {getStatusBadgeColor(
@@ -246,9 +252,13 @@
                   d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
                 />
               </svg>
-              <span class="text-gray-300 text-xs sm:text-sm truncate"
-                >{guest.wallet_address}</span
-              >
+              <span class="text-gray-300 text-xs sm:text-sm truncate">
+                {#if guest.wallet_address}
+                  {guest.wallet_address}
+                {:else}
+                  <span class="text-gray-500 italic">No Wallet</span>
+                {/if}
+              </span>
             </div>
           </div>
 

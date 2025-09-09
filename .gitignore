@@ -9,5 +9,6 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Cursor MCP configuration (contains sensitive tokens)
+
 .cursor/mcp.json
+supabase-backup
