@@ -136,11 +136,39 @@ class MonimeService {
   /**
    * Get payment status by session ID
    */
-  async getPaymentStatus(sessionId: string): Promise<PaymentStatus> {
-    return this.makeRequest<PaymentStatus>(
-      `/v1/checkout-sessions/${sessionId}`,
-      { method: "GET" }
-    );
+  async getPaymentStatus(
+    sessionId: string,
+    paymentMethod?: string
+  ): Promise<PaymentStatus> {
+    const endpoint = `/v1/checkout-sessions/${sessionId}`;
+    const url = paymentMethod
+      ? `/api/monime/payment-status?sessionId=${sessionId}&payment_method=${paymentMethod}`
+      : `/api/monime/payment-status?sessionId=${sessionId}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(
+        `Monime API Error: ${response.status} - ${
+          error.error || error.message || response.statusText
+        }`
+      );
+    }
+
+    const result = await response.json();
+
+    // Handle our API response format
+    if (result.success && result.data) {
+      return result.data;
+    } else {
+      throw new Error(result.error || "Unknown API error");
+    }
   }
 
   /**

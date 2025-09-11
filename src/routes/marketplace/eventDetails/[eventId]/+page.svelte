@@ -13,7 +13,7 @@
     sendTransactionWithWallet,
   } from "$lib/web3";
   import {
-    handleOrangeMoneyPayment,
+    handleMobileMoneyPayment,
     generateOrangeMoneyUrls,
   } from "$lib/orangeMoneyPayment.js";
   import {
@@ -75,6 +75,7 @@
   let claimingTickets = false;
   let processingPayment = false;
   let processingOrangeMoney = false;
+  let processingAfrimoney = false;
   let showPaymentConfirmation = false;
   let showGuestCheckout = false;
   let paymentDetails: {
@@ -505,14 +506,16 @@
       const { successUrl, cancelUrl } = await generateOrangeMoneyUrls(
         eventId,
         undefined,
-        purchaseData
+        purchaseData,
+        "orange_money"
       );
 
       // Create Orange Money payment
-      const result = await handleOrangeMoneyPayment(
+      const result = await handleMobileMoneyPayment(
         purchaseData as any,
         successUrl,
-        cancelUrl
+        cancelUrl,
+        "orange_money"
       );
 
       if (result.success && result.checkoutUrl) {
@@ -532,6 +535,116 @@
       );
     } finally {
       processingOrangeMoney = false;
+    }
+  }
+
+  async function handlePayWithAfrimoney() {
+    // Validate ticket selection
+    const totalSelected = Object.values(selectedTickets).reduce(
+      (sum, qty) => sum + qty,
+      0
+    );
+
+    if (totalSelected === 0) {
+      showToast(
+        "warning",
+        "No Tickets Selected",
+        "Please select at least 1 ticket to purchase."
+      );
+      return;
+    }
+
+    // Limit Afrimoney to 1 ticket per order
+    if (totalSelected > 1) {
+      showToast(
+        "warning",
+        "Afrimoney Limitation",
+        "Afrimoney payments are currently limited to 1 ticket per order. Please select only 1 ticket or use Solana for multiple tickets."
+      );
+      return;
+    }
+
+    // Prevent multiple submissions
+    if (processingAfrimoney) {
+      return;
+    }
+
+    processingAfrimoney = true;
+
+    try {
+      // Show loading toast
+      showToast(
+        "info",
+        "Setting up Afrimoney Payment",
+        "Redirecting to secure payment page..."
+      );
+
+      // Calculate total tickets and price from selected tickets
+      let totalTickets = 0;
+      let totalPrice = 0;
+      let ticketDetails = [];
+
+      for (const [ticketTypeId, quantity] of Object.entries(selectedTickets)) {
+        if (quantity > 0) {
+          const ticketType = ticketTypes.find(
+            (t) => t.id.toString() === ticketTypeId.toString()
+          );
+          if (ticketType) {
+            totalTickets += quantity;
+            totalPrice += ticketType.price * quantity;
+            ticketDetails.push({
+              id: ticketType.id.toString(),
+              name: ticketType.name,
+              price: ticketType.price,
+              quantity: quantity,
+            });
+          }
+        }
+      }
+
+      // Prepare purchase data
+      const purchaseData = {
+        eventId,
+        selectedTickets,
+        totalAmount: totalPrice,
+        ticketDetails,
+        buyerInfo: {
+          wallet_address: connectedWalletAddress || undefined,
+          name: web3User?.display_name || web3User?.username || "Guest User",
+        },
+      };
+
+      // Generate URLs for Afrimoney payment
+      const { successUrl, cancelUrl } = await generateOrangeMoneyUrls(
+        eventId,
+        undefined,
+        purchaseData,
+        "afrimoney"
+      );
+
+      // Create Afrimoney payment (using same logic as Orange Money but with Afrimoney metadata)
+      const result = await handleMobileMoneyPayment(
+        purchaseData as any,
+        successUrl,
+        cancelUrl,
+        "afrimoney"
+      );
+
+      if (result.success && result.checkoutUrl) {
+        // Redirect to Monime's hosted checkout page
+        window.location.href = result.checkoutUrl;
+      } else {
+        throw new Error(result.error || "Failed to create Afrimoney payment");
+      }
+    } catch (error) {
+      console.error("Afrimoney payment error:", error);
+      showToast(
+        "error",
+        "Payment Setup Failed",
+        `Failed to setup Afrimoney payment: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    } finally {
+      processingAfrimoney = false;
     }
   }
 
@@ -1121,24 +1234,37 @@
                   </p>
                 </div>
               {:else}
-                <!-- Non-Web3 User: Show Guest Checkout Options -->
-                <GradientButton
+                <!-- Non-Web3 User: Show Mobile Money Payment Options -->
+
+                <!-- Commented out Guest Checkout -->
+                <!-- <GradientButton
                   text="💳 Guest Checkout"
                   onClick={handleGuestCheckout}
                   icon="credit-card"
                   class_="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
                   disabled={totalPrice === 0}
-                />
+                /> -->
 
-                <!-- Orange Money Payment Option for Guests -->
+                <!-- Orange Money Payment Option -->
                 <GradientButton
                   text={processingOrangeMoney
                     ? "Processing..."
-                    : "📱 Pay with Orange Money"}
+                    : "🍊 Pay with Orange Money"}
                   onClick={handlePayWithOrangeMoney}
                   icon={processingOrangeMoney ? "loading" : "mobile"}
-                  class_="w-full mt-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+                  class_="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
                   disabled={totalPrice === 0 || processingOrangeMoney}
+                />
+
+                <!-- Afrimoney Payment Option -->
+                <GradientButton
+                  text={processingAfrimoney
+                    ? "Processing..."
+                    : "💚 Pay with Afrimoney"}
+                  onClick={handlePayWithAfrimoney}
+                  icon={processingAfrimoney ? "loading" : "mobile"}
+                  class_="w-full mt-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                  disabled={totalPrice === 0 || processingAfrimoney}
                 />
                 <!-- Orange Money Info -->
                 <div
@@ -1165,6 +1291,35 @@
                     confirmation
                   </p>
                   <p class="text-xs text-orange-200 mt-1 font-medium">
+                    ⚠️ Limited to 1 ticket per order
+                  </p>
+                </div>
+
+                <!-- Afrimoney Info -->
+                <div
+                  class="mt-2 p-3 bg-green-900/20 border border-green-500/30 rounded-lg"
+                >
+                  <div class="flex items-center gap-2 mb-1">
+                    <svg
+                      class="w-4 h-4 text-green-400"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                        clip-rule="evenodd"
+                      ></path>
+                    </svg>
+                    <span class="text-xs font-semibold text-green-400"
+                      >Afrimoney Benefits</span
+                    >
+                  </div>
+                  <p class="text-xs text-green-300">
+                    Secure mobile payments • No wallet required • Instant
+                    confirmation
+                  </p>
+                  <p class="text-xs text-green-200 mt-1 font-medium">
                     ⚠️ Limited to 1 ticket per order
                   </p>
                 </div>

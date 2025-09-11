@@ -99,9 +99,10 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
       );
       const currency = body.lineItems[0]?.price.currency || "SLE";
       const eventId = body.metadata?.event_id || "unknown";
+      const paymentMethod = body.metadata?.payment_method || "orange_money";
 
       // Redirect to our mock checkout page
-      const mockRedirectUrl = `/payment/mock-checkout?mock_session_id=${mockSessionId}&amount=${totalAmount}&currency=${currency}&event_id=${eventId}`;
+      const mockRedirectUrl = `/payment/mock-checkout?mock_session_id=${mockSessionId}&amount=${totalAmount}&currency=${currency}&event_id=${eventId}&payment_method=${paymentMethod}`;
 
       return json({
         success: true,
@@ -132,14 +133,6 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
         ...body.metadata,
       },
     };
-
-    // Debug logging
-    console.log("Monime API Request Debug:", {
-      apiKey: apiKey ? `${apiKey.substring(0, 10)}...` : "MISSING",
-      spaceId: spaceId ? `${spaceId.substring(0, 10)}...` : "MISSING",
-      environment: environment,
-      requestBody: monimeRequest,
-    });
 
     // Make request to Monime API
     const response = await fetch("https://api.monime.io/v1/checkout-sessions", {

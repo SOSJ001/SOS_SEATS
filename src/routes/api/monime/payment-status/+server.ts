@@ -28,6 +28,14 @@ export const GET: RequestHandler = async ({ url }) => {
 
     // Check if this is a mock session (test mode doesn't support checkout-sessions endpoint)
     if (sessionId.startsWith("mock_") || environment === "test") {
+      // Extract payment method from session ID or URL parameters
+      // For mock sessions, we'll use a default but allow override via URL params
+      const paymentMethodParam = url.searchParams.get("payment_method");
+      const paymentMethod = paymentMethodParam || "orange_money";
+
+      // Use generic buyer name for mobile money payments
+      const buyerName = "Mobile Money";
+
       // Return a mock completed payment status for testing
       return json({
         success: true,
@@ -36,7 +44,7 @@ export const GET: RequestHandler = async ({ url }) => {
           status: "completed",
           amount: 50000, // Mock amount
           currency: "SLE",
-          payment_method: "orange_money",
+          payment_method: paymentMethod,
           transaction_id: `mock_txn_${Date.now()}`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -53,7 +61,7 @@ export const GET: RequestHandler = async ({ url }) => {
             selected_tickets: {
               "f4dcc5b8-f733-469b-b376-e4db12d41ce3": 1,
             },
-            buyer_name: "Orange Money User",
+            buyer_name: buyerName,
             buyer_wallet: undefined,
           },
         },

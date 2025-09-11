@@ -1722,6 +1722,7 @@ export async function createPaidTicketOrder(
         p_total_amount: paymentInfo.amount,
         p_currency: paymentInfo.currency || "USDC",
         p_transaction_hash: paymentInfo.transactionSignature,
+        p_payment_method: paymentInfo.paymentMethod || "solana",
       }
     );
 
@@ -1878,6 +1879,11 @@ export async function claimFreeTickets(
         fallbackData.name || fallbackData.display_name || "Anonymous";
     }
 
+    // For mobile money payments, use the buyerWallet from paymentInfo if available
+    if (paymentInfo && paymentInfo.buyerWallet) {
+      orderData.buyer_wallet_address = paymentInfo.buyerWallet;
+    }
+
     // Create one order with multiple order items
     let orderId = null;
     let totalTicketsClaimed = 0;
@@ -1896,6 +1902,7 @@ export async function claimFreeTickets(
           p_total_amount: paymentInfo.amount,
           p_currency: paymentInfo.currency || "USDC",
           p_transaction_hash: paymentInfo.transactionSignature,
+          p_payment_method: paymentInfo.paymentMethod || "solana",
         }
       );
       if (rpcError) {

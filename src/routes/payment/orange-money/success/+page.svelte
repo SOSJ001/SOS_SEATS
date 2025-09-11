@@ -9,9 +9,25 @@
   let success = false;
   let error = "";
   let orderId = "";
+  let paymentMethod = "orange_money";
+
+  // Parse URL parameters immediately to avoid flash of wrong provider
+  const urlParams = new URLSearchParams($page.url.search);
+  paymentMethod = urlParams.get("payment_method") || "orange_money";
+
+  // Computed values based on payment method
+  $: isOrangeMoney = paymentMethod === "orange_money";
+  $: isAfrimoney = paymentMethod === "afrimoney";
+  $: providerName = isOrangeMoney ? "Orange Money" : "Afrimoney";
+  $: providerColor = isOrangeMoney ? "orange" : "green";
+  $: providerGradient = isOrangeMoney
+    ? "from-orange-500 to-orange-600"
+    : "from-green-500 to-green-600";
+  $: providerBg = isOrangeMoney
+    ? "from-orange-50 to-orange-100"
+    : "from-green-50 to-green-100";
 
   onMount(async () => {
-    const urlParams = new URLSearchParams($page.url.search);
     const eventId = urlParams.get("event_id");
     const sessionId = urlParams.get("session_id");
     const selectedTicketsParam = urlParams.get("selected_tickets");
@@ -50,7 +66,7 @@
             buyerInfo: {
               name: buyerNameParam
                 ? decodeURIComponent(buyerNameParam)
-                : "Orange Money User",
+                : "Mobile Money User",
               wallet_address: buyerWalletParam
                 ? decodeURIComponent(buyerWalletParam)
                 : undefined,
@@ -72,7 +88,7 @@
           name:
             urlPurchaseData?.buyerInfo?.name ||
             metadata.buyer_name ||
-            "Orange Money User",
+            "Guest User",
           wallet_address:
             urlPurchaseData?.buyerInfo?.wallet_address ||
             metadata.buyer_wallet ||
@@ -80,7 +96,11 @@
         },
       };
 
-      const result = await processOrangeMoneyCallback(sessionId, purchaseData);
+      const result = await processOrangeMoneyCallback(
+        sessionId,
+        purchaseData,
+        paymentMethod
+      );
 
       if (result.success) {
         success = true;
@@ -113,7 +133,7 @@
 </script>
 
 <svelte:head>
-  <title>Payment Success - SOS SEATS</title>
+  <title>{providerName} Payment Success - SOS SEATS</title>
 </svelte:head>
 
 <div
@@ -130,7 +150,7 @@
           ></div>
           <h2 class="text-2xl font-bold text-white mb-2">Processing Payment</h2>
           <p class="text-gray-300">
-            Please wait while we confirm your Orange Money payment...
+            Please wait while we confirm your {providerName} payment...
           </p>
         </div>
       {:else if success}
@@ -156,7 +176,7 @@
             Payment Successful!
           </h2>
           <p class="text-gray-300 mb-4">
-            Your Orange Money payment has been processed successfully.
+            Your {providerName} payment has been processed successfully.
           </p>
           {#if orderId}
             <p class="text-sm text-gray-400 mb-4">Order ID: {orderId}</p>

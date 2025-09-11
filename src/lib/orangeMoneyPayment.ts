@@ -18,12 +18,13 @@ interface TicketPurchaseData {
 }
 
 /**
- * Handle Orange Money payment for ticket purchase
+ * Handle Mobile Money payment for ticket purchase (Orange Money, Afrimoney, etc.)
  */
-export async function handleOrangeMoneyPayment(
+export async function handleMobileMoneyPayment(
   purchaseData: TicketPurchaseData,
   successUrl: string,
-  cancelUrl: string
+  cancelUrl: string,
+  paymentMethod: string = "orange_money"
 ): Promise<{ success: boolean; checkoutUrl?: string; error?: string }> {
   try {
     // Validate purchase data
@@ -31,7 +32,7 @@ export async function handleOrangeMoneyPayment(
       return { success: false, error: "Invalid amount" };
     }
 
-    // Limit Orange Money to 1 ticket per order for now
+    // Limit Mobile Money to 1 ticket per order for now
     const totalTickets = Object.values(purchaseData.selectedTickets).reduce(
       (sum, qty) => sum + qty,
       0
@@ -40,7 +41,7 @@ export async function handleOrangeMoneyPayment(
       return {
         success: false,
         error:
-          "Orange Money payments are currently limited to 1 ticket per order. Please select only 1 ticket or use Solana for multiple tickets.",
+          "Mobile Money payments are currently limited to 1 ticket per order. Please select only 1 ticket or use Solana for multiple tickets.",
       };
     }
 
@@ -59,7 +60,8 @@ export async function handleOrangeMoneyPayment(
       await generateOrangeMoneyUrls(
         purchaseData.eventId,
         undefined,
-        purchaseData
+        purchaseData,
+        paymentMethod
       );
 
     // Create checkout session with Monime
@@ -75,7 +77,7 @@ export async function handleOrangeMoneyPayment(
         ticket_details: purchaseData.ticketDetails,
         buyer_name: purchaseData.buyerInfo.name,
         buyer_wallet: purchaseData.buyerInfo.wallet_address,
-        payment_method: "orange_money",
+        payment_method: paymentMethod,
       },
       `sos_seats_${purchaseData.eventId}_${Date.now()}`
     );
@@ -85,7 +87,7 @@ export async function handleOrangeMoneyPayment(
       checkoutUrl: checkoutSession.checkout_url,
     };
   } catch (error) {
-    console.error("Orange Money payment error:", error);
+    console.error("Mobile Money payment error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Payment setup failed",
@@ -98,11 +100,15 @@ export async function handleOrangeMoneyPayment(
  */
 export async function processOrangeMoneyCallback(
   sessionId: string,
-  purchaseData: TicketPurchaseData
+  purchaseData: TicketPurchaseData,
+  paymentMethod: string = "orange_money"
 ): Promise<{ success: boolean; orderId?: string; error?: string }> {
   try {
     // Get payment status from Monime
-    const paymentStatus = await monimeService.getPaymentStatus(sessionId);
+    const paymentStatus = await monimeService.getPaymentStatus(
+      sessionId,
+      paymentMethod
+    );
 
     if (paymentStatus.status !== "completed") {
       return {
@@ -119,14 +125,14 @@ export async function processOrangeMoneyCallback(
 
     // Create payment info for database
     const paymentInfo = {
-      paymentMethod: "orange_money",
+      paymentMethod: paymentMethod,
       transactionSignature: paymentStatus.transaction_id || sessionId,
       amount: paymentStatus.amount,
-      receivingWallet: "monime_orange_money", // Identifier for Monime Orange Money
-      buyerWallet: ANONYMOUS_KEY, // Use actual Supabase anonymous key for non-authenticated Orange Money users
+      receivingWallet: `monime_${paymentMethod}`, // Dynamic identifier based on payment method
+      buyerWallet: `mobile_money_${paymentMethod}`, // Use meaningful identifier for mobile money payments
       provider: "monime",
       sessionId: sessionId,
-      currency: "SLE", // Sierra Leone Leone for Orange Money
+      currency: "SLE", // Sierra Leone Leone for mobile money
     };
 
     // Import the claimFreeTickets function to use the same logic as Solana payments
@@ -167,7 +173,8 @@ export async function processOrangeMoneyCallback(
 export async function generateOrangeMoneyUrls(
   eventId: string,
   sessionId?: string,
-  purchaseData?: TicketPurchaseData
+  purchaseData?: TicketPurchaseData,
+  paymentMethod: string = "orange_money"
 ) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -186,7 +193,7 @@ export async function generateOrangeMoneyUrls(
 
     const successUrl = `${baseUrl}/payment/orange-money/success?event_id=${eventId}&session_id=${
       sessionId || ""
-    }&selected_tickets=${selectedTicketsParam}&ticket_details=${ticketDetailsParam}&buyer_name=${buyerNameParam}&buyer_wallet=${buyerWalletParam}`;
+    }&selected_tickets=${selectedTicketsParam}&ticket_details=${ticketDetailsParam}&buyer_name=${buyerNameParam}&buyer_wallet=${buyerWalletParam}&payment_method=${paymentMethod}`;
 
     return {
       successUrl,
