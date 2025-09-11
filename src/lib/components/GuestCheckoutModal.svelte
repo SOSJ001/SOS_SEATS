@@ -9,17 +9,13 @@
   const dispatch = createEventDispatcher();
 
   // Payment method selection
-  let selectedPaymentMethod = "card"; // "card" or "orange_money"
+  let selectedPaymentMethod = "card"; // "card" only
 
   // Card payment fields
   let cardNumber = "";
   let expiryDate = "";
   let cvv = "";
   let cardholderName = "";
-
-  // Orange Money fields
-  let orangeMoneyNumber = "";
-  let orangeMoneyPin = "";
 
   let error = "";
   let isProcessing = false;
@@ -46,22 +42,6 @@
 
       if (cvv.length < 3) {
         error = "Please enter a valid CVV";
-        return;
-      }
-    } else if (selectedPaymentMethod === "orange_money") {
-      // Validate Orange Money payment
-      if (!orangeMoneyNumber || !orangeMoneyPin) {
-        error = "Please fill in all Orange Money details";
-        return;
-      }
-
-      if (orangeMoneyNumber.length < 9) {
-        error = "Please enter a valid Orange Money number";
-        return;
-      }
-
-      if (orangeMoneyPin.length < 4) {
-        error = "Please enter a valid PIN";
         return;
       }
     }
@@ -104,8 +84,6 @@
     expiryDate = "";
     cvv = "";
     cardholderName = "";
-    orangeMoneyNumber = "";
-    orangeMoneyPin = "";
     error = "";
     isProcessing = false;
   }
@@ -233,46 +211,6 @@
                 </div>
               </div>
             </button>
-
-            <!-- Orange Money Option -->
-            <button
-              type="button"
-              on:click={() => (selectedPaymentMethod = "orange_money")}
-              class="p-4 rounded-lg border-2 transition-all duration-200 {selectedPaymentMethod ===
-              'orange_money'
-                ? 'border-[#FF6B6B] bg-[#FF6B6B]/10'
-                : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'}"
-            >
-              <div class="flex items-center gap-3">
-                <div
-                  class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center"
-                >
-                  <svg
-                    class="w-6 h-6 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
-                    />
-                  </svg>
-                </div>
-                <div class="flex-1 text-left">
-                  <div class="font-semibold text-white">Orange Money SL</div>
-                  <div class="text-sm text-gray-400">Mobile money payment</div>
-                </div>
-                <div
-                  class="w-5 h-5 rounded-full border-2 {selectedPaymentMethod ===
-                  'orange_money'
-                    ? 'border-[#FF6B6B] bg-[#FF6B6B]'
-                    : 'border-gray-500'} flex items-center justify-center"
-                >
-                  {#if selectedPaymentMethod === "orange_money"}
-                    <div class="w-2 h-2 rounded-full bg-white"></div>
-                  {/if}
-                </div>
-              </div>
-            </button>
           </div>
         </div>
 
@@ -354,75 +292,6 @@
                 class="w-full px-4 py-3 bg-gradient-to-br from-[#18122B] via-[#232946] to-[#0A0A0A] border border-[#00F5FF]/30 rounded-lg text-white placeholder-gray-400 focus:border-[#00F5FF]/60 focus:outline-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
-          {:else if selectedPaymentMethod === "orange_money"}
-            <!-- Orange Money Payment Fields -->
-            <div>
-              <label
-                for="orangeMoneyNumber"
-                class="block text-sm font-medium text-gray-300 mb-2"
-              >
-                Orange Money Number <span class="text-red-400">*</span>
-              </label>
-              <input
-                id="orangeMoneyNumber"
-                type="tel"
-                bind:value={orangeMoneyNumber}
-                disabled={isProcessing}
-                placeholder="+232 XX XXX XXX"
-                maxlength="15"
-                class="w-full px-4 py-3 bg-gradient-to-br from-[#18122B] via-[#232946] to-[#0A0A0A] border border-[#FF6B6B]/30 rounded-lg text-white placeholder-gray-400 focus:border-[#FF6B6B]/60 focus:outline-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <div class="text-xs text-gray-400 mt-1">
-                Enter your Orange Money mobile number
-              </div>
-            </div>
-
-            <div>
-              <label
-                for="orangeMoneyPin"
-                class="block text-sm font-medium text-gray-300 mb-2"
-              >
-                PIN <span class="text-red-400">*</span>
-              </label>
-              <input
-                id="orangeMoneyPin"
-                type="password"
-                bind:value={orangeMoneyPin}
-                disabled={isProcessing}
-                placeholder="Enter your PIN"
-                maxlength="6"
-                class="w-full px-4 py-3 bg-gradient-to-br from-[#18122B] via-[#232946] to-[#0A0A0A] border border-[#FF6B6B]/30 rounded-lg text-white placeholder-gray-400 focus:border-[#FF6B6B]/60 focus:outline-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <div class="text-xs text-gray-400 mt-1">
-                Your Orange Money transaction PIN
-              </div>
-            </div>
-
-            <!-- Orange Money Info -->
-            <div
-              class="p-4 bg-orange-900/20 border border-orange-500/30 rounded-lg"
-            >
-              <div class="flex items-center gap-2 mb-2">
-                <svg
-                  class="w-5 h-5 text-orange-400"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                    clip-rule="evenodd"
-                  ></path>
-                </svg>
-                <span class="text-sm font-semibold text-orange-400"
-                  >Orange Money Payment</span
-                >
-              </div>
-              <p class="text-xs text-orange-300">
-                You will receive a confirmation SMS from Orange Money. Make sure
-                you have sufficient balance in your Orange Money account.
-              </p>
-            </div>
           {/if}
 
           <!-- Error Message -->
@@ -497,12 +366,8 @@
             on:click={handleSubmit}
             disabled={isProcessing ||
               (selectedPaymentMethod === "card" &&
-                (!cardNumber || !expiryDate || !cvv)) ||
-              (selectedPaymentMethod === "orange_money" &&
-                (!orangeMoneyNumber || !orangeMoneyPin))}
-            class="w-full py-3 px-6 {selectedPaymentMethod === 'card'
-              ? 'bg-gradient-to-r from-[#00F5FF] via-[#9D4EDD] to-[#FF6B6B] hover:from-[#00F5FF]/90 hover:via-[#9D4EDD]/90 hover:to-[#FF6B6B]/90'
-              : 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700'} text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                (!cardNumber || !expiryDate || !cvv))}
+            class="w-full py-3 px-6 bg-gradient-to-r from-[#00F5FF] via-[#9D4EDD] to-[#FF6B6B] hover:from-[#00F5FF]/90 hover:via-[#9D4EDD]/90 hover:to-[#FF6B6B]/90 text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {#if isProcessing}
               <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
@@ -536,13 +401,6 @@
                 ></path>
               </svg>
               Pay ${totalAmount} with Card
-            {:else}
-              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path
-                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
-                />
-              </svg>
-              Pay ${totalAmount} with Orange Money
             {/if}
           </button>
 

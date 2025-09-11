@@ -12,9 +12,8 @@ export async function load({ cookies }) {
 
   // Load both events and guests data
   try {
-    // Force use of bypass function for now to debug
     const [guestsData, eventsData] = await Promise.all([
-      loadGuestsRowsBypass(user_Id),
+      loadGuestsRows(user_Id),
       loadUserEventsForSelector(user_Id),
     ]);
 

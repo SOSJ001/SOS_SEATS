@@ -1,10 +1,11 @@
 // @ts-nocheck
 import * as web3 from "@solana/web3.js";
 import { signTransactionKey } from "./supabase";
+import { env } from "$env/dynamic/public";
 
 // create a new connection instance
 export const connection = new web3.Connection(
-  web3.clusterApiUrl("devnet", "confirmed")
+  web3.clusterApiUrl(env.PUBLIC_SOLANA_NETWORK as any, "confirmed")
 );
 
 // Helper function to get the currently connected wallet

@@ -3,6 +3,7 @@
   import { fade } from "svelte/transition";
   import { onMount } from "svelte";
   import StepperProgress from "$lib/components/StepperProgress.svelte";
+  import { showToast } from "$lib/store";
 
   interface EventData {
     // Step 1 data
@@ -146,10 +147,14 @@
           goto("/dashboard/events");
         }, 2000);
       } else {
-        alert("Error publishing event: " + result.error);
+        showToast("error", "Publishing Failed", result.error);
       }
     } catch (error) {
-      alert("Error publishing event. Please try again.");
+      showToast(
+        "error",
+        "Publishing Failed",
+        "Error publishing event. Please try again."
+      );
     } finally {
       isPublishing = false;
     }
@@ -196,10 +201,14 @@
           goto("/dashboard/events");
         }, 2000);
       } else {
-        alert("Error saving draft: " + result.error);
+        showToast("error", "Save Failed", result.error);
       }
     } catch (error) {
-      alert("Error saving draft. Please try again.");
+      showToast(
+        "error",
+        "Save Failed",
+        "Error saving draft. Please try again."
+      );
     } finally {
       isSavingDraft = false;
     }

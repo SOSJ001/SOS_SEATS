@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { clusterApiUrl } from "@solana/web3.js";
   import { walletStore, web3UserStore } from "$lib/store";
   import {
     checkWalletExists,
@@ -10,8 +9,6 @@
     clearWeb3Session,
     verifyWeb3Session,
   } from "$lib/supabase.js";
-
-  const network = clusterApiUrl("devnet"); // You can change this to 'mainnet-beta' for production
 
   // Simple wallet detection and connection
   let walletConnected = false;

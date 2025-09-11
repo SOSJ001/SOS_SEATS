@@ -4,7 +4,7 @@
   import "./globalStyle.css";
   import TopNav from "$lib/components/TopNav.svelte";
   import Footer from "$lib/components/Footer.svelte";
-  import { sessionFromDb } from "$lib/store";
+  import { sessionFromDb, showToast } from "$lib/store";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import { fade } from "svelte/transition";
@@ -84,7 +84,7 @@
 
   let SignUpBtnClicked = async () => {
     if (!email || !password || !userName || !name) {
-      alert("fill all required field");
+      showToast("error", "Validation Error", "Please fill all required fields");
       return;
     } else if (password.length < 6) {
       errorMessage = "Password should be greater than 5";

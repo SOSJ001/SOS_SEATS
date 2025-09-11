@@ -1,20 +1,25 @@
 <script lang="ts">
+  import { env } from "$env/dynamic/public";
+
+  // Get current network from environment
+  const currentNetwork = env.PUBLIC_SOLANA_NETWORK || "devnet";
+
   // Sample network data - in real app this would come from props
   let networks = [
     {
       name: "Solana Mainnet",
-      status: "online",
-      color: "green",
+      status: currentNetwork === "mainnet-beta" ? "online" : "offline",
+      color: currentNetwork === "mainnet-beta" ? "green" : "gray",
     },
     {
       name: "Solana Devnet",
-      status: "warning",
-      color: "yellow",
+      status: currentNetwork === "devnet" ? "online" : "offline",
+      color: currentNetwork === "devnet" ? "green" : "gray",
     },
     {
       name: "Solana Testnet",
-      status: "offline",
-      color: "red",
+      status: currentNetwork === "testnet" ? "online" : "offline",
+      color: currentNetwork === "testnet" ? "green" : "gray",
     },
   ];
 

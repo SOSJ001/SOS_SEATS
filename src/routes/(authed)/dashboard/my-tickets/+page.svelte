@@ -82,15 +82,24 @@
         }
       }
 
-      if (!userWalletAddress) {
+      // For Orange Money users, we don't need a wallet address
+      if (!userWalletAddress && data.sessionType !== "traditional") {
         error = "No wallet address found. Please connect your wallet.";
         return;
       }
 
-      // Use the bypass function to fetch tickets by current owner (bypasses RLS)
+      // Use the appropriate wallet address based on session type
+      let walletAddressToUse = userWalletAddress;
+
+      if (data.sessionType === "traditional") {
+        // Orange Money users use "anonymous" as wallet address
+        walletAddressToUse = "anonymous";
+      }
+
+      // Use the wallet address to fetch tickets (works for both Web3 and Orange Money)
       const { data: ordersData, error: fetchError } = await supabase.rpc(
         "load_tickets_by_current_owner",
-        { p_wallet_address: userWalletAddress }
+        { p_wallet_address: walletAddressToUse }
       );
 
       if (!fetchError && ordersData) {

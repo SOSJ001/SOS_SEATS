@@ -2,16 +2,18 @@
 import { createClient } from "@supabase/supabase-js";
 import { sessionFromDb } from "$lib/store";
 import { generateUniqueFilename } from "$lib/store";
+import { env } from "$env/dynamic/public";
 
 // Get environment variables
-const supabaseUrl =
-  import.meta.env.VITE_SUPABASE_URL ||
-  "https://qwoklzpfoblqmnategny.supabase.co";
-const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2tsenBmb2JscW1uYXRlZ255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTIzMDYxMDksImV4cCI6MjAwNzg4MjEwOX0.BktZ0VzqqY5Wn8wjXfgIKBMdNauNx5-ZChMOnw9vbcs";
+const supabaseUrl = env.PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Export the anonymous key for use in non-authenticated operations
+export const ANONYMOUS_KEY = supabaseAnonKey;
+
+// Cache bust comment - updated to force browser refresh
 
 //sign up function
 export async function createAccount(email, password, userName, name) {
@@ -244,78 +246,20 @@ export async function insertIntoGuestTable(
 //load all guest rows
 export async function loadGuestsRows(user_id) {
   try {
-    // Check what auth.uid() returns
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-
-    // First get all events for the user
-    const { data: events, error: eventsError } = await supabase
-      .from("events")
-      .select("id, name")
-      .eq("user_id", user_id);
-
-    if (eventsError || !events) {
-      return { data: [], error: eventsError };
-    }
-
-    // Get all guests for all events - SIMPLIFIED QUERY
-    const eventIds = events.map((event) => event.id);
-
-    // Get guests with order_items join to get current owner information
-    const { data: guests, error: guestsError } = await supabase
-      .from("guests")
-      .select(
-        `
-        *,
-        order_items!inner(
-          current_owner,
-          orders(
-            order_number,
-            payment_method,
-            payment_status
-          )
-        )
-      `
-      )
-      .in("event_id", eventIds)
-      .order("created_at", { ascending: false });
+    // Use the database function that handles both Web3 and Orange Money users
+    const { data: guests, error: guestsError } = await supabase.rpc(
+      "get_guests_for_user",
+      { user_id_param: user_id }
+    );
 
     if (guestsError) {
       return { data: [], error: guestsError };
     }
 
-    // If we have guests, now get the related data
+    // The database function already returns all the data we need
     if (guests && guests.length > 0) {
-      // Get ticket types for these guests
-      const ticketTypeIds = guests
-        .map((g) => g.ticket_type_id)
-        .filter((id) => id);
-      const { data: ticketTypes } = await supabase
-        .from("ticket_types")
-        .select("id, name, price")
-        .in("id", ticketTypeIds);
-
-      // Get venue sections for these guests
-      const venueSectionIds = guests
-        .map((g) => g.venue_section_id)
-        .filter((id) => id);
-      const { data: venueSections } = await supabase
-        .from("venue_sections")
-        .select("id, name, price")
-        .in("id", venueSectionIds);
-
-      // Create lookup maps
-      const ticketTypeMap = {};
-      ticketTypes?.forEach((tt) => (ticketTypeMap[tt.id] = tt));
-      const venueSectionMap = {};
-      venueSections?.forEach((vs) => (venueSectionMap[vs.id] = vs));
-
       // Transform the data to match the expected format
       const transformedGuests = guests.map((guest) => {
-        // Get the current owner from order_items, fallback to guest wallet_address
-        const currentOwner =
-          guest.order_items?.[0]?.current_owner || guest.wallet_address;
-        const orderData = guest.order_items?.[0]?.orders;
-
         return {
           id: guest.id,
           name: `${guest.first_name} ${guest.last_name}`,
@@ -334,22 +278,22 @@ export async function loadGuestsRows(user_id) {
             "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMCIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44MyAyLjE2IDQuODMgNC44M1MxNC42NyAxNC42NyAxMiAxNC42N1M3LjE3IDEyLjUxIDcuMTcgOS44M1M5LjMzIDUgMTIgNXptMCAxMmM0LjQyIDAgOC4xNy0yLjE2IDEwLjQyLTUuNDJDMjAuMTUgMTUuNjYgMTYuNDIgMTggMTIgMThzLTguMTUtMi4zNC0xMC40Mi01LjQyQzMuODMgMTQuODQgNy41OCAxNyAxMiAxN3oiLz4KPC9zdmc+Cjwvc3ZnPgo=",
           ticket_number: guest.ticket_number,
           phone: guest.phone,
-          wallet_address: currentOwner, // Use current owner instead of original buyer
+          wallet_address: guest.wallet_address,
           seat_number: guest.seat_number,
           check_in_time: guest.check_in_time,
           event_id: guest.event_id,
-          event_title:
-            events.find((e) => e.id === guest.event_id)?.name ||
-            "Unknown Event",
-          event_date: events.find((e) => e.id === guest.event_id)?.date || null,
-          ticket_type: ticketTypeMap[guest.ticket_type_id]?.name || "General",
-          ticket_price: ticketTypeMap[guest.ticket_type_id]?.price || 0,
-          venue_section: venueSectionMap[guest.venue_section_id]?.name || null,
+          event_title: guest.event_name,
+          event_date: guest.event_date,
+          ticket_type: guest.ticket_type_name || "General",
+          ticket_price: guest.ticket_type_price || 0,
+          venue_section: guest.venue_section_name || null,
           special_requirements: guest.special_requirements,
           created_at: guest.created_at,
-          order_number: orderData?.order_number || `GUEST-${guest.id}`,
-          payment_method: orderData?.payment_method || "Free",
-          payment_status: orderData?.payment_status || "Completed",
+          order_number: guest.order_number || `GUEST-${guest.id}`,
+          payment_method: guest.payment_method || "Free",
+          payment_status: guest.payment_status || "Completed",
+          current_owner: guest.current_owner,
+          order_item_id: guest.order_item_id,
         };
       });
 
@@ -1360,12 +1304,18 @@ export async function addOrderItems(orderId, items) {
 // Load user orders
 export async function loadUserOrders(userId, walletAddress = null) {
   try {
-    // Try to use a database function that bypasses RLS
-    if (walletAddress) {
-      // Use the database function to load orders by wallet address
+    // Determine the wallet address to use
+    let walletAddressToUse = walletAddress;
+
+    // If no wallet address provided but we have a user ID, use "anonymous" for Orange Money users
+    if (!walletAddressToUse && userId) {
+      walletAddressToUse = "anonymous";
+    }
+
+    if (walletAddressToUse) {
       const { data: walletOrders, error: walletError } = await supabase.rpc(
         "load_orders_by_wallet",
-        { p_wallet_address: walletAddress }
+        { p_wallet_address: walletAddressToUse }
       );
 
       if (!walletError && walletOrders && walletOrders.length > 0) {
@@ -1660,6 +1610,188 @@ async function authenticateUserForDatabase(userData) {
   }
 }
 
+// Create paid ticket order (for Orange Money, card payments, etc.)
+export async function createPaidTicketOrder(
+  eventId,
+  selectedTickets,
+  userData,
+  paymentInfo,
+  ticketDetails = null
+) {
+  try {
+    // Generate a unique order number
+    const orderNumber = `PAID-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+
+    // Calculate total amount and get ticket type details
+    let totalAmount = 0;
+    let ticketTypeDetails = [];
+
+    // Use pre-processed ticketDetails if available, otherwise process selectedTickets
+    if (ticketDetails && ticketDetails.length > 0) {
+      ticketTypeDetails = ticketDetails;
+      totalAmount = ticketDetails.reduce(
+        (sum, ticket) => sum + ticket.price * ticket.quantity,
+        0
+      );
+    } else {
+      for (const [selectedTicketTypeId, quantity] of Object.entries(
+        selectedTickets
+      )) {
+        if (quantity > 0) {
+          const ticketTypeIdToUse =
+            typeof selectedTicketTypeId === "string"
+              ? selectedTicketTypeId
+              : selectedTicketTypeId.toString();
+
+          let { data: ticketType, error: ticketError } = await supabase
+            .from("ticket_types")
+            .select("*")
+            .eq("id", ticketTypeIdToUse)
+            .single();
+
+          if (ticketError) {
+            return {
+              success: false,
+              error: "Failed to get ticket type details",
+            };
+          }
+
+          // Use actual price from database, convert to number if it's a string
+          const ticketPrice =
+            typeof ticketType.price === "string"
+              ? parseFloat(ticketType.price)
+              : ticketType.price;
+
+          totalAmount += ticketPrice * quantity;
+          ticketTypeDetails.push({
+            id: ticketType.id,
+            name: ticketType.name,
+            price: ticketPrice,
+            quantity: quantity,
+          });
+        }
+      }
+    }
+
+    // Create the order with user data
+    const orderData = {
+      event_id: eventId,
+      buyer_id: userData.id || null,
+      buyer_wallet_address: userData.wallet_address || null,
+      buyer_email: userData.email || null,
+      buyer_name: userData.name || userData.display_name || "Anonymous",
+      order_number: orderNumber,
+      total_amount: paymentInfo.amount,
+      currency: paymentInfo.currency || "USDC",
+      payment_method: paymentInfo.paymentMethod,
+      payment_status: "completed",
+      transaction_hash: paymentInfo.transactionSignature,
+      order_status: "confirmed",
+    };
+
+    // Try to authenticate user for database operations
+    const authResult = await authenticateUserForDatabase(userData);
+    if (authResult.success) {
+      orderData.buyer_id = authResult.user.id;
+      orderData.buyer_wallet_address = authResult.user.wallet_address;
+      orderData.buyer_name =
+        authResult.user.display_name || authResult.user.username;
+    } else {
+      // If authentication fails, use the provided user data directly
+      const fallbackData = authResult.fallbackData || userData;
+      orderData.buyer_wallet_address = fallbackData.wallet_address;
+      orderData.buyer_name =
+        fallbackData.name || fallbackData.display_name || "Anonymous";
+    }
+
+    // Create one order with multiple order items
+    let orderId = null;
+    let totalTicketsClaimed = 0;
+
+    // Call the paid ticket order function
+    const { data: rpcResult, error: rpcError } = await supabase.rpc(
+      "create_paid_ticket_order_with_items",
+      {
+        p_event_id: eventId,
+        p_buyer_wallet_address: orderData.buyer_wallet_address || "anonymous",
+        p_buyer_name: orderData.buyer_name,
+        p_order_number: orderNumber,
+        p_ticket_details: ticketTypeDetails,
+        p_total_amount: paymentInfo.amount,
+        p_currency: paymentInfo.currency || "USDC",
+        p_transaction_hash: paymentInfo.transactionSignature,
+        p_payment_method: paymentInfo.paymentMethod,
+      }
+    );
+
+    if (rpcError) {
+      console.error("createPaidTicketOrder - Function call error:", rpcError);
+      return {
+        success: false,
+        error: `Database function error: ${rpcError.message}`,
+      };
+    }
+
+    const paidResult = rpcResult;
+    const paidError = rpcError;
+
+    if (
+      paidError ||
+      !paidResult ||
+      paidResult.length === 0 ||
+      !paidResult[0].success
+    ) {
+      console.error(
+        "createPaidTicketOrder - Paid ticket order creation failed:",
+        {
+          paidError,
+          paidResult,
+          orderData,
+          ticketTypeDetails,
+        }
+      );
+
+      // Check if it's a quantity error
+      const errorMessage =
+        paidResult?.[0]?.error_message ||
+        paidError?.message ||
+        "Failed to create paid ticket order";
+      if (errorMessage.includes("Not enough tickets available")) {
+        return {
+          success: false,
+          error:
+            "Sorry, some tickets are no longer available. Please refresh the page and try again.",
+        };
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
+    // Success! Extract the order details
+    const orderResult = paidResult[0];
+    orderId = orderResult.order_id;
+    totalTicketsClaimed = orderResult.tickets_claimed;
+
+    return {
+      success: true,
+      orderId: orderId,
+      totalTicketsClaimed: totalTicketsClaimed,
+      orderNumber: orderNumber,
+    };
+  } catch (error) {
+    console.error("createPaidTicketOrder - Error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to create paid ticket order",
+    };
+  }
+}
+
 // Claim free tickets or paid tickets
 export async function claimFreeTickets(
   eventId,
@@ -1724,7 +1856,7 @@ export async function claimFreeTickets(
       buyer_name: userData.name || userData.display_name || "Anonymous",
       order_number: orderNumber,
       total_amount: paymentInfo ? paymentInfo.amount : totalAmount,
-      currency: paymentInfo ? "USDC" : "USD", // Changed to USDC for paid tickets
+      currency: paymentInfo ? paymentInfo.currency || "USDC" : "USD", // Use payment currency or default to USDC for paid tickets
       payment_method: paymentInfo ? paymentInfo.paymentMethod : "free",
       payment_status: paymentInfo ? "completed" : "completed",
       transaction_hash: paymentInfo ? paymentInfo.transactionSignature : null,
@@ -1752,28 +1884,30 @@ export async function claimFreeTickets(
     let totalTicketsClaimed = 0;
 
     if (paymentInfo) {
-      const testResult = await supabase.rpc(
+      // Now try the RPC call with explicit parameter order
+      const { data: rpcResult, error: rpcError } = await supabase.rpc(
         "create_paid_ticket_order_with_items",
         {
           p_event_id: eventId,
-          p_buyer_wallet_address: orderData.buyer_wallet_address,
+          p_buyer_wallet_address:
+            orderData.buyer_wallet_address || ANONYMOUS_KEY,
           p_buyer_name: orderData.buyer_name,
           p_order_number: orderNumber,
           p_ticket_details: ticketTypeDetails,
           p_total_amount: paymentInfo.amount,
-          p_currency: "USDC",
+          p_currency: paymentInfo.currency || "USDC",
           p_transaction_hash: paymentInfo.transactionSignature,
         }
       );
-      if (testResult.error) {
-        console.error("Function call error:", testResult.error);
+      if (rpcError) {
+        console.error("Function call error:", rpcError);
         return {
           success: false,
-          error: `Database function error: ${testResult.error.message}`,
+          error: `Database function error: ${rpcError.message}`,
         };
       }
-      const paidResult = testResult.data;
-      const paidError = testResult.error;
+      const paidResult = rpcResult;
+      const paidError = rpcError;
 
       if (
         paidError ||

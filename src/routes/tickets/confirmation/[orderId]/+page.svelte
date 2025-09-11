@@ -8,7 +8,7 @@
     supabase,
     listAllOrders,
   } from "$lib/supabase.js";
-  import { sessionFromDb } from "$lib/store";
+  import { sessionFromDb, showToast } from "$lib/store";
   import BackButton from "$lib/components/BackButton.svelte";
   import GradientButton from "$lib/components/GradientButton.svelte";
 
@@ -313,7 +313,11 @@
 
   function downloadTickets() {
     // TODO: Implement ticket download functionality
-    alert("Ticket download functionality will be implemented soon!");
+    showToast(
+      "info",
+      "Coming Soon",
+      "Ticket download functionality will be implemented soon!"
+    );
   }
 
   function shareEvent() {
@@ -326,7 +330,7 @@
     } else {
       // Fallback: copy to clipboard
       navigator.clipboard.writeText(window.location.href);
-      alert("Event link copied to clipboard!");
+      showToast("success", "Link Copied", "Event link copied to clipboard!");
     }
   }
 </script>
