@@ -441,6 +441,16 @@
       return;
     }
 
+    // Limit Orange Money to 1 ticket per order
+    if (totalSelected > 1) {
+      showToast(
+        "warning",
+        "Orange Money Limitation",
+        "Orange Money payments are currently limited to 1 ticket per order. Please select only 1 ticket or use Solana for multiple tickets."
+      );
+      return;
+    }
+
     // Prevent multiple submissions
     if (processingOrangeMoney) {
       return;
@@ -492,7 +502,11 @@
       };
 
       // Generate URLs for Orange Money payment
-      const { successUrl, cancelUrl } = generateOrangeMoneyUrls(eventId);
+      const { successUrl, cancelUrl } = await generateOrangeMoneyUrls(
+        eventId,
+        undefined,
+        purchaseData
+      );
 
       // Create Orange Money payment
       const result = await handleOrangeMoneyPayment(
@@ -1149,6 +1163,9 @@
                   <p class="text-xs text-orange-300">
                     Secure mobile payments • No wallet required • Instant
                     confirmation
+                  </p>
+                  <p class="text-xs text-orange-200 mt-1 font-medium">
+                    ⚠️ Limited to 1 ticket per order
                   </p>
                 </div>
 

@@ -44,7 +44,7 @@ interface CheckoutSessionResponse {
   };
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, fetch }) => {
   try {
     const body: CheckoutSessionRequest = await request.json();
 
@@ -87,8 +87,8 @@ export const POST: RequestHandler = async ({ request }) => {
       );
     }
 
-    // Check if we're in test mode - checkout sessions not supported in test mode
-    if (environment === "test") {
+    // For test/mock environment, use simple mock checkout
+    if (environment === "test" || environment === "mock") {
       // Return a mock checkout session for testing
       const mockSessionId = `mock_${Date.now()}_${Math.random()
         .toString(36)
@@ -133,6 +133,14 @@ export const POST: RequestHandler = async ({ request }) => {
       },
     };
 
+    // Debug logging
+    console.log("Monime API Request Debug:", {
+      apiKey: apiKey ? `${apiKey.substring(0, 10)}...` : "MISSING",
+      spaceId: spaceId ? `${spaceId.substring(0, 10)}...` : "MISSING",
+      environment: environment,
+      requestBody: monimeRequest,
+    });
+
     // Make request to Monime API
     const response = await fetch("https://api.monime.io/v1/checkout-sessions", {
       method: "POST",
@@ -148,7 +156,21 @@ export const POST: RequestHandler = async ({ request }) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("Monime API Error:", response.status, errorData);
+      console.error("Monime API Error Details:", {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        errorData: errorData,
+        requestHeaders: {
+          Authorization: `Bearer ${
+            apiKey ? `${apiKey.substring(0, 10)}...` : "MISSING"
+          }`,
+          "Monime-Space-Id": spaceId
+            ? `${spaceId.substring(0, 10)}...`
+            : "MISSING",
+          "Monime-Version": "caph.2025-08-23",
+        },
+      });
 
       return json(
         {
@@ -156,6 +178,13 @@ export const POST: RequestHandler = async ({ request }) => {
             errorData.message || response.statusText
           }`,
           details: errorData,
+          debug: {
+            status: response.status,
+            statusText: response.statusText,
+            hasApiKey: !!apiKey,
+            hasSpaceId: !!spaceId,
+            environment: environment,
+          },
         },
         { status: response.status }
       );

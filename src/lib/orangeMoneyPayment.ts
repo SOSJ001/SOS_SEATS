@@ -31,6 +31,19 @@ export async function handleOrangeMoneyPayment(
       return { success: false, error: "Invalid amount" };
     }
 
+    // Limit Orange Money to 1 ticket per order for now
+    const totalTickets = Object.values(purchaseData.selectedTickets).reduce(
+      (sum, qty) => sum + qty,
+      0
+    );
+    if (totalTickets > 1) {
+      return {
+        success: false,
+        error:
+          "Orange Money payments are currently limited to 1 ticket per order. Please select only 1 ticket or use Solana for multiple tickets.",
+      };
+    }
+
     // Create line items for Monime
     const lineItems = purchaseData.ticketDetails.map((ticket) => ({
       type: "custom" as const,
@@ -41,15 +54,24 @@ export async function handleOrangeMoneyPayment(
       reference: ticket.id,
     }));
 
+    // Generate URLs with purchase data backup
+    const { successUrl: successUrlWithData, cancelUrl: cancelUrlWithData } =
+      await generateOrangeMoneyUrls(
+        purchaseData.eventId,
+        undefined,
+        purchaseData
+      );
+
     // Create checkout session with Monime
     const checkoutSession = await monimeService.createCheckoutSession(
       `SOS SEATS - Event Tickets (${purchaseData.ticketDetails.length} items)`,
       `Event tickets for ${purchaseData.ticketDetails.length} items`,
-      successUrl,
-      cancelUrl,
+      successUrlWithData,
+      cancelUrlWithData,
       lineItems,
       {
         event_id: purchaseData.eventId,
+        selected_tickets: purchaseData.selectedTickets,
         ticket_details: purchaseData.ticketDetails,
         buyer_name: purchaseData.buyerInfo.name,
         buyer_wallet: purchaseData.buyerInfo.wallet_address,
@@ -107,13 +129,15 @@ export async function processOrangeMoneyCallback(
       currency: "SLE", // Sierra Leone Leone for Orange Money
     };
 
-    // Record the purchase in database
-    const result = await createPaidTicketOrder(
+    // Import the claimFreeTickets function to use the same logic as Solana payments
+    const { claimFreeTickets } = await import("./supabase.js");
+
+    // Record the purchase in database using the same function as Solana payments
+    const result = await claimFreeTickets(
       purchaseData.eventId,
       purchaseData.selectedTickets,
       purchaseData.buyerInfo,
-      paymentInfo as any,
-      purchaseData.ticketDetails
+      paymentInfo as any
     );
 
     if (result.success) {
@@ -140,8 +164,35 @@ export async function processOrangeMoneyCallback(
 /**
  * Generate success and cancel URLs for Orange Money payment
  */
-export function generateOrangeMoneyUrls(eventId: string, sessionId?: string) {
+export async function generateOrangeMoneyUrls(
+  eventId: string,
+  sessionId?: string,
+  purchaseData?: TicketPurchaseData
+) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+
+  // Pass purchase data directly through URL parameters as a more reliable method
+  if (typeof window !== "undefined" && purchaseData) {
+    const selectedTicketsParam = encodeURIComponent(
+      JSON.stringify(purchaseData.selectedTickets)
+    );
+    const ticketDetailsParam = encodeURIComponent(
+      JSON.stringify(purchaseData.ticketDetails)
+    );
+    const buyerNameParam = encodeURIComponent(purchaseData.buyerInfo.name);
+    const buyerWalletParam = encodeURIComponent(
+      purchaseData.buyerInfo.wallet_address || ""
+    );
+
+    const successUrl = `${baseUrl}/payment/orange-money/success?event_id=${eventId}&session_id=${
+      sessionId || ""
+    }&selected_tickets=${selectedTicketsParam}&ticket_details=${ticketDetailsParam}&buyer_name=${buyerNameParam}&buyer_wallet=${buyerWalletParam}`;
+
+    return {
+      successUrl,
+      cancelUrl: `${baseUrl}/marketplace/eventDetails/${eventId}?payment=cancelled`,
+    };
+  }
 
   return {
     successUrl: `${baseUrl}/payment/orange-money/success?event_id=${eventId}&session_id=${

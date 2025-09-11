@@ -98,6 +98,11 @@ PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Solana
 SOLANA_NETWORK=devnet  # or mainnet-beta
+
+# Monime API (Orange Money payments)
+PUBLIC_MONIME_API_KEY=mon_test_xxxxxxxxxxxxxxxxxxxxxxxxx  # or mon_xxxxxxxxxxxxxxxxxxxxxxxxx for live
+PUBLIC_MONIME_SPACE_ID=spc-xxxxxxxxxxxxxxxx
+PUBLIC_MONIME_ENVIRONMENT=test  # or live for production
 ```
 
 ### **Wallet Setup**
@@ -107,6 +112,21 @@ The platform supports multiple Solana wallets:
 - **Phantom**: Most popular Solana wallet
 - **Solflare**: Feature-rich wallet
 - **Backpack**: Modern wallet with advanced features
+
+### **Orange Money Setup**
+
+For Orange Money mobile payments via Monime:
+
+1. **Create Monime Account**: Sign up at [Monime Dashboard](https://dashboard.monime.io)
+2. **Create Space**: Set up a new Space for your business
+3. **Generate API Token**: Create a Personal Access Token with payments permissions
+4. **Configure Environment**: Set the environment variables in your `.env` file
+5. **Test Integration**: Use test mode first, then switch to live for production
+
+**Test vs Live Mode:**
+
+- **Test Mode**: Uses `mon_test_` prefixed tokens, simulated payments
+- **Live Mode**: Uses `mon_` prefixed tokens, real Orange Money transactions
 
 ## 🎯 Usage
 
@@ -120,7 +140,7 @@ The platform supports multiple Solana wallets:
 ### **For Attendees**
 
 1. **Browse Events**: Discover and search for events
-2. **Purchase Tickets**: Secure blockchain-based payments
+2. **Purchase Tickets**: Secure payments via Solana or Orange Money
 3. **Digital Tickets**: Receive QR codes instantly
 4. **Easy Entry**: Quick scan at event gates
 

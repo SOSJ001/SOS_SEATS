@@ -14,6 +14,10 @@
     const urlParams = new URLSearchParams($page.url.search);
     const eventId = urlParams.get("event_id");
     const sessionId = urlParams.get("session_id");
+    const selectedTicketsParam = urlParams.get("selected_tickets");
+    const ticketDetailsParam = urlParams.get("ticket_details");
+    const buyerNameParam = urlParams.get("buyer_name");
+    const buyerWalletParam = urlParams.get("buyer_wallet");
 
     if (!eventId || !sessionId) {
       error = "Missing payment information";
@@ -32,15 +36,47 @@
       const paymentStatus = await monimeService.getPaymentStatus(sessionId);
 
       // Extract purchase data from session metadata
-      const metadata = paymentStatus.metadata || {};
+      const metadata = (paymentStatus as any).metadata || {};
+
+      // Try to get purchase data from URL parameters first (most reliable)
+      let urlPurchaseData = null;
+      if (selectedTicketsParam && ticketDetailsParam) {
+        try {
+          urlPurchaseData = {
+            selectedTickets: JSON.parse(
+              decodeURIComponent(selectedTicketsParam)
+            ),
+            ticketDetails: JSON.parse(decodeURIComponent(ticketDetailsParam)),
+            buyerInfo: {
+              name: buyerNameParam
+                ? decodeURIComponent(buyerNameParam)
+                : "Orange Money User",
+              wallet_address: buyerWalletParam
+                ? decodeURIComponent(buyerWalletParam)
+                : undefined,
+            },
+          };
+        } catch (e) {
+          console.error("Failed to parse URL parameters:", e);
+        }
+      }
+
       const purchaseData = {
-        eventId: metadata.event_id || eventId,
-        selectedTickets: metadata.selected_tickets || {},
+        eventId: eventId,
+        selectedTickets:
+          urlPurchaseData?.selectedTickets || metadata.selected_tickets || {},
         totalAmount: paymentStatus.amount || 0,
-        ticketDetails: metadata.ticket_details || [],
+        ticketDetails:
+          urlPurchaseData?.ticketDetails || metadata.ticket_details || [],
         buyerInfo: {
-          name: metadata.buyer_name || "Orange Money User",
-          wallet_address: metadata.buyer_wallet || undefined,
+          name:
+            urlPurchaseData?.buyerInfo?.name ||
+            metadata.buyer_name ||
+            "Orange Money User",
+          wallet_address:
+            urlPurchaseData?.buyerInfo?.wallet_address ||
+            metadata.buyer_wallet ||
+            undefined,
         },
       };
 
@@ -49,6 +85,7 @@
       if (result.success) {
         success = true;
         orderId = result.orderId || "";
+
         showToast(
           "success",
           "Payment Successful",

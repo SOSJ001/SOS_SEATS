@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ url }) => {
       );
     }
 
-    // Check if this is a mock session (test mode)
+    // Check if this is a mock session (test mode doesn't support checkout-sessions endpoint)
     if (sessionId.startsWith("mock_") || environment === "test") {
       // Return a mock completed payment status for testing
       return json({

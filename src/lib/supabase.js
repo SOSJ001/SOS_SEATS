@@ -1722,7 +1722,6 @@ export async function createPaidTicketOrder(
         p_total_amount: paymentInfo.amount,
         p_currency: paymentInfo.currency || "USDC",
         p_transaction_hash: paymentInfo.transactionSignature,
-        p_payment_method: paymentInfo.paymentMethod,
       }
     );
 
