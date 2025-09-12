@@ -21,15 +21,19 @@ export async function POST({ request, cookies }) {
       // Handle JSON request from step5
       eventData = await request.json();
       // Extract base64 image if present
-      if (eventData.image && typeof eventData.image === 'string' && eventData.image.startsWith('data:')) {
+      if (
+        eventData.image &&
+        typeof eventData.image === "string" &&
+        eventData.image.startsWith("data:")
+      ) {
         imageBase64 = eventData.image;
-        }
+      }
     } else {
       // Handle FormData request (legacy)
       const formData = await request.formData();
       eventData = JSON.parse(formData.get("eventData"));
       imageFile = formData.get("image");
-      }
+    }
 
     let imageId = null;
 
@@ -50,12 +54,12 @@ export async function POST({ request, cookies }) {
         // Convert base64 to File object
         const base64Response = await fetch(imageBase64);
         const blob = await base64Response.blob();
-        const file = new File([blob], 'event-image.jpg', { type: blob.type });
-        
+        const file = new File([blob], "event-image.jpg", { type: blob.type });
+
         const uploadResult = await uploadEventImageNew(file, user_Id);
         if (uploadResult.success) {
           imageId = uploadResult.image_id;
-          } else {
+        } else {
           return json(
             { success: false, error: "Failed to upload image" },
             { status: 400 }
@@ -90,6 +94,7 @@ export async function POST({ request, cookies }) {
       audience_type: eventData.audience_type || "all-ages",
       event_visibility: eventData.event_visibility || "public",
       status: eventData.status || "draft", // Use the status from step5
+      ticket_design_config: eventData.ticket_design_config || null, // Include ticket design config
       ticket_types: eventData.ticket_types || [],
       venue_sections: eventData.venue_sections || [],
       seating_options: eventData.seating_options || {},

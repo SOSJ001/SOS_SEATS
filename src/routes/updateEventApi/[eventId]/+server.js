@@ -34,7 +34,7 @@ export async function PUT({ request, cookies, params }) {
       eventData.image.startsWith("data:")
     ) {
       imageBase64 = eventData.image;
-      }
+    }
 
     // Handle image upload if provided
     if (imageBase64) {
@@ -47,7 +47,7 @@ export async function PUT({ request, cookies, params }) {
         const uploadResult = await uploadEventImageNew(file, user_Id);
         if (uploadResult.success) {
           imageId = uploadResult.image_id;
-          } else {
+        } else {
           return json(
             { success: false, error: "Failed to upload image" },
             { status: 400 }
@@ -77,7 +77,7 @@ export async function PUT({ request, cookies, params }) {
       }
 
       imageId = currentEvent.image_id;
-      }
+    }
 
     // Prepare event data for database update
     const eventPayload = {
@@ -101,6 +101,7 @@ export async function PUT({ request, cookies, params }) {
       event_visibility: eventData.event_visibility || "public",
       status: eventData.status, // Include status field
       published_at: eventData.published_at, // Include published_at field
+      ticket_design_config: eventData.ticket_design_config || null, // Include ticket design config
       updated_at: new Date().toISOString(),
     };
 

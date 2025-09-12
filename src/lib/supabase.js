@@ -400,7 +400,7 @@ export async function loadUserEventsForSelector(userId) {
   try {
     const { data: events, error } = await supabase
       .from("events")
-      .select("id, name, date, image_id")
+      .select("id, name, date, image_id, ticket_design_config")
       .eq("user_id", userId)
       .order("date", { ascending: false });
 
@@ -451,6 +451,7 @@ export async function loadUserEventsForSelector(userId) {
       title: event.name, // Map name to title for compatibility
       date: event.date,
       image: event.image, // Include the image path
+      ticket_design_config: event.ticket_design_config, // Include the design config
     }));
 
     return { data: transformedEvents, error: null };
@@ -817,6 +818,7 @@ export async function updateEventWithDetails(
         event_visibility: eventData.event_visibility,
         status: eventData.status, // Include status field
         published_at: eventData.published_at, // Include published_at field
+        ticket_design_config: eventData.ticket_design_config, // Include ticket design config
         updated_at: eventData.updated_at,
       })
       .eq("id", eventId)
@@ -950,6 +952,7 @@ export async function createEventWithDetails(eventData, userId) {
       audience_type,
       event_visibility,
       status,
+      ticket_design_config,
       ticket_types,
       venue_sections,
       seating_options,
@@ -976,6 +979,7 @@ export async function createEventWithDetails(eventData, userId) {
       p_audience_type: audience_type,
       p_event_visibility: event_visibility,
       p_status: status || "draft",
+      p_ticket_design_config: ticket_design_config,
       p_ticket_types: ticket_types,
       p_venue_sections: venue_sections,
       p_seating_options: seating_options,

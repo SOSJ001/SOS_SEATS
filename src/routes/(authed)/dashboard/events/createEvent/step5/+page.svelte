@@ -88,9 +88,15 @@
       const parsed = JSON.parse(savedData);
       eventData = parsed;
 
-      // Load ticket design config if available
+      // Load ticket design config if available, otherwise use default
       if (eventData.ticket_design_config) {
         ticketDesignConfig = eventData.ticket_design_config;
+      } else {
+        // Initialize with default config if none exists
+        ticketDesignConfig = defaultTicketDesignConfig;
+        eventData.ticket_design_config = defaultTicketDesignConfig;
+        // Save the default config to localStorage
+        localStorage.setItem("eventCreationData", JSON.stringify(eventData));
       }
 
       // Set default ticket type for preview
@@ -98,6 +104,10 @@
         selectedTicketTypeForPreview = eventData.ticket_types[0];
         generateTicketPreviewForEvent();
       }
+    } else {
+      // No saved data - initialize with default design config
+      ticketDesignConfig = defaultTicketDesignConfig;
+      eventData.ticket_design_config = defaultTicketDesignConfig;
     }
   });
 
@@ -155,6 +165,8 @@
         created_at: new Date().toISOString(),
       };
 
+      console.log("Publishing event with design config:", ticketDesignConfig);
+
       // Send to API
       const response = await fetch("/createEventApi", {
         method: "POST",
@@ -209,6 +221,8 @@
         status: "draft", // Set status to draft
         created_at: new Date().toISOString(),
       };
+
+      console.log("Saving draft with design config:", ticketDesignConfig);
 
       // Send to API
       const response = await fetch("/createEventApi", {
@@ -290,11 +304,13 @@
   }
 
   function handleDesignConfigChange(newConfig: TicketDesignConfig) {
+    console.log("Design config changed in create event:", newConfig);
     ticketDesignConfig = newConfig;
     eventData.ticket_design_config = newConfig;
 
     // Save to localStorage
     localStorage.setItem("eventCreationData", JSON.stringify(eventData));
+    console.log("Saved design config to localStorage and eventData");
 
     // Regenerate preview with new config
     generateTicketPreviewForEvent();

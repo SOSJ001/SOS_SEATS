@@ -24,6 +24,7 @@
     name: event.title || event.name, // Handle both title and name fields
     date: event.date,
     image: event.image, // Include the image field
+    ticket_design_config: event.ticket_design_config, // Include the design config
   }));
 
   // Transform guests data to match expected format

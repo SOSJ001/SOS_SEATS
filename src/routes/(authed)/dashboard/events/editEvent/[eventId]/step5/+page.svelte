@@ -4,6 +4,8 @@
   import { fade } from "svelte/transition";
   import { onMount } from "svelte";
   import StepperProgress from "$lib/components/StepperProgress.svelte";
+  import TicketDesignEditor from "$lib/components/TicketDesignEditor.svelte";
+  import { defaultTicketDesignConfig } from "$lib/store";
 
   // Get the event data from the server
   export let data;
@@ -17,6 +19,9 @@
   let saveSuccess = false;
   let publishError = "";
   let publishSuccess = false;
+
+  // Ticket design configuration
+  let ticketDesignConfig = null;
 
   $: eventId = $page.params.eventId;
 
@@ -35,7 +40,20 @@
       // Ensure imagePreview from localStorage takes precedence for display
       if (parsed.imagePreview) {
         eventData.imagePreview = parsed.imagePreview;
-        }
+      }
+    }
+
+    // Initialize ticket design config from event data
+    // Priority: localStorage > server data > default
+    if (eventData.ticket_design_config) {
+      ticketDesignConfig = eventData.ticket_design_config;
+      console.log(
+        "Loaded ticket design config from eventData:",
+        ticketDesignConfig
+      );
+    } else {
+      console.log("No ticket design config found in eventData, using default");
+      ticketDesignConfig = defaultTicketDesignConfig;
     }
 
     isLoading = false;
@@ -59,8 +77,11 @@
       const eventDataForDB = {
         ...eventData,
         image: imageBase64, // Replace File object with base64 string
+        ticket_design_config: ticketDesignConfig, // Ensure design config is included
         updated_at: new Date().toISOString(),
       };
+
+      console.log("Saving event with design config:", ticketDesignConfig);
 
       // Send to API
       const response = await fetch(`/updateEventApi/${eventId}`, {
@@ -109,10 +130,13 @@
       const publishData = {
         ...eventData,
         image: imageBase64, // Replace File object with base64 string
+        ticket_design_config: ticketDesignConfig, // Ensure design config is included
         status: "published",
         published_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
+
+      console.log("Publishing event with design config:", ticketDesignConfig);
 
       // Send to API
       const response = await fetch(`/updateEventApi/${eventId}`, {
@@ -180,6 +204,17 @@
   function formatTime(timeString) {
     if (!timeString) return "Not set";
     return timeString;
+  }
+
+  // Handle ticket design config changes
+  function handleDesignConfigChange(newConfig) {
+    console.log("Design config changed:", newConfig);
+    ticketDesignConfig = newConfig;
+    eventData.ticket_design_config = newConfig;
+
+    // Save to localStorage for persistence
+    localStorage.setItem("eventEditData", JSON.stringify(eventData));
+    console.log("Saved design config to localStorage and eventData");
   }
 </script>
 
@@ -251,7 +286,7 @@
         </p>
       </div>
     {:else if publishSuccess}
-    <!-- Publish Success Message -->
+      <!-- Publish Success Message -->
       <div
         class="bg-green-800 border border-green-600 rounded-lg p-6 text-center mt-6"
       >
@@ -492,6 +527,20 @@
             </p>
           </div> -->
           </div>
+        </div>
+
+        <!-- Ticket Design Editor -->
+        <div class="bg-gray-800 rounded-xl p-6">
+          <h3 class="text-lg font-medium text-white mb-4">Ticket Design</h3>
+          <p class="text-gray-400 text-sm mb-6">
+            Customize the appearance of your event tickets with colors, fonts,
+            and layout options.
+          </p>
+          <TicketDesignEditor
+            bind:designConfig={ticketDesignConfig}
+            {eventData}
+            onConfigChange={handleDesignConfigChange}
+          />
         </div>
       </div>
     {/if}

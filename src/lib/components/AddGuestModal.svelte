@@ -2,7 +2,7 @@
   import { createEventDispatcher } from "svelte";
   import { fade, scale, fly } from "svelte/transition";
   import { addGuestToEvent, loadEventTicketTypes } from "$lib/supabase";
-  import { generateTicketPreview } from "$lib/store";
+  import { generateTicketPreview, type TicketDesignConfig } from "$lib/store";
 
   export let show = false;
   export let events: any[] = [];
@@ -30,6 +30,9 @@
   let ticketPreviewUrl: string | null = null;
   let generatingPreview = false;
 
+  // Design config state
+  let currentDesignConfig: TicketDesignConfig | null = null;
+
   // Reset form when modal opens
   $: if (show) {
     formData = {
@@ -48,6 +51,19 @@
     formData.eventId !== "all"
   ) {
     loadTicketTypesForEvent(formData.eventId);
+
+    // Update design config when event changes
+    const selectedEvent = events.find((e) => e.id === formData.eventId);
+    if (selectedEvent) {
+      console.log("Selected Event:", selectedEvent);
+      console.log("Design Config from DB:", selectedEvent.ticket_design_config);
+      console.log("All events data:", events);
+      currentDesignConfig = selectedEvent.ticket_design_config;
+      console.log("Current Design Config set to:", currentDesignConfig);
+    } else {
+      console.log("No selected event found for ID:", formData.eventId);
+      console.log("Available events:", events);
+    }
   }
 
   // Generate ticket preview when form data changes
@@ -123,6 +139,20 @@
       // Generate QR code data (using guest name + event ID as unique identifier)
       const qrData = `${formData.guestName}-${formData.eventId}-${Date.now()}`;
 
+      // Debug: Log what we're passing to generateTicketPreview
+      console.log(
+        "Raw design config from DB:",
+        selectedEvent.ticket_design_config
+      );
+      console.log(
+        "Current design config state (being used):",
+        currentDesignConfig
+      );
+      console.log(
+        "Design config being passed to generateTicketPreview:",
+        currentDesignConfig
+      );
+
       // Generate ticket preview using the reusable function
       const previewUrl = await generateTicketPreview({
         eventName: selectedEvent.name,
@@ -136,7 +166,7 @@
         organizer: selectedEvent.organizer,
         ticketNumber: "Will be generated",
         qrData: qrData,
-        designConfig: selectedEvent.ticket_design_config,
+        designConfig: currentDesignConfig || undefined,
       });
 
       ticketPreviewUrl = previewUrl;
@@ -411,12 +441,18 @@
                 in:fly={{ y: 20, duration: 400, delay: 200 }}
                 out:fly={{ y: -20, duration: 200 }}
               >
-                <label
-                  for="eventId"
-                  class="block text-sm font-medium text-gray-300 mb-2"
-                >
-                  Event *
-                </label>
+                <div class="flex items-center gap-2 mb-2">
+                  <label
+                    for="eventId"
+                    class="block text-sm font-medium text-gray-300"
+                  >
+                    Event *
+                  </label>
+                  <div class="flex items-center gap-1 text-xs text-gray-400">
+                    <span>✨</span>
+                    <span>= Custom Design</span>
+                  </div>
+                </div>
                 <select
                   id="eventId"
                   bind:value={formData.eventId}
@@ -425,7 +461,12 @@
                 >
                   <option value="">Select an event</option>
                   {#each events as event}
-                    <option value={event.id}>{event.name}</option>
+                    <option value={event.id}>
+                      {event.name}
+                      {#if event.ticket_design_config}
+                        ✨
+                      {/if}
+                    </option>
                   {/each}
                 </select>
               </div>
@@ -595,6 +636,11 @@
                     A ticket will be generated and the guest will be added to
                     your event
                   </p>
+                  {#if currentDesignConfig}
+                    <p class="text-xs text-purple-400 italic mt-1">
+                      ✨ This event uses custom ticket design settings
+                    </p>
+                  {/if}
                 </div>
               </div>
             {/if}
@@ -606,24 +652,71 @@
                 in:scale={{ duration: 400, delay: 600 }}
                 out:scale={{ duration: 200 }}
               >
-                <h3
-                  class="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2"
-                >
-                  <svg
-                    class="w-4 h-4 text-[#00F5FF]"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div class="flex items-center justify-between mb-3">
+                  <h3
+                    class="text-sm font-medium text-gray-300 flex items-center gap-2"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                    />
-                  </svg>
-                  Ticket Preview
-                </h3>
+                    <svg
+                      class="w-4 h-4 text-[#00F5FF]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Ticket Preview
+                  </h3>
+
+                  <!-- Custom Design Indicator -->
+                  {#if currentDesignConfig}
+                    <div
+                      class="flex items-center gap-1 px-2 py-1 bg-purple-900/30 border border-purple-500/50 rounded-full"
+                    >
+                      <svg
+                        class="w-3 h-3 text-purple-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+                        />
+                      </svg>
+                      <span class="text-xs text-purple-300 font-medium"
+                        >Custom Design</span
+                      >
+                    </div>
+                  {:else}
+                    <div
+                      class="flex items-center gap-1 px-2 py-1 bg-gray-700/50 border border-gray-600/50 rounded-full"
+                    >
+                      <svg
+                        class="w-3 h-3 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span class="text-xs text-gray-400 font-medium"
+                        >Default Design</span
+                      >
+                    </div>
+                  {/if}
+                </div>
 
                 {#if generatingPreview}
                   <div class="flex items-center justify-center py-8">
@@ -652,6 +745,67 @@
                     <p class="text-xs text-gray-500 mt-2 italic">
                       This is how the ticket will look when generated
                     </p>
+
+                    <!-- Design Config Summary -->
+                    {#if currentDesignConfig}
+                      <div class="mt-3 pt-3 border-t border-gray-700">
+                        <div class="flex items-center gap-2 mb-2">
+                          <svg
+                            class="w-3 h-3 text-purple-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+                            />
+                          </svg>
+                          <span class="text-xs text-purple-300 font-medium"
+                            >Custom Design Applied</span
+                          >
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                          <div class="flex justify-between">
+                            <span class="text-gray-400">Canvas:</span>
+                            <span class="text-gray-300"
+                              >{currentDesignConfig.canvas?.width ||
+                                400}×{currentDesignConfig.canvas?.height ||
+                                600}</span
+                            >
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-400">QR Size:</span>
+                            <span class="text-gray-300"
+                              >{currentDesignConfig.qrCode?.size || 100}px</span
+                            >
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-400">Primary Color:</span>
+                            <div class="flex items-center gap-1">
+                              <div
+                                class="w-3 h-3 rounded border border-gray-600"
+                                style="background-color: {currentDesignConfig
+                                  .colors?.primaryName || '#FFD700'}"
+                              ></div>
+                              <span class="text-gray-300 text-xs"
+                                >{currentDesignConfig.colors?.primaryName ||
+                                  "#FFD700"}</span
+                              >
+                            </div>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-400">Font Size:</span>
+                            <span class="text-gray-300"
+                              >{currentDesignConfig.fonts?.primaryName?.size ||
+                                26}px</span
+                            >
+                          </div>
+                        </div>
+                      </div>
+                    {/if}
                   </div>
                 {:else}
                   <div class="text-center py-4">
