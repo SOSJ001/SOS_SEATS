@@ -400,7 +400,7 @@ export async function loadUserEventsForSelector(userId) {
   try {
     const { data: events, error } = await supabase
       .from("events")
-      .select("id, name, date")
+      .select("id, name, date, image_id")
       .eq("user_id", userId)
       .order("date", { ascending: false });
 
@@ -408,11 +408,49 @@ export async function loadUserEventsForSelector(userId) {
       return { data: [], error };
     }
 
+    // Load images for events that have image_id
+    const eventsWithImages = await Promise.all(
+      events.map(async (event) => {
+        let eventWithImage = event;
+
+        if (event.image_id) {
+          try {
+            const { data: imageData, error: imageError } = await supabase
+              .from("images")
+              .select("file_path")
+              .eq("id", event.image_id)
+              .single();
+
+            if (!imageError && imageData) {
+              // Check if file_path is already a full URL or just a file name
+              if (imageData.file_path.startsWith("http")) {
+                // Already a full URL
+                eventWithImage.image = imageData.file_path;
+              } else {
+                // Construct the full public URL for the image
+                const { data: urlData } = supabase.storage
+                  .from("event_images")
+                  .getPublicUrl(imageData.file_path);
+
+                eventWithImage.image = urlData.publicUrl;
+              }
+            }
+          } catch (imageErr) {
+            // If image loading fails, continue without image
+            console.warn("Failed to load image for event:", event.id, imageErr);
+          }
+        }
+
+        return eventWithImage;
+      })
+    );
+
     // Transform to match expected format
-    const transformedEvents = events.map((event) => ({
+    const transformedEvents = eventsWithImages.map((event) => ({
       id: event.id,
       title: event.name, // Map name to title for compatibility
       date: event.date,
+      image: event.image, // Include the image path
     }));
 
     return { data: transformedEvents, error: null };
@@ -1166,6 +1204,16 @@ export async function updateEventStatus(eventId, status) {
 // Add guest to event
 export async function addGuestToEvent(eventId, guestData) {
   try {
+    // Generate a unique ticket number
+    const { data: ticketNumberData, error: ticketNumberError } =
+      await supabase.rpc("generate_ticket_number");
+
+    if (ticketNumberError) {
+      return { success: false, error: "Failed to generate ticket number" };
+    }
+
+    const ticketNumber = ticketNumberData;
+
     const { data, error } = await supabase
       .from("guests")
       .insert([
@@ -1178,7 +1226,7 @@ export async function addGuestToEvent(eventId, guestData) {
           email: guestData.email,
           phone: guestData.phone,
           wallet_address: guestData.wallet_address,
-          ticket_number: guestData.ticket_number,
+          ticket_number: ticketNumber,
           seat_number: guestData.seat_number,
           status: guestData.status || "pending",
           special_requirements: guestData.special_requirements,
@@ -1296,6 +1344,28 @@ export async function addOrderItems(orderId, items) {
     }
 
     return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Load ticket types for a specific event
+export async function loadEventTicketTypes(eventId) {
+  try {
+    const { data: ticketTypes, error } = await supabase
+      .from("ticket_types")
+      .select(
+        "id, name, description, price, quantity, sold_quantity, is_active"
+      )
+      .eq("event_id", eventId)
+      .eq("is_active", true)
+      .order("price", { ascending: true });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: ticketTypes };
   } catch (error) {
     return { success: false, error: error.message };
   }

@@ -5,6 +5,7 @@
   import GuestFilters from "$lib/components/GuestFilters.svelte";
   import GuestTable from "$lib/components/GuestTable.svelte";
   import GuestDetailsModal from "$lib/components/GuestDetailsModal.svelte";
+  import AddGuestModal from "$lib/components/AddGuestModal.svelte";
 
   // Accept data from server
   export let data: any;
@@ -22,6 +23,7 @@
     id: event.id,
     name: event.title || event.name, // Handle both title and name fields
     date: event.date,
+    image: event.image, // Include the image field
   }));
 
   // Transform guests data to match expected format
@@ -88,6 +90,7 @@
 
   // Modal state
   let showGuestDetailsModal = false;
+  let showAddGuestModal = false;
   let selectedGuest: any = null;
 
   onMount(() => {
@@ -187,7 +190,17 @@
   }
 
   function addNewGuest() {
-    // Implementation for adding new guest
+    showAddGuestModal = true;
+  }
+
+  function handleGuestAdded(event: CustomEvent) {
+    // Refresh the guest list by reloading the page or updating the local data
+    // For now, we'll reload the page to get fresh data
+    window.location.reload();
+  }
+
+  function handleCloseAddGuestModal() {
+    showAddGuestModal = false;
   }
 </script>
 
@@ -340,5 +353,14 @@
     bind:show={showGuestDetailsModal}
     guest={selectedGuest}
     on:close={handleCloseModal}
+  />
+
+  <!-- Add Guest Modal -->
+  <AddGuestModal
+    bind:show={showAddGuestModal}
+    {events}
+    selectedEventId={selectedEvent}
+    on:close={handleCloseAddGuestModal}
+    on:guestAdded={handleGuestAdded}
   />
 </div>
