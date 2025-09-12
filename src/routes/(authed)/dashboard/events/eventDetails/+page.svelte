@@ -4,6 +4,7 @@
   import { goto } from "$app/navigation";
   import ShareEventModal from "$lib/components/ShareEventModal.svelte";
   import { page } from "$app/stores";
+  import { deleteEvent } from "$lib/supabase.js";
 
   // Get the event data from the server
   export let data;
@@ -11,6 +12,8 @@
   let activeTab = "all";
   let searchQuery = "";
   let showShareModal = false;
+  let showCancelModal = false;
+  let isDeleting = false;
   let eventData = data.event;
 
   function formatCurrency(amount: number) {
@@ -21,20 +24,22 @@
   }
 
   function getFilteredGuests() {
+    if (!eventData) return [];
+
     let filtered = eventData.guests || [];
 
     // Filter by tab
     if (activeTab === "checked-in") {
-      filtered = filtered.filter((guest) => guest.status === "checked_in");
+      filtered = filtered.filter((guest: any) => guest.status === "checked_in");
     } else if (activeTab === "pending") {
-      filtered = filtered.filter((guest) => guest.status === "pending");
+      filtered = filtered.filter((guest: any) => guest.status === "pending");
     }
 
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(
-        (guest) =>
+        (guest: any) =>
           guest.name.toLowerCase().includes(query) ||
           guest.ticketType.toLowerCase().includes(query) ||
           guest.status.toLowerCase().includes(query)
@@ -46,6 +51,7 @@
 
   function editEvent() {
     // Navigate to the edit event route with the event ID
+    if (!eventData) return;
     const eventId = eventData.id;
     goto(`/dashboard/events/editEvent/${eventId}`);
   }
@@ -56,6 +62,36 @@
 
   function closeShareModal() {
     showShareModal = false;
+  }
+
+  function openCancelModal() {
+    showCancelModal = true;
+  }
+
+  function closeCancelModal() {
+    showCancelModal = false;
+  }
+
+  async function handleCancelEvent() {
+    if (isDeleting || !eventData) return;
+
+    isDeleting = true;
+
+    try {
+      const result = await deleteEvent(eventData.id);
+
+      if (result.success) {
+        // Redirect to events list after successful deletion
+        goto("/dashboard/events");
+      } else {
+        alert(`Failed to cancel event: ${result.error}`);
+      }
+    } catch (error: any) {
+      alert(`Error cancelling event: ${error.message}`);
+    } finally {
+      isDeleting = false;
+      showCancelModal = false;
+    }
   }
 </script>
 
@@ -85,7 +121,7 @@
       Back to Events
     </button>
   </div>
-{:else}
+{:else if eventData}
   <div class="space-y-6" in:fade={{ duration: 300 }}>
     <!-- Back Navigation -->
     <div class="flex items-center mb-4">
@@ -346,6 +382,7 @@
               Download Guest List
             </button>
             <button
+              on:click={openCancelModal}
               class="w-full bg-red-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors duration-200 flex items-center justify-center"
             >
               <svg
@@ -533,4 +570,116 @@
     isOpen={showShareModal}
     on:close={closeShareModal}
   />
+
+  <!-- Cancel Event Confirmation Modal -->
+  {#if showCancelModal}
+    <div
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      in:fade={{ duration: 200 }}
+    >
+      <div
+        class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
+        in:fly={{ y: 20, duration: 200 }}
+      >
+        <div class="flex items-center mb-4">
+          <div class="flex-shrink-0">
+            <svg
+              class="h-8 w-8 text-red-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-lg font-medium text-white">Cancel Event</h3>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <p class="text-gray-300">
+            Are you sure you want to cancel <strong class="text-white"
+              >{eventData.title}</strong
+            >?
+          </p>
+          <p class="text-red-400 text-sm mt-2">
+            This action cannot be undone. All event data, guest information, and
+            the event image will be permanently deleted.
+          </p>
+        </div>
+
+        <div class="flex space-x-3">
+          <button
+            on:click={closeCancelModal}
+            disabled={isDeleting}
+            class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Keep Event
+          </button>
+          <button
+            on:click={handleCancelEvent}
+            disabled={isDeleting}
+            class="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            {#if isDeleting}
+              <svg
+                class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Cancelling...
+            {:else}
+              Cancel Event
+            {/if}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+{:else}
+  <div class="text-center py-12" in:fade={{ duration: 300 }}>
+    <svg
+      class="mx-auto h-12 w-12 text-gray-400"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+      />
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-300">Event Not Found</h3>
+    <p class="mt-1 text-sm text-gray-500">
+      The requested event could not be found.
+    </p>
+    <button
+      on:click={() => goto("/dashboard/events")}
+      class="mt-4 bg-teal-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-teal-600 transition-colors duration-200"
+    >
+      Back to Events
+    </button>
+  </div>
 {/if}

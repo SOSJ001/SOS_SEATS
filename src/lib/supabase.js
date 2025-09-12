@@ -1606,13 +1606,65 @@ export async function updateEvent(eventId, updateData) {
   }
 }
 
-// Delete event
+// Delete event and all related data
 export async function deleteEvent(eventId) {
   try {
-    const { error } = await supabase.from("events").delete().eq("id", eventId);
+    // First, get the event to find the image_id
+    const { data: eventData, error: eventError } = await supabase
+      .from("events")
+      .select("image_id")
+      .eq("id", eventId)
+      .single();
 
-    if (error) {
-      return { success: false, error: error.message };
+    if (eventError) {
+      return { success: false, error: "Event not found" };
+    }
+
+    // Delete the event (this will cascade delete related records due to ON DELETE CASCADE)
+    const { error: deleteError } = await supabase
+      .from("events")
+      .delete()
+      .eq("id", eventId);
+
+    if (deleteError) {
+      return { success: false, error: deleteError.message };
+    }
+
+    // If there's an associated image, delete it from storage and database
+    if (eventData.image_id) {
+      // Get image details from database
+      const { data: imageData, error: imageError } = await supabase
+        .from("images")
+        .select("file_name")
+        .eq("id", eventData.image_id)
+        .single();
+
+      if (!imageError && imageData) {
+        // Delete from storage
+        const { error: storageError } = await supabase.storage
+          .from("event_images")
+          .remove([imageData.file_name]);
+
+        if (storageError) {
+          console.warn(
+            "Failed to delete image from storage:",
+            storageError.message
+          );
+        }
+
+        // Delete from images table
+        const { error: imageDeleteError } = await supabase
+          .from("images")
+          .delete()
+          .eq("id", eventData.image_id);
+
+        if (imageDeleteError) {
+          console.warn(
+            "Failed to delete image record:",
+            imageDeleteError.message
+          );
+        }
+      }
     }
 
     return { success: true };

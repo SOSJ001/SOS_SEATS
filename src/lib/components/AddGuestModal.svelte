@@ -2,7 +2,7 @@
   import { createEventDispatcher } from "svelte";
   import { fade, scale, fly } from "svelte/transition";
   import { addGuestToEvent, loadEventTicketTypes } from "$lib/supabase";
-  import { generateQrImage } from "$lib/store";
+  import { generateTicketPreview } from "$lib/store";
 
   export let show = false;
   export let events: any[] = [];
@@ -57,7 +57,7 @@
     formData.eventId !== "all" &&
     formData.eventId !== ""
   ) {
-    generateTicketPreview();
+    generateTicketPreviewForGuest();
   }
 
   function closeModal() {
@@ -87,7 +87,7 @@
     }
   }
 
-  async function generateTicketPreview() {
+  async function generateTicketPreviewForGuest() {
     if (generatingPreview) return;
 
     generatingPreview = true;
@@ -95,12 +95,15 @@
       const selectedEvent = events.find((e) => e.id === formData.eventId);
       if (!selectedEvent) return;
 
-      // Generate QR code data (using guest name + event ID as unique identifier)
-      const qrData = `${formData.guestName}-${formData.eventId}-${Date.now()}`;
-      const qrCodeDataUrl = await generateQrImage(qrData);
+      // Get selected ticket type
+      const selectedTicketType = ticketTypes.find(
+        (t) => t.id === formData.ticketTypeId
+      );
+
+      if (!selectedTicketType) return;
 
       // Get event image as data URL
-      let eventImageDataUrl = null;
+      let eventImage = null;
       if (selectedEvent.image) {
         try {
           const response = await fetch("/dataUrlApi", {
@@ -110,108 +113,33 @@
           });
           const result = await response.json();
           if (result.dataURL) {
-            eventImageDataUrl = result.dataURL;
+            eventImage = result.dataURL;
           }
         } catch (err) {
           console.warn("Failed to fetch event image:", err);
         }
       }
 
-      // Create canvas to composite the ticket
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      // Generate QR code data (using guest name + event ID as unique identifier)
+      const qrData = `${formData.guestName}-${formData.eventId}-${Date.now()}`;
 
-      // Set canvas size (ticket dimensions)
-      canvas.width = 400;
-      canvas.height = 600;
-
-      // Fill background with gradient
-      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, "#1a1a1a");
-      gradient.addColorStop(1, "#2d2d2d");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Draw event image if available
-      if (eventImageDataUrl) {
-        const eventImg = new Image();
-        await new Promise((resolve) => {
-          eventImg.onload = resolve;
-          eventImg.src = eventImageDataUrl;
-        });
-
-        // Draw event image as background (scaled to fit)
-        const imgAspect = eventImg.width / eventImg.height;
-        const canvasAspect = canvas.width / canvas.height;
-
-        let drawWidth, drawHeight, drawX, drawY;
-        if (imgAspect > canvasAspect) {
-          drawHeight = canvas.height;
-          drawWidth = drawHeight * imgAspect;
-          drawX = (canvas.width - drawWidth) / 2;
-          drawY = 0;
-        } else {
-          drawWidth = canvas.width;
-          drawHeight = drawWidth / imgAspect;
-          drawX = 0;
-          drawY = (canvas.height - drawHeight) / 2;
-        }
-
-        ctx.drawImage(eventImg, drawX, drawY, drawWidth, drawHeight);
-
-        // Add dark overlay for better text readability
-        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-
-      // Draw QR code
-      const qrImg = new Image();
-      await new Promise((resolve) => {
-        qrImg.onload = resolve;
-        qrImg.src = qrCodeDataUrl;
+      // Generate ticket preview using the reusable function
+      const previewUrl = await generateTicketPreview({
+        eventName: selectedEvent.name,
+        eventDate: selectedEvent.date,
+        eventTime: selectedEvent.time,
+        eventLocation: selectedEvent.location,
+        eventImage: eventImage,
+        ticketTypeName: selectedTicketType.name,
+        ticketPrice: selectedTicketType.price,
+        guestName: formData.guestName,
+        organizer: selectedEvent.organizer,
+        ticketNumber: "Will be generated",
+        qrData: qrData,
+        designConfig: selectedEvent.ticket_design_config,
       });
 
-      const qrSize = 120;
-      const qrX = canvas.width - qrSize - 20;
-      const qrY = canvas.height - qrSize - 20;
-
-      // White background for QR code
-      ctx.fillStyle = "white";
-      ctx.fillRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20);
-
-      // Draw QR code
-      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-
-      // Draw guest name
-      ctx.fillStyle = "white";
-      ctx.font = "bold 24px Arial";
-      ctx.textAlign = "left";
-      ctx.fillText(formData.guestName, 20, 50);
-
-      // Draw event name
-      ctx.font = "18px Arial";
-      ctx.fillStyle = "#00F5FF";
-      ctx.fillText(selectedEvent.name, 20, 80);
-
-      // Draw ticket type if selected
-      if (formData.ticketTypeId) {
-        const selectedTicketType = ticketTypes.find(
-          (t) => t.id === formData.ticketTypeId
-        );
-        if (selectedTicketType) {
-          ctx.font = "16px Arial";
-          ctx.fillStyle = "#9D4EDD";
-          ctx.fillText(
-            `${selectedTicketType.name} - $${selectedTicketType.price}`,
-            20,
-            110
-          );
-        }
-      }
-
-      // Convert canvas to data URL
-      ticketPreviewUrl = canvas.toDataURL("image/png");
+      ticketPreviewUrl = previewUrl;
     } catch (err) {
       console.error("Error generating ticket preview:", err);
     } finally {
@@ -434,7 +362,7 @@
                 in:fly={{ x: 20, duration: 500, delay: 100 }}
                 out:fly={{ x: 20, duration: 200 }}
               >
-                Add Guest
+                Generate Ticket
               </h2>
               {#if formData.eventId && formData.eventId !== "all"}
                 {@const selectedEvent = events.find(
@@ -446,7 +374,7 @@
                     in:fly={{ x: 20, duration: 500, delay: 250 }}
                     out:fly={{ x: 20, duration: 200 }}
                   >
-                    to {selectedEvent.name}
+                    for {selectedEvent.name}
                   </p>
                 {/if}
               {/if}
@@ -599,7 +527,7 @@
                       d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                     />
                   </svg>
-                  Guest Preview
+                  Ticket Details
                 </h3>
                 <div class="space-y-3 text-sm">
                   <!-- Guest Name -->
@@ -664,8 +592,8 @@
                 <!-- Preview Note -->
                 <div class="mt-3 pt-3 border-t border-gray-700">
                   <p class="text-xs text-gray-500 italic">
-                    This guest will be added to your event with the above
-                    details
+                    A ticket will be generated and the guest will be added to
+                    your event
                   </p>
                 </div>
               </div>
@@ -789,7 +717,7 @@
                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                   />
                 </svg>
-                <span>Adding...</span>
+                <span>Generating...</span>
               {:else}
                 <svg
                   class="w-4 h-4"
@@ -804,7 +732,7 @@
                     d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                   />
                 </svg>
-                <span>Add Guest</span>
+                <span>Generate Ticket</span>
               {/if}
             </button>
           </div>
