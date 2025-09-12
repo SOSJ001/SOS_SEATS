@@ -111,604 +111,753 @@
   }
 </script>
 
-<div class="ticket-design-editor">
-  <div class="editor-header">
-    <h3>Ticket Design Editor</h3>
-    <button on:click={resetToDefault} class="reset-btn">Reset to Default</button
+<div
+  class="md:grid flex flex-col lg:flex-row gap-4 lg:gap-8 p-3 sm:p-4 lg:p-8 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700 shadow-2xl max-w-7xl mx-auto"
+>
+  <div
+    class="flex flex-col sm:flex-row lg:flex-col xl:flex-row justify-between items-start lg:items-start xl:items-start gap-4 lg:gap-6 mb-6 lg:mb-8 pb-4 lg:pb-6 border-b border-gray-700"
+  >
+    <div class="flex-1">
+      <h3
+        class="text-xl sm:text-2xl lg:text-3xl font-semibold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent mb-2"
+      >
+        Ticket Design Editor
+      </h3>
+      <p class="text-gray-400 text-sm lg:text-base leading-relaxed max-w-md">
+        Tune colors, fonts, positions, and layout. Changes reflect instantly in
+        the live preview.
+      </p>
+    </div>
+    <button
+      on:click={resetToDefault}
+      class="flex items-center justify-center gap-2 px-4 py-2 lg:px-6 lg:py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-500/25 flex-shrink-0 w-full sm:w-auto"
     >
+      <svg
+        class="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        ></path>
+      </svg>
+      Reset to Default
+    </button>
   </div>
 
-  <div class="editor-content">
+  <div class="flex-1 max-w-none lg:max-w-lg xl:max-w-xl">
     <!-- Canvas Settings -->
-    <div class="config-section">
-      <h4>Canvas Size</h4>
-      <div class="input-group">
-        <label>
-          Width:
-          <input
-            type="number"
-            bind:value={designConfig.canvas.width}
-            on:input={() =>
-              updateCanvasSize(
-                designConfig.canvas.width,
-                designConfig.canvas.height
-              )}
-            min="200"
-            max="800"
-          />
-        </label>
-        <label>
-          Height:
-          <input
-            type="number"
-            bind:value={designConfig.canvas.height}
-            on:input={() =>
-              updateCanvasSize(
-                designConfig.canvas.width,
-                designConfig.canvas.height
-              )}
-            min="300"
-            max="1000"
-          />
-        </label>
+    <div
+      class="mb-6 lg:mb-8 p-4 lg:p-6 bg-gray-800/90 rounded-xl border border-gray-600 hover:border-gray-500 transition-all duration-300 hover:shadow-lg"
+    >
+      <div class="flex items-center justify-between mb-4 lg:mb-6">
+        <h4
+          class="text-cyan-400 text-base lg:text-lg font-semibold flex items-center gap-2"
+        >
+          Canvas Size
+        </h4>
+        <div
+          class="text-lg opacity-80 drop-shadow-[0_0_4px_rgba(0,245,255,0.3)]"
+        >
+          📐
+        </div>
+      </div>
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label class="flex flex-col gap-2">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Width</span
+            >
+            <div
+              class="flex items-center bg-gray-700 border border-gray-600 rounded-lg overflow-hidden focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-400/20 transition-all"
+            >
+              <input
+                type="number"
+                bind:value={designConfig.canvas.width}
+                on:input={() =>
+                  updateCanvasSize(
+                    designConfig.canvas.width,
+                    designConfig.canvas.height
+                  )}
+                min="200"
+                max="800"
+                class="bg-transparent border-none text-white p-3 text-sm flex-1 outline-none"
+              />
+              <span
+                class="px-3 py-3 bg-gray-600 text-gray-300 text-xs font-medium"
+                >px</span
+              >
+            </div>
+          </label>
+          <label class="flex flex-col gap-2">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Height</span
+            >
+            <div
+              class="flex items-center bg-gray-700 border border-gray-600 rounded-lg overflow-hidden focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-400/20 transition-all"
+            >
+              <input
+                type="number"
+                bind:value={designConfig.canvas.height}
+                on:input={() =>
+                  updateCanvasSize(
+                    designConfig.canvas.width,
+                    designConfig.canvas.height
+                  )}
+                min="300"
+                max="1000"
+                class="bg-transparent border-none text-white p-3 text-sm flex-1 outline-none"
+              />
+              <span
+                class="px-3 py-3 bg-gray-600 text-gray-300 text-xs font-medium"
+                >px</span
+              >
+            </div>
+          </label>
+        </div>
       </div>
     </div>
 
     <!-- QR Code Settings -->
-    <div class="config-section">
-      <h4>QR Code</h4>
-      <div class="input-group">
-        <label>
-          Size:
-          <input
-            type="range"
-            min="60"
-            max="150"
-            bind:value={designConfig.qrCode.size}
-            on:input={() => updateQrCodeSize(designConfig.qrCode.size)}
-          />
-          {designConfig.qrCode.size}px
-        </label>
+    <div
+      class="mb-6 lg:mb-8 p-4 lg:p-6 bg-gray-800/90 rounded-xl border border-gray-600 hover:border-gray-500 transition-all duration-300 hover:shadow-lg"
+    >
+      <div class="flex items-center justify-between mb-4 lg:mb-6">
+        <h4
+          class="text-cyan-400 text-base lg:text-lg font-semibold flex items-center gap-2"
+        >
+          QR Code
+        </h4>
+        <div
+          class="text-lg opacity-80 drop-shadow-[0_0_4px_rgba(0,245,255,0.3)]"
+        >
+          📱
+        </div>
       </div>
-      <div class="input-group">
-        <label>
-          Position X:
-          <select
-            bind:value={designConfig.qrCode.position.x}
-            on:change={() =>
-              updateQrCodePosition(
-                designConfig.qrCode.position.x,
-                designConfig.qrCode.position.y
-              )}
-          >
-            <option value="left">Left</option>
-            <option value="center">Center</option>
-            <option value="right">Right</option>
-          </select>
+      <div class="space-y-4">
+        <label class="flex flex-col gap-3">
+          <span class="text-gray-300 text-sm font-medium">Size</span>
+          <div class="flex items-center gap-4">
+            <input
+              type="range"
+              min="60"
+              max="150"
+              bind:value={designConfig.qrCode.size}
+              on:input={() => updateQrCodeSize(designConfig.qrCode.size)}
+              class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+            />
+            <span
+              class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-4 py-2 rounded-lg text-sm font-semibold min-w-[60px] text-center border border-gray-500 shadow-md"
+            >
+              {designConfig.qrCode.size}px
+            </span>
+          </div>
         </label>
-        <label>
-          Position Y:
-          <select
-            bind:value={designConfig.qrCode.position.y}
-            on:change={() =>
-              updateQrCodePosition(
-                designConfig.qrCode.position.x,
-                designConfig.qrCode.position.y
-              )}
-          >
-            <option value="top">Top</option>
-            <option value="center">Center</option>
-            <option value="bottom">Bottom</option>
-          </select>
-        </label>
+        <div class="space-y-6">
+          <div class="space-y-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Position X</span
+            >
+            <div class="flex gap-2">
+              <button
+                class="flex-1 px-4 py-2 rounded-md text-sm transition-all duration-200 {designConfig
+                  .qrCode.position.x === 'left'
+                  ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white border border-cyan-400 shadow-md shadow-cyan-400/30'
+                  : 'bg-gray-600 text-gray-300 border border-gray-500 hover:bg-gray-500 hover:border-gray-400'}"
+                on:click={() =>
+                  updateQrCodePosition("left", designConfig.qrCode.position.y)}
+              >
+                Left
+              </button>
+              <button
+                class="flex-1 px-4 py-2 rounded-md text-sm transition-all duration-200 {designConfig
+                  .qrCode.position.x === 'center'
+                  ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white border border-cyan-400 shadow-md shadow-cyan-400/30'
+                  : 'bg-gray-600 text-gray-300 border border-gray-500 hover:bg-gray-500 hover:border-gray-400'}"
+                on:click={() =>
+                  updateQrCodePosition(
+                    "center",
+                    designConfig.qrCode.position.y
+                  )}
+              >
+                Center
+              </button>
+              <button
+                class="flex-1 px-4 py-2 rounded-md text-sm transition-all duration-200 {designConfig
+                  .qrCode.position.x === 'right'
+                  ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white border border-cyan-400 shadow-md shadow-cyan-400/30'
+                  : 'bg-gray-600 text-gray-300 border border-gray-500 hover:bg-gray-500 hover:border-gray-400'}"
+                on:click={() =>
+                  updateQrCodePosition("right", designConfig.qrCode.position.y)}
+              >
+                Right
+              </button>
+            </div>
+          </div>
+          <div class="space-y-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Position Y</span
+            >
+            <div class="flex gap-2">
+              <button
+                class="flex-1 px-4 py-2 rounded-md text-sm transition-all duration-200 {designConfig
+                  .qrCode.position.y === 'top'
+                  ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white border border-cyan-400 shadow-md shadow-cyan-400/30'
+                  : 'bg-gray-600 text-gray-300 border border-gray-500 hover:bg-gray-500 hover:border-gray-400'}"
+                on:click={() =>
+                  updateQrCodePosition(designConfig.qrCode.position.x, "top")}
+              >
+                Top
+              </button>
+              <button
+                class="flex-1 px-4 py-2 rounded-md text-sm transition-all duration-200 {designConfig
+                  .qrCode.position.y === 'center'
+                  ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white border border-cyan-400 shadow-md shadow-cyan-400/30'
+                  : 'bg-gray-600 text-gray-300 border border-gray-500 hover:bg-gray-500 hover:border-gray-400'}"
+                on:click={() =>
+                  updateQrCodePosition(
+                    designConfig.qrCode.position.x,
+                    "center"
+                  )}
+              >
+                Center
+              </button>
+              <button
+                class="flex-1 px-4 py-2 rounded-md text-sm transition-all duration-200 {designConfig
+                  .qrCode.position.y === 'bottom'
+                  ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white border border-cyan-400 shadow-md shadow-cyan-400/30'
+                  : 'bg-gray-600 text-gray-300 border border-gray-500 hover:bg-gray-500 hover:border-gray-400'}"
+                on:click={() =>
+                  updateQrCodePosition(
+                    designConfig.qrCode.position.x,
+                    "bottom"
+                  )}
+              >
+                Bottom
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Text Colors -->
-    <div class="config-section">
-      <h4>Text Colors</h4>
-      <div class="color-grid">
-        <label>
-          Primary Name:
-          <input
-            type="color"
-            bind:value={designConfig.colors.primaryName}
-            on:input={() =>
-              updateColor("primaryName", designConfig.colors.primaryName)}
-          />
-        </label>
-        <label>
-          Event Name:
-          <input
-            type="color"
-            bind:value={designConfig.colors.eventName}
-            on:input={() =>
-              updateColor("eventName", designConfig.colors.eventName)}
-          />
-        </label>
-        <label>
-          Date/Time:
-          <input
-            type="color"
-            bind:value={designConfig.colors.dateTime}
-            on:input={() =>
-              updateColor("dateTime", designConfig.colors.dateTime)}
-          />
-        </label>
-        <label>
-          Location:
-          <input
-            type="color"
-            bind:value={designConfig.colors.location}
-            on:input={() =>
-              updateColor("location", designConfig.colors.location)}
-          />
-        </label>
-        <label>
-          Ticket Type:
-          <input
-            type="color"
-            bind:value={designConfig.colors.ticketType}
-            on:input={() =>
-              updateColor("ticketType", designConfig.colors.ticketType)}
-          />
-        </label>
-        <label>
-          Ticket Number:
-          <input
-            type="color"
-            bind:value={designConfig.colors.ticketNumber}
-            on:input={() =>
-              updateColor("ticketNumber", designConfig.colors.ticketNumber)}
-          />
-        </label>
+    <div
+      class="mb-6 lg:mb-8 p-4 lg:p-6 bg-gray-800/90 rounded-xl border border-gray-600 hover:border-gray-500 transition-all duration-300 hover:shadow-lg"
+    >
+      <div class="flex items-center justify-between mb-4 lg:mb-6">
+        <h4
+          class="text-cyan-400 text-base lg:text-lg font-semibold flex items-center gap-2"
+        >
+          Text Colors
+        </h4>
+        <div
+          class="text-lg opacity-80 drop-shadow-[0_0_4px_rgba(0,245,255,0.3)]"
+        >
+          🎨
+        </div>
+      </div>
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4"
+      >
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Primary Name</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="color"
+                bind:value={designConfig.colors.primaryName}
+                on:input={() =>
+                  updateColor("primaryName", designConfig.colors.primaryName)}
+                class="w-10 h-10 sm:w-12 sm:h-12 border-none rounded-lg cursor-pointer shadow-lg hover:scale-105 transition-transform flex-shrink-0"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold font-mono border border-gray-500 shadow-md min-w-[70px] sm:min-w-[80px] text-center truncate"
+              >
+                {designConfig.colors.primaryName}
+              </span>
+            </div>
+          </label>
+        </div>
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Event Name</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="color"
+                bind:value={designConfig.colors.eventName}
+                on:input={() =>
+                  updateColor("eventName", designConfig.colors.eventName)}
+                class="w-10 h-10 sm:w-12 sm:h-12 border-none rounded-lg cursor-pointer shadow-lg hover:scale-105 transition-transform flex-shrink-0"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold font-mono border border-gray-500 shadow-md min-w-[70px] sm:min-w-[80px] text-center truncate"
+              >
+                {designConfig.colors.eventName}
+              </span>
+            </div>
+          </label>
+        </div>
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Date/Time</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="color"
+                bind:value={designConfig.colors.dateTime}
+                on:input={() =>
+                  updateColor("dateTime", designConfig.colors.dateTime)}
+                class="w-10 h-10 sm:w-12 sm:h-12 border-none rounded-lg cursor-pointer shadow-lg hover:scale-105 transition-transform flex-shrink-0"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold font-mono border border-gray-500 shadow-md min-w-[70px] sm:min-w-[80px] text-center truncate"
+              >
+                {designConfig.colors.dateTime}
+              </span>
+            </div>
+          </label>
+        </div>
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Location</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="color"
+                bind:value={designConfig.colors.location}
+                on:input={() =>
+                  updateColor("location", designConfig.colors.location)}
+                class="w-10 h-10 sm:w-12 sm:h-12 border-none rounded-lg cursor-pointer shadow-lg hover:scale-105 transition-transform flex-shrink-0"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold font-mono border border-gray-500 shadow-md min-w-[70px] sm:min-w-[80px] text-center truncate"
+              >
+                {designConfig.colors.location}
+              </span>
+            </div>
+          </label>
+        </div>
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Ticket Type</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="color"
+                bind:value={designConfig.colors.ticketType}
+                on:input={() =>
+                  updateColor("ticketType", designConfig.colors.ticketType)}
+                class="w-10 h-10 sm:w-12 sm:h-12 border-none rounded-lg cursor-pointer shadow-lg hover:scale-105 transition-transform flex-shrink-0"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold font-mono border border-gray-500 shadow-md min-w-[70px] sm:min-w-[80px] text-center truncate"
+              >
+                {designConfig.colors.ticketType}
+              </span>
+            </div>
+          </label>
+        </div>
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Ticket Number</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="color"
+                bind:value={designConfig.colors.ticketNumber}
+                on:input={() =>
+                  updateColor("ticketNumber", designConfig.colors.ticketNumber)}
+                class="w-10 h-10 sm:w-12 sm:h-12 border-none rounded-lg cursor-pointer shadow-lg hover:scale-105 transition-transform flex-shrink-0"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold font-mono border border-gray-500 shadow-md min-w-[70px] sm:min-w-[80px] text-center truncate"
+              >
+                {designConfig.colors.ticketNumber}
+              </span>
+            </div>
+          </label>
+        </div>
       </div>
     </div>
 
     <!-- Font Sizes -->
-    <div class="config-section">
-      <h4>Font Sizes</h4>
-      <div class="font-grid">
-        <label>
-          Primary Name:
-          <input
-            type="range"
-            min="16"
-            max="40"
-            bind:value={designConfig.fonts.primaryName.size}
-            on:input={() =>
-              updateFontSize(
-                "primaryName",
-                designConfig.fonts.primaryName.size
-              )}
-          />
-          {designConfig.fonts.primaryName.size}px
-        </label>
-        <label>
-          Event Name:
-          <input
-            type="range"
-            min="12"
-            max="30"
-            bind:value={designConfig.fonts.eventName.size}
-            on:input={() =>
-              updateFontSize("eventName", designConfig.fonts.eventName.size)}
-          />
-          {designConfig.fonts.eventName.size}px
-        </label>
-        <label>
-          Date/Time:
-          <input
-            type="range"
-            min="10"
-            max="24"
-            bind:value={designConfig.fonts.dateTime.size}
-            on:input={() =>
-              updateFontSize("dateTime", designConfig.fonts.dateTime.size)}
-          />
-          {designConfig.fonts.dateTime.size}px
-        </label>
-        <label>
-          Location:
-          <input
-            type="range"
-            min="10"
-            max="20"
-            bind:value={designConfig.fonts.location.size}
-            on:input={() =>
-              updateFontSize("location", designConfig.fonts.location.size)}
-          />
-          {designConfig.fonts.location.size}px
-        </label>
-        <label>
-          Ticket Type:
-          <input
-            type="range"
-            min="12"
-            max="28"
-            bind:value={designConfig.fonts.ticketType.size}
-            on:input={() =>
-              updateFontSize("ticketType", designConfig.fonts.ticketType.size)}
-          />
-          {designConfig.fonts.ticketType.size}px
-        </label>
+    <div
+      class="mb-6 lg:mb-8 p-4 lg:p-6 bg-gray-800/90 rounded-xl border border-gray-600 hover:border-gray-500 transition-all duration-300 hover:shadow-lg"
+    >
+      <div class="flex items-center justify-between mb-4 lg:mb-6">
+        <h4
+          class="text-cyan-400 text-base lg:text-lg font-semibold flex items-center gap-2"
+        >
+          Font Sizes
+        </h4>
+        <div
+          class="text-lg opacity-80 drop-shadow-[0_0_4px_rgba(0,245,255,0.3)]"
+        >
+          🔤
+        </div>
+      </div>
+      <div class="space-y-4">
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Primary Name</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="range"
+                min="16"
+                max="40"
+                bind:value={designConfig.fonts.primaryName.size}
+                on:input={() =>
+                  updateFontSize(
+                    "primaryName",
+                    designConfig.fonts.primaryName.size
+                  )}
+                class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold min-w-[50px] sm:min-w-[60px] text-center border border-gray-500 shadow-md"
+              >
+                {designConfig.fonts.primaryName.size}px
+              </span>
+            </div>
+          </label>
+        </div>
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Event Name</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="range"
+                min="12"
+                max="30"
+                bind:value={designConfig.fonts.eventName.size}
+                on:input={() =>
+                  updateFontSize(
+                    "eventName",
+                    designConfig.fonts.eventName.size
+                  )}
+                class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold min-w-[50px] sm:min-w-[60px] text-center border border-gray-500 shadow-md"
+              >
+                {designConfig.fonts.eventName.size}px
+              </span>
+            </div>
+          </label>
+        </div>
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Date/Time</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="range"
+                min="10"
+                max="24"
+                bind:value={designConfig.fonts.dateTime.size}
+                on:input={() =>
+                  updateFontSize("dateTime", designConfig.fonts.dateTime.size)}
+                class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold min-w-[50px] sm:min-w-[60px] text-center border border-gray-500 shadow-md"
+              >
+                {designConfig.fonts.dateTime.size}px
+              </span>
+            </div>
+          </label>
+        </div>
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Location</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="range"
+                min="10"
+                max="20"
+                bind:value={designConfig.fonts.location.size}
+                on:input={() =>
+                  updateFontSize("location", designConfig.fonts.location.size)}
+                class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold min-w-[50px] sm:min-w-[60px] text-center border border-gray-500 shadow-md"
+              >
+                {designConfig.fonts.location.size}px
+              </span>
+            </div>
+          </label>
+        </div>
+        <div
+          class="bg-gray-700/60 rounded-lg p-3 sm:p-4 border border-gray-500 hover:bg-gray-700/80 hover:border-gray-400 transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <label class="flex flex-col gap-2 sm:gap-3">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Ticket Type</span
+            >
+            <div class="flex items-center gap-2 sm:gap-4">
+              <input
+                type="range"
+                min="12"
+                max="28"
+                bind:value={designConfig.fonts.ticketType.size}
+                on:input={() =>
+                  updateFontSize(
+                    "ticketType",
+                    designConfig.fonts.ticketType.size
+                  )}
+                class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+              />
+              <span
+                class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold min-w-[50px] sm:min-w-[60px] text-center border border-gray-500 shadow-md"
+              >
+                {designConfig.fonts.ticketType.size}px
+              </span>
+            </div>
+          </label>
+        </div>
       </div>
     </div>
 
     <!-- Text Box Settings -->
-    <div class="config-section">
-      <h4>Text Box</h4>
-      <div class="input-group">
-        <label>
-          Position X:
-          <input
-            type="number"
-            bind:value={designConfig.textBox.position.x}
-            on:input={() =>
-              updateConfig({
-                textBox: {
-                  ...designConfig.textBox,
-                  position: {
-                    ...designConfig.textBox.position,
-                    x: designConfig.textBox.position.x,
-                  },
-                },
-              })}
-            min="0"
-            max="200"
-          />
-        </label>
-        <label>
-          Position Y:
-          <input
-            type="number"
-            bind:value={designConfig.textBox.position.y}
-            on:input={() =>
-              updateConfig({
-                textBox: {
-                  ...designConfig.textBox,
-                  position: {
-                    ...designConfig.textBox.position,
-                    y: designConfig.textBox.position.y,
-                  },
-                },
-              })}
-            min="0"
-            max="200"
-          />
-        </label>
+    <div
+      class="mb-6 lg:mb-8 p-4 lg:p-6 bg-gray-800/90 rounded-xl border border-gray-600 hover:border-gray-500 transition-all duration-300 hover:shadow-lg"
+    >
+      <div class="flex items-center justify-between mb-4 lg:mb-6">
+        <h4
+          class="text-cyan-400 text-base lg:text-lg font-semibold flex items-center gap-2"
+        >
+          Text Box
+        </h4>
+        <div
+          class="text-lg opacity-80 drop-shadow-[0_0_4px_rgba(0,245,255,0.3)]"
+        >
+          📝
+        </div>
       </div>
-      <div class="input-group">
-        <label>
-          Height:
-          <input
-            type="number"
-            bind:value={designConfig.textBox.size.height}
-            on:input={() =>
-              updateConfig({
-                textBox: {
-                  ...designConfig.textBox,
-                  size: {
-                    ...designConfig.textBox.size,
-                    height: designConfig.textBox.size.height,
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label class="flex flex-col gap-2">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Position X</span
+            >
+            <div
+              class="flex items-center bg-gray-700 border border-gray-600 rounded-lg overflow-hidden focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-400/20 transition-all"
+            >
+              <input
+                type="number"
+                bind:value={designConfig.textBox.position.x}
+                on:input={() =>
+                  updateConfig({
+                    textBox: {
+                      ...designConfig.textBox,
+                      position: {
+                        ...designConfig.textBox.position,
+                        x: designConfig.textBox.position.x,
+                      },
+                    },
+                  })}
+                min="0"
+                max="200"
+                class="bg-transparent border-none text-white p-3 text-sm flex-1 outline-none"
+              />
+              <span
+                class="px-3 py-3 bg-gray-600 text-gray-300 text-xs font-medium"
+                >px</span
+              >
+            </div>
+          </label>
+          <label class="flex flex-col gap-2">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Position Y</span
+            >
+            <div
+              class="flex items-center bg-gray-700 border border-gray-600 rounded-lg overflow-hidden focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-400/20 transition-all"
+            >
+              <input
+                type="number"
+                bind:value={designConfig.textBox.position.y}
+                on:input={() =>
+                  updateConfig({
+                    textBox: {
+                      ...designConfig.textBox,
+                      position: {
+                        ...designConfig.textBox.position,
+                        y: designConfig.textBox.position.y,
+                      },
+                    },
+                  })}
+                min="0"
+                max="200"
+                class="bg-transparent border-none text-white p-3 text-sm flex-1 outline-none"
+              />
+              <span
+                class="px-3 py-3 bg-gray-600 text-gray-300 text-xs font-medium"
+                >px</span
+              >
+            </div>
+          </label>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label class="flex flex-col gap-2">
+            <span class="text-gray-300 text-xs sm:text-sm font-medium"
+              >Height</span
+            >
+            <div
+              class="flex items-center bg-gray-700 border border-gray-600 rounded-lg overflow-hidden focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-400/20 transition-all"
+            >
+              <input
+                type="number"
+                bind:value={designConfig.textBox.size.height}
+                on:input={() =>
+                  updateConfig({
+                    textBox: {
+                      ...designConfig.textBox,
+                      size: {
+                        ...designConfig.textBox.size,
+                        height: designConfig.textBox.size.height,
+                      },
+                    },
+                  })}
+                min="100"
+                max="400"
+                class="bg-transparent border-none text-white p-3 text-sm flex-1 outline-none"
+              />
+              <span
+                class="px-3 py-3 bg-gray-600 text-gray-300 text-xs font-medium"
+                >px</span
+              >
+            </div>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              bind:checked={designConfig.textBox.background.enabled}
+              on:change={() =>
+                updateConfig({
+                  textBox: {
+                    ...designConfig.textBox,
+                    background: {
+                      ...designConfig.textBox.background,
+                      enabled: designConfig.textBox.background.enabled,
+                    },
                   },
-                },
-              })}
-            min="100"
-            max="400"
-          />
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            bind:checked={designConfig.textBox.background.enabled}
-            on:change={() =>
-              updateConfig({
-                textBox: {
-                  ...designConfig.textBox,
-                  background: {
-                    ...designConfig.textBox.background,
-                    enabled: designConfig.textBox.background.enabled,
-                  },
-                },
-              })}
-          />
-          Enable Background
-        </label>
+                })}
+              class="w-4 h-4 accent-cyan-400"
+            />
+            <span class="text-gray-300 text-sm">Enable Background</span>
+          </label>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Preview Section -->
-  <div class="preview-section">
-    <h4>Live Preview</h4>
+  <div class="flex-1 max-w-none lg:max-w-lg xl:max-w-xl mt-4 lg:mt-0">
+    <div
+      class="flex items-center justify-between mb-4 lg:mb-6 pb-4 border-b border-gray-700"
+    >
+      <h4 class="text-cyan-400 text-base lg:text-lg font-semibold">
+        Live Preview
+      </h4>
+      <div
+        class="bg-gradient-to-r from-gray-600 to-gray-700 text-cyan-400 px-3 py-2 rounded-lg text-xs font-semibold font-mono border border-gray-500 shadow-md"
+      >
+        {designConfig.canvas.width} × {designConfig.canvas.height}
+      </div>
+    </div>
     {#if generatingPreview}
-      <div class="preview-loading">Generating preview...</div>
+      <div
+        class="flex flex-col justify-center items-center min-h-[300px] lg:min-h-[400px] bg-gray-800/80 rounded-xl text-gray-400 gap-4"
+      >
+        <div
+          class="w-8 h-8 border-3 border-gray-600 border-t-cyan-400 rounded-full animate-spin"
+        ></div>
+        <span class="text-sm">Generating preview...</span>
+      </div>
     {:else if previewUrl}
-      <div class="preview-container">
-        <img src={previewUrl} alt="Ticket Preview" class="preview-image" />
+      <div
+        class="flex justify-center items-center min-h-[300px] lg:min-h-[400px] bg-gray-800/90 rounded-xl p-6 lg:p-8 border-2 border-gray-600 relative overflow-hidden"
+      >
+        <div
+          class="absolute inset-0 bg-gradient-to-br from-transparent via-cyan-400/5 to-transparent pointer-events-none"
+        ></div>
+        <img
+          src={previewUrl}
+          alt="Ticket Preview"
+          class="max-w-full max-h-[300px] lg:max-h-[500px] rounded-xl shadow-2xl relative z-10 transition-all duration-300 hover:scale-[1.02] hover:shadow-3xl"
+        />
       </div>
     {:else}
-      <div class="preview-placeholder">No preview available</div>
+      <div
+        class="flex flex-col justify-center items-center min-h-[300px] lg:min-h-[400px] bg-gray-800/80 rounded-xl text-gray-400 gap-4"
+      >
+        <div class="text-5xl opacity-50">🎫</div>
+        <span class="text-sm italic">No preview available</span>
+      </div>
     {/if}
   </div>
 </div>
 
 <style>
-  .ticket-design-editor {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    padding: 0.75rem;
-    background: #1a1a1a;
-    border-radius: 8px;
-    color: white;
-  }
-
-  .editor-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .editor-header h3 {
-    margin: 0;
-    color: #00f5ff;
-    font-size: 1rem;
-  }
-
-  .reset-btn {
-    background: #ff4444;
-    color: white;
-    border: none;
-    padding: 0.375rem 0.75rem;
-    border-radius: 4px;
+  /* Custom slider styles for better appearance */
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+    border-radius: 50%;
     cursor: pointer;
-    font-size: 0.8rem;
-    width: 100%;
+    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
   }
 
-  .reset-btn:hover {
-    background: #ff6666;
-  }
-
-  .editor-content {
-    flex: 1;
-    max-width: none;
-  }
-
-  .config-section {
-    margin-bottom: 1.5rem;
-    padding: 0.75rem;
-    background: #2a2a2a;
-    border-radius: 6px;
-  }
-
-  .config-section h4 {
-    margin: 0 0 0.75rem 0;
-    color: #00f5ff;
-    font-size: 0.95rem;
-  }
-
-  .input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .input-group label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.8rem;
-  }
-
-  .input-group input,
-  .input-group select {
-    background: #3a3a3a;
-    border: 1px solid #555;
-    color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.8rem;
-  }
-
-  .input-group input[type="color"] {
-    width: 100%;
-    height: 35px;
-    padding: 0;
+  .slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+    border-radius: 50%;
+    cursor: pointer;
     border: none;
-    border-radius: 4px;
-  }
-
-  .input-group input[type="range"] {
-    width: 100%;
-  }
-
-  .color-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
-  }
-
-  .font-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .preview-section {
-    flex: 1;
-    max-width: none;
-    margin-top: 1rem;
-  }
-
-  .preview-section h4 {
-    margin: 0 0 0.75rem 0;
-    color: #00f5ff;
-    font-size: 0.95rem;
-  }
-
-  .preview-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 200px;
-    background: #2a2a2a;
-    border-radius: 6px;
-    padding: 0.75rem;
-  }
-
-  .preview-image {
-    max-width: 100%;
-    max-height: 300px;
-    border-radius: 4px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .preview-loading,
-  .preview-placeholder {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 200px;
-    background: #2a2a2a;
-    border-radius: 6px;
-    color: #888;
-    font-style: italic;
-    font-size: 0.8rem;
-  }
-
-  /* Tablet and larger screens */
-  @media (min-width: 640px) {
-    .ticket-design-editor {
-      flex-direction: row;
-      gap: 1.5rem;
-      padding: 1rem;
-    }
-
-    .editor-header {
-      flex-direction: row;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-
-    .editor-header h3 {
-      font-size: 1.1rem;
-    }
-
-    .reset-btn {
-      width: auto;
-      padding: 0.5rem 1rem;
-      font-size: 0.9rem;
-    }
-
-    .editor-content {
-      max-width: 400px;
-    }
-
-    .config-section {
-      margin-bottom: 2rem;
-      padding: 1rem;
-    }
-
-    .config-section h4 {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-    }
-
-    .input-group {
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-
-    .input-group label {
-      flex-direction: row;
-      align-items: center;
-      font-size: 0.9rem;
-    }
-
-    .input-group input,
-    .input-group select {
-      font-size: 0.9rem;
-    }
-
-    .input-group input[type="color"] {
-      width: 40px;
-      height: 30px;
-    }
-
-    .input-group input[type="range"] {
-      flex: 1;
-    }
-
-    .color-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-
-    .preview-section {
-      max-width: 400px;
-      margin-top: 0;
-    }
-
-    .preview-section h4 {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-    }
-
-    .preview-container {
-      min-height: 300px;
-      padding: 1rem;
-    }
-
-    .preview-image {
-      max-height: 500px;
-    }
-
-    .preview-loading,
-    .preview-placeholder {
-      min-height: 300px;
-      font-size: 0.9rem;
-    }
-  }
-
-  /* Desktop and larger screens */
-  @media (min-width: 1024px) {
-    .ticket-design-editor {
-      gap: 2rem;
-    }
-
-    .editor-header h3 {
-      font-size: 1.2rem;
-    }
-
-    .reset-btn {
-      font-size: 1rem;
-    }
-
-    .config-section h4 {
-      font-size: 1.2rem;
-    }
-
-    .input-group label {
-      font-size: 1rem;
-    }
-
-    .input-group input,
-    .input-group select {
-      font-size: 1rem;
-    }
-
-    .preview-section h4 {
-      font-size: 1.2rem;
-    }
-
-    .preview-loading,
-    .preview-placeholder {
-      font-size: 1rem;
-    }
+    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
   }
 </style>
