@@ -55,14 +55,16 @@
     // Update design config when event changes
     const selectedEvent = events.find((e) => e.id === formData.eventId);
     if (selectedEvent) {
-      console.log("Selected Event:", selectedEvent);
-      console.log("Design Config from DB:", selectedEvent.ticket_design_config);
-      console.log("All events data:", events);
       currentDesignConfig = selectedEvent.ticket_design_config;
-      console.log("Current Design Config set to:", currentDesignConfig);
-    } else {
-      console.log("No selected event found for ID:", formData.eventId);
-      console.log("Available events:", events);
+
+      // Ensure textBox.enabled exists for backward compatibility
+      if (
+        currentDesignConfig &&
+        currentDesignConfig.textBox &&
+        currentDesignConfig.textBox.enabled === undefined
+      ) {
+        currentDesignConfig.textBox.enabled = true;
+      }
     }
   }
 
@@ -138,20 +140,6 @@
 
       // Generate QR code data (using guest name + event ID as unique identifier)
       const qrData = `${formData.guestName}-${formData.eventId}-${Date.now()}`;
-
-      // Debug: Log what we're passing to generateTicketPreview
-      console.log(
-        "Raw design config from DB:",
-        selectedEvent.ticket_design_config
-      );
-      console.log(
-        "Current design config state (being used):",
-        currentDesignConfig
-      );
-      console.log(
-        "Design config being passed to generateTicketPreview:",
-        currentDesignConfig
-      );
 
       // Generate ticket preview using the reusable function
       const previewUrl = await generateTicketPreview({

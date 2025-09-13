@@ -64,8 +64,7 @@ export async function load({ params, cookies }) {
         if (!imageError && imageData) {
           eventWithImage = { ...event, image: imageData };
         }
-      } catch (imageError) {
-        }
+      } catch (imageError) {}
     }
 
     // Format the event data for the edit flow
@@ -103,6 +102,7 @@ export async function load({ params, cookies }) {
       status: eventWithImage.status,
       image: eventWithImage.image || null,
       image_id: eventWithImage.image_id,
+      ticket_design_config: eventWithImage.ticket_design_config || null,
     };
 
     return {

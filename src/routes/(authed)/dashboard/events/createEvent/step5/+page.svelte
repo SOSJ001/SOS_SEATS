@@ -91,6 +91,14 @@
       // Load ticket design config if available, otherwise use default
       if (eventData.ticket_design_config) {
         ticketDesignConfig = eventData.ticket_design_config;
+
+        // Ensure textBox.enabled exists for backward compatibility
+        if (
+          ticketDesignConfig.textBox &&
+          ticketDesignConfig.textBox.enabled === undefined
+        ) {
+          ticketDesignConfig.textBox.enabled = true;
+        }
       } else {
         // Initialize with default config if none exists
         ticketDesignConfig = defaultTicketDesignConfig;
@@ -165,8 +173,6 @@
         created_at: new Date().toISOString(),
       };
 
-      console.log("Publishing event with design config:", ticketDesignConfig);
-
       // Send to API
       const response = await fetch("/createEventApi", {
         method: "POST",
@@ -221,8 +227,6 @@
         status: "draft", // Set status to draft
         created_at: new Date().toISOString(),
       };
-
-      console.log("Saving draft with design config:", ticketDesignConfig);
 
       // Send to API
       const response = await fetch("/createEventApi", {
@@ -304,13 +308,11 @@
   }
 
   function handleDesignConfigChange(newConfig: TicketDesignConfig) {
-    console.log("Design config changed in create event:", newConfig);
     ticketDesignConfig = newConfig;
     eventData.ticket_design_config = newConfig;
 
     // Save to localStorage
     localStorage.setItem("eventCreationData", JSON.stringify(eventData));
-    console.log("Saved design config to localStorage and eventData");
 
     // Regenerate preview with new config
     generateTicketPreviewForEvent();

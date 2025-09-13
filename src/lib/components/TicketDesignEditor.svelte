@@ -30,7 +30,7 @@
         eventImage: eventData.image_url,
         ticketTypeName: "VIP",
         ticketPrice: "Free",
-        guestName: "John Doe",
+        guestName: "Michael S.O.S",
         organizer: eventData.organizer_name,
         designConfig: designConfig,
       });
@@ -676,6 +676,36 @@
         </div>
       </div>
       <div class="space-y-4">
+        <!-- Enable Text Box Checkbox -->
+        <div
+          class="bg-gradient-to-r from-gray-700/80 to-gray-600/80 rounded-lg border border-cyan-400/30 p-4"
+        >
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              bind:checked={designConfig.textBox.enabled}
+              on:change={() =>
+                updateConfig({
+                  textBox: {
+                    ...designConfig.textBox,
+                    enabled: designConfig.textBox.enabled,
+                  },
+                })}
+              class="w-5 h-5 accent-cyan-400 rounded"
+            />
+            <div class="flex-1">
+              <span class="text-white text-sm font-semibold"
+                >Show Text Content</span
+              >
+              <p class="text-gray-400 text-xs mt-1">
+                {designConfig.textBox.enabled
+                  ? "All text content (names, dates, etc.) is visible on the ticket"
+                  : "All text content is hidden - only QR code and background image show"}
+              </p>
+            </div>
+          </label>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <label class="flex flex-col gap-2">
             <span class="text-gray-300 text-xs sm:text-sm font-medium"

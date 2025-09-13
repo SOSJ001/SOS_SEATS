@@ -24,6 +24,7 @@ export interface TicketDesignConfig {
     };
   };
   textBox: {
+    enabled: boolean;
     position: {
       x: number;
       y: number;
@@ -106,6 +107,7 @@ export const defaultTicketDesignConfig: TicketDesignConfig = {
     },
   },
   textBox: {
+    enabled: true,
     position: {
       x: 15,
       y: 15,
@@ -508,101 +510,104 @@ export async function generateTicketPreview(options: {
     // Draw QR code
     ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
-    // Create text background for better readability
-    const textBgWidth =
-      config.textBox.size.width === "auto"
-        ? canvas.width - qrSize - 40
-        : config.textBox.size.width;
-    const textBgHeight = config.textBox.size.height;
-    const textBgX = config.textBox.position.x;
-    const textBgY = config.textBox.position.y;
+    // Only draw text and text background if textBox is enabled
+    if (config.textBox.enabled) {
+      // Create text background for better readability
+      const textBgWidth =
+        config.textBox.size.width === "auto"
+          ? canvas.width - qrSize - 40
+          : config.textBox.size.width;
+      const textBgHeight = config.textBox.size.height;
+      const textBgX = config.textBox.position.x;
+      const textBgY = config.textBox.position.y;
 
-    // Semi-transparent background for text area
-    if (config.textBox.background.enabled) {
-      ctx.fillStyle = config.textBox.background.color;
-      if (config.textBox.background.borderRadius > 0) {
-        ctx.beginPath();
-        ctx.roundRect(
-          textBgX,
-          textBgY,
-          textBgWidth,
-          textBgHeight,
-          config.textBox.background.borderRadius
-        );
-        ctx.fill();
-      } else {
-        ctx.fillRect(textBgX, textBgY, textBgWidth, textBgHeight);
+      // Semi-transparent background for text area
+      if (config.textBox.background.enabled) {
+        ctx.fillStyle = config.textBox.background.color;
+        if (config.textBox.background.borderRadius > 0) {
+          ctx.beginPath();
+          ctx.roundRect(
+            textBgX,
+            textBgY,
+            textBgWidth,
+            textBgHeight,
+            config.textBox.background.borderRadius
+          );
+          ctx.fill();
+        } else {
+          ctx.fillRect(textBgX, textBgY, textBgWidth, textBgHeight);
+        }
       }
-    }
 
-    // Draw guest name or event name with configurable text shadow
-    if (config.textShadow.enabled) {
-      ctx.shadowColor = config.textShadow.color;
-      ctx.shadowBlur = config.textShadow.blur;
-      ctx.shadowOffsetX = config.textShadow.offsetX;
-      ctx.shadowOffsetY = config.textShadow.offsetY;
-    }
-    ctx.fillStyle = config.colors.primaryName;
-    ctx.font = `${config.fonts.primaryName.weight} ${config.fonts.primaryName.size}px Arial`;
-    ctx.textAlign = "left";
-    const displayName = options.guestName || options.eventName;
-    ctx.fillText(displayName, textBgX + 10, textBgY + 35);
+      // Draw guest name or event name with configurable text shadow
+      if (config.textShadow.enabled) {
+        ctx.shadowColor = config.textShadow.color;
+        ctx.shadowBlur = config.textShadow.blur;
+        ctx.shadowOffsetX = config.textShadow.offsetX;
+        ctx.shadowOffsetY = config.textShadow.offsetY;
+      }
+      ctx.fillStyle = config.colors.primaryName;
+      ctx.font = `${config.fonts.primaryName.weight} ${config.fonts.primaryName.size}px Arial`;
+      ctx.textAlign = "left";
+      const displayName = options.guestName || options.eventName;
+      ctx.fillText(displayName, textBgX + 10, textBgY + 35);
 
-    // Draw event name (if guest name is provided)
-    if (options.guestName) {
-      ctx.font = `${config.fonts.eventName.weight} ${config.fonts.eventName.size}px Arial`;
-      ctx.fillStyle = config.colors.eventName;
-      ctx.fillText(options.eventName, textBgX + 10, textBgY + 60);
-    }
+      // Draw event name (if guest name is provided)
+      if (options.guestName) {
+        ctx.font = `${config.fonts.eventName.weight} ${config.fonts.eventName.size}px Arial`;
+        ctx.fillStyle = config.colors.eventName;
+        ctx.fillText(options.eventName, textBgX + 10, textBgY + 60);
+      }
 
-    // Draw date and time
-    if (options.eventDate && options.eventTime) {
-      ctx.font = `${config.fonts.dateTime.weight} ${config.fonts.dateTime.size}px Arial`;
-      ctx.fillStyle = config.colors.dateTime;
-      const dateTime = `${formatDateString(options.eventDate)} at ${
-        options.eventTime
-      }`;
-      ctx.fillText(
-        dateTime,
-        textBgX + 10,
-        options.guestName ? textBgY + 85 : textBgY + 60
-      );
-    }
+      // Draw date and time
+      if (options.eventDate && options.eventTime) {
+        ctx.font = `${config.fonts.dateTime.weight} ${config.fonts.dateTime.size}px Arial`;
+        ctx.fillStyle = config.colors.dateTime;
+        const dateTime = `${formatDateString(options.eventDate)} at ${
+          options.eventTime
+        }`;
+        ctx.fillText(
+          dateTime,
+          textBgX + 10,
+          options.guestName ? textBgY + 85 : textBgY + 60
+        );
+      }
 
-    // Draw location
-    if (options.eventLocation) {
-      ctx.font = `${config.fonts.location.weight} ${config.fonts.location.size}px Arial`;
-      ctx.fillStyle = config.colors.location;
-      const yPosition = options.guestName ? textBgY + 110 : textBgY + 85;
-      ctx.fillText(options.eventLocation, textBgX + 10, yPosition);
-    }
+      // Draw location
+      if (options.eventLocation) {
+        ctx.font = `${config.fonts.location.weight} ${config.fonts.location.size}px Arial`;
+        ctx.fillStyle = config.colors.location;
+        const yPosition = options.guestName ? textBgY + 110 : textBgY + 85;
+        ctx.fillText(options.eventLocation, textBgX + 10, yPosition);
+      }
 
-    // Draw ticket type with highlight
-    ctx.font = `${config.fonts.ticketType.weight} ${config.fonts.ticketType.size}px Arial`;
-    ctx.fillStyle = config.colors.ticketType;
-    const ticketTypeText = `${options.ticketTypeName} - ${formatPriceString(
-      options.ticketPrice
-    )}`;
-    const ticketTypeY = options.guestName ? textBgY + 135 : textBgY + 110;
-    ctx.fillText(ticketTypeText, textBgX + 10, ticketTypeY);
+      // Draw ticket type with highlight
+      ctx.font = `${config.fonts.ticketType.weight} ${config.fonts.ticketType.size}px Arial`;
+      ctx.fillStyle = config.colors.ticketType;
+      const ticketTypeText = `${options.ticketTypeName} - ${formatPriceString(
+        options.ticketPrice
+      )}`;
+      const ticketTypeY = options.guestName ? textBgY + 135 : textBgY + 110;
+      ctx.fillText(ticketTypeText, textBgX + 10, ticketTypeY);
 
-    // Draw ticket number
-    ctx.font = `${config.fonts.ticketNumber.weight} ${config.fonts.ticketNumber.size}px Arial`;
-    ctx.fillStyle = config.colors.ticketNumber;
-    const ticketNumber = options.ticketNumber || "TIX-XXXXXXXX";
-    const ticketNumberY = options.guestName ? textBgY + 160 : textBgY + 135;
-    ctx.fillText(`Ticket #: ${ticketNumber}`, textBgX + 10, ticketNumberY);
+      // Draw ticket number
+      ctx.font = `${config.fonts.ticketNumber.weight} ${config.fonts.ticketNumber.size}px Arial`;
+      ctx.fillStyle = config.colors.ticketNumber;
+      const ticketNumber = options.ticketNumber || "TIX-XXXXXXXX";
+      const ticketNumberY = options.guestName ? textBgY + 160 : textBgY + 135;
+      ctx.fillText(`Ticket #: ${ticketNumber}`, textBgX + 10, ticketNumberY);
 
-    // Draw organizer info
-    if (options.organizer) {
-      ctx.font = `${config.fonts.organizer.weight} ${config.fonts.organizer.size}px Arial`;
-      ctx.fillStyle = config.colors.organizer;
-      const organizerY = options.guestName ? textBgY + 180 : textBgY + 155;
-      ctx.fillText(
-        `Organized by: ${options.organizer}`,
-        textBgX + 10,
-        organizerY
-      );
+      // Draw organizer info
+      if (options.organizer) {
+        ctx.font = `${config.fonts.organizer.weight} ${config.fonts.organizer.size}px Arial`;
+        ctx.fillStyle = config.colors.organizer;
+        const organizerY = options.guestName ? textBgY + 180 : textBgY + 155;
+        ctx.fillText(
+          `Organized by: ${options.organizer}`,
+          textBgX + 10,
+          organizerY
+        );
+      }
     }
 
     // Reset shadow

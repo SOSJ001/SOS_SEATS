@@ -47,12 +47,15 @@
     // Priority: localStorage > server data > default
     if (eventData.ticket_design_config) {
       ticketDesignConfig = eventData.ticket_design_config;
-      console.log(
-        "Loaded ticket design config from eventData:",
-        ticketDesignConfig
-      );
+
+      // Ensure textBox.enabled exists for backward compatibility
+      if (
+        ticketDesignConfig.textBox &&
+        ticketDesignConfig.textBox.enabled === undefined
+      ) {
+        ticketDesignConfig.textBox.enabled = true;
+      }
     } else {
-      console.log("No ticket design config found in eventData, using default");
       ticketDesignConfig = defaultTicketDesignConfig;
     }
 
@@ -80,8 +83,6 @@
         ticket_design_config: ticketDesignConfig, // Ensure design config is included
         updated_at: new Date().toISOString(),
       };
-
-      console.log("Saving event with design config:", ticketDesignConfig);
 
       // Send to API
       const response = await fetch(`/updateEventApi/${eventId}`, {
@@ -135,8 +136,6 @@
         published_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-
-      console.log("Publishing event with design config:", ticketDesignConfig);
 
       // Send to API
       const response = await fetch(`/updateEventApi/${eventId}`, {
@@ -208,17 +207,15 @@
 
   // Handle ticket design config changes
   function handleDesignConfigChange(newConfig) {
-    console.log("Design config changed:", newConfig);
     ticketDesignConfig = newConfig;
     eventData.ticket_design_config = newConfig;
 
     // Save to localStorage for persistence
     localStorage.setItem("eventEditData", JSON.stringify(eventData));
-    console.log("Saved design config to localStorage and eventData");
   }
 </script>
 
-<div class="max-w-4xl mx-auto p-4 sm:p-6" in:fade={{ duration: 300 }}>
+<div class="max-w-6xl mx-auto p-2 sm:p-4" in:fade={{ duration: 300 }}>
   <!-- Title -->
   <div class="text-center mb-6 sm:mb-8">
     <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">Edit Event</h1>
@@ -530,7 +527,7 @@
         </div>
 
         <!-- Ticket Design Editor -->
-        <div class="bg-gray-800 rounded-xl p-6">
+        <div class="bg-gray-800 rounded-xl p-2">
           <h3 class="text-lg font-medium text-white mb-4">Ticket Design</h3>
           <p class="text-gray-400 text-sm mb-6">
             Customize the appearance of your event tickets with colors, fonts,
