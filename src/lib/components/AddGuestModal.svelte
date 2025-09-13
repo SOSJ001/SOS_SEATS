@@ -330,6 +330,7 @@
       );
 
       // Generate ticket using the proper design system
+      console.log("Passing guest ID as QR data:", guestId);
       const ticketUrl = await generateTicketPreview({
         eventName: selectedEvent?.name || "Event",
         eventDate: selectedEvent?.date || "",
@@ -342,7 +343,8 @@
         organizer: selectedEvent?.organizer || "",
         ticketNumber: generatedTicketNumber,
         qrData: guestId, // Use guest ID as QR code data
-        designConfig: defaultTicketDesignConfig, // Use default design config
+        designConfig:
+          selectedEvent?.ticket_design_config || defaultTicketDesignConfig, // Use event's custom design config or fallback to default
       });
 
       if (ticketUrl) {

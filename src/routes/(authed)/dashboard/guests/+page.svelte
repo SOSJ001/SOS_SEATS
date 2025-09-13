@@ -228,10 +228,8 @@
     // Add the new guest to the beginning of the list
     guests = [transformedGuest, ...guests];
 
-    // Update the filtered guests if needed
-    if (filteredGuests.length > 0) {
-      filteredGuests = [transformedGuest, ...filteredGuests];
-    }
+    // Re-apply filters to update the filtered guests list
+    filterGuests();
   }
 
   function handleCloseAddGuestModal() {

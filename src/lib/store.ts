@@ -265,6 +265,28 @@ export async function generateQrImage(data: string) {
   return qrImage;
 }
 
+// Convert image URL to data URL to avoid CORS issues
+async function convertImageUrlToDataUrl(imageUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Could not get canvas context"));
+        return;
+      }
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = imageUrl;
+  });
+}
+
 //get the domain of my site
 export function getDomain() {
   try {
@@ -378,14 +400,28 @@ export async function generateTicketPreview(options: {
     const qrData =
       options.qrData ||
       `${options.eventName}-${options.ticketTypeName}-${Date.now()}`;
+    console.log("QR data being used:", qrData);
     const qrCodeDataUrl = await generateQrImage(qrData);
 
     // Get event image as data URL
     let eventImageDataUrl = null;
     if (options.eventImage) {
       if (typeof options.eventImage === "string") {
-        // Already a data URL or URL
-        eventImageDataUrl = options.eventImage;
+        // Check if it's already a data URL
+        if (options.eventImage.startsWith("data:")) {
+          eventImageDataUrl = options.eventImage;
+        } else {
+          // Convert external URL to data URL to avoid CORS issues
+          try {
+            eventImageDataUrl = await convertImageUrlToDataUrl(
+              options.eventImage
+            );
+          } catch (error) {
+            console.warn("Failed to convert image URL to data URL:", error);
+            // Fallback: use the original URL (might cause CORS issues)
+            eventImageDataUrl = options.eventImage;
+          }
+        }
       } else if (options.eventImage instanceof File) {
         // Convert File to base64
         eventImageDataUrl = await convertFileToBase64(options.eventImage);
@@ -411,8 +447,10 @@ export async function generateTicketPreview(options: {
     // Draw event image if available
     if (eventImageDataUrl) {
       const eventImg = new Image();
-      await new Promise((resolve) => {
+      eventImg.crossOrigin = "anonymous";
+      await new Promise((resolve, reject) => {
         eventImg.onload = resolve;
+        eventImg.onerror = reject;
         eventImg.src = eventImageDataUrl;
       });
 
