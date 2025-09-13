@@ -195,9 +195,43 @@
   }
 
   function handleGuestAdded(event: CustomEvent) {
-    // Refresh the guest list by reloading the page or updating the local data
-    // For now, we'll reload the page to get fresh data
-    window.location.reload();
+    // Add the new guest to the local guest list
+    const newGuest = event.detail.guest;
+
+    // Transform the new guest to match the expected format
+    const transformedGuest = {
+      id: newGuest.id,
+      name:
+        newGuest.name ||
+        `${newGuest.first_name || ""} ${newGuest.last_name || ""}`.trim(),
+      wallet_address: formatWalletAddress(newGuest.wallet_address || ""),
+      status: newGuest.status,
+      avatar:
+        newGuest.avatar ||
+        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMCIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44MyAyLjE2IDQuODMgNC44M1MxNC42NyAxNC42NyAxMiAxNC42N1M3LjE3IDEyLjUxIDcuMTcgOS44M1M5LjMzIDUgMTIgNXptMCAxMmM0LjQyIDAgOC4xNy0yLjE2IDEwLjQyLTUuNDJDMjAuMTUgMTUuNjYgMTYuNDIgMTggMTIgMThzLTguMTUtMi4zNC0xMC40Mi01LjQyQzMuODMgMTQuODQgNy41OCAxNyAxMiAxN3oiLz4KPC9zdmc+Cjwvc3ZnPgo=",
+      ticket_number:
+        newGuest.ticket_number || `TIX-${newGuest.id?.slice(0, 8)}`,
+      phone: newGuest.phone,
+      wallet_address_full: newGuest.wallet_address,
+      seat_number: newGuest.seat_number,
+      check_in_time: newGuest.check_in_time,
+      event_id: newGuest.event_id,
+      event_title: newGuest.event_title || newGuest.event_name,
+      ticket_type_name: newGuest.ticket_type_name,
+      ticket_type_price: newGuest.ticket_type_price,
+      order_id: newGuest.order_id,
+      order_item_id: newGuest.order_item_id,
+      created_at: newGuest.created_at,
+      updated_at: newGuest.updated_at,
+    };
+
+    // Add the new guest to the beginning of the list
+    guests = [transformedGuest, ...guests];
+
+    // Update the filtered guests if needed
+    if (filteredGuests.length > 0) {
+      filteredGuests = [transformedGuest, ...filteredGuests];
+    }
   }
 
   function handleCloseAddGuestModal() {

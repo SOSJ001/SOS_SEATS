@@ -2,7 +2,12 @@
   import { createEventDispatcher } from "svelte";
   import { fade, scale, fly } from "svelte/transition";
   import { addGuestToEvent, loadEventTicketTypes } from "$lib/supabase";
-  import { generateTicketPreview, type TicketDesignConfig } from "$lib/store";
+  import {
+    generateTicketPreview,
+    generateQrImage,
+    type TicketDesignConfig,
+    defaultTicketDesignConfig,
+  } from "$lib/store";
 
   export let show = false;
   export let events: any[] = [];
@@ -33,6 +38,13 @@
   // Design config state
   let currentDesignConfig: TicketDesignConfig | null = null;
 
+  // Success state
+  let successState = false;
+  let generatedTicketUrl = "";
+  let generatedGuestName = "";
+  let generatedEventName = "";
+  let generatedTicketNumber = "";
+
   // Reset form when modal opens
   $: if (show) {
     formData = {
@@ -42,6 +54,11 @@
       eventId: selectedEventId,
     };
     error = null;
+    successState = false;
+    generatedTicketUrl = "";
+    generatedGuestName = "";
+    generatedEventName = "";
+    generatedTicketNumber = "";
   }
 
   // Load ticket types when event is selected (only for valid UUIDs)
@@ -201,8 +218,35 @@
       const result = await addGuestToEvent(formData.eventId, guestData);
 
       if (result.success) {
+        // Set success state with generated ticket data
+        const selectedEvent = events.find((e) => e.id === formData.eventId);
+        generatedGuestName = formData.guestName;
+        generatedEventName = selectedEvent?.name || "Event";
+        generatedTicketNumber = result.data.ticket_number || "Generated";
+
+        // Generate new ticket preview with the actual guest ID as QR code
+        console.log("Using guest ID for QR code:", result.data.id);
+        console.log("Starting ticket generation...");
+
+        try {
+          await generateTicketWithProperDesign(result.data.id, selectedEvent);
+
+          console.log("Ticket generation completed");
+          console.log(
+            "Generated ticket URL after function:",
+            generatedTicketUrl ? "Success" : "Failed"
+          );
+
+          // Set success state
+          successState = true;
+        } catch (ticketError) {
+          console.error("Ticket generation failed:", ticketError);
+          // Still set success state but without ticket preview
+          successState = true;
+        }
+
+        // Dispatch event for parent component
         dispatch("guestAdded", { guest: result.data });
-        closeModal();
       } else {
         error = result.error || "Failed to add guest";
       }
@@ -225,6 +269,109 @@
       default:
         return "text-gray-300";
     }
+  }
+
+  // Download ticket function
+  function downloadTicket() {
+    if (!generatedTicketUrl) return;
+
+    const link = document.createElement("a");
+    link.href = generatedTicketUrl;
+    link.download = `ticket-${generatedGuestName.replace(/\s+/g, "-").toLowerCase()}-${generatedTicketNumber}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Share ticket function (copy to clipboard)
+  async function shareTicket() {
+    if (!generatedTicketUrl) return;
+
+    try {
+      // Convert data URL to blob
+      const response = await fetch(generatedTicketUrl);
+      const blob = await response.blob();
+
+      // Copy to clipboard
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type]: blob,
+        }),
+      ]);
+
+      // Show success feedback (you could add a toast here)
+      console.log("Ticket copied to clipboard!");
+    } catch (err) {
+      console.error("Failed to copy ticket:", err);
+      // Fallback: copy the data URL as text
+      try {
+        await navigator.clipboard.writeText(generatedTicketUrl);
+        console.log("Ticket URL copied to clipboard!");
+      } catch (fallbackErr) {
+        console.error("Failed to copy ticket URL:", fallbackErr);
+      }
+    }
+  }
+
+  // Generate ticket with proper design configuration
+  async function generateTicketWithProperDesign(
+    guestId: string,
+    selectedEvent: any
+  ) {
+    try {
+      console.log(
+        "Generating ticket with proper design config for guest ID:",
+        guestId
+      );
+
+      // Get selected ticket type details
+      const selectedTicketType = ticketTypes.find(
+        (tt) => tt.id === formData.ticketTypeId
+      );
+
+      // Generate ticket using the proper design system
+      const ticketUrl = await generateTicketPreview({
+        eventName: selectedEvent?.name || "Event",
+        eventDate: selectedEvent?.date || "",
+        eventTime: selectedEvent?.time || "",
+        eventLocation: selectedEvent?.location || "",
+        eventImage: selectedEvent?.image || null,
+        ticketTypeName: selectedTicketType?.name || "General Admission",
+        ticketPrice: selectedTicketType?.price || 0,
+        guestName: generatedGuestName,
+        organizer: selectedEvent?.organizer || "",
+        ticketNumber: generatedTicketNumber,
+        qrData: guestId, // Use guest ID as QR code data
+        designConfig: defaultTicketDesignConfig, // Use default design config
+      });
+
+      if (ticketUrl) {
+        generatedTicketUrl = ticketUrl;
+        console.log("Ticket generated successfully with proper design");
+      } else {
+        throw new Error("Failed to generate ticket URL");
+      }
+    } catch (err) {
+      console.error("Failed to generate ticket with proper design:", err);
+      // Fallback to existing preview
+      generatedTicketUrl = ticketPreviewUrl || "";
+    }
+  }
+
+  // Generate another ticket (reset to form)
+  function generateAnother() {
+    successState = false;
+    formData = {
+      guestName: "",
+      ticketTypeId: "",
+      status: "confirmed",
+      eventId: selectedEventId,
+    };
+    error = null;
+    generatedTicketUrl = "";
+    generatedGuestName = "";
+    generatedEventName = "";
+    generatedTicketNumber = "";
   }
 </script>
 
@@ -408,137 +555,98 @@
 
         <!-- Scrollable content area -->
         <div class="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6">
-          <!-- Error Message -->
-          {#if error}
+          {#if successState}
+            <!-- Success State -->
             <div
-              class="mb-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg text-red-200 text-sm"
+              class="text-center py-8"
+              in:scale={{ duration: 500, delay: 100 }}
+              out:scale={{ duration: 200 }}
             >
-              {error}
-            </div>
-          {/if}
-
-          <!-- Form Fields -->
-          <form
-            id="guest-form"
-            on:submit|preventDefault={handleSubmit}
-            class="space-y-6"
-          >
-            <!-- Event Selection -->
-            {#if events.length > 0}
+              <!-- Success Icon -->
               <div
-                in:fly={{ y: 20, duration: 400, delay: 200 }}
-                out:fly={{ y: -20, duration: 200 }}
+                class="mb-6"
+                in:fly={{ y: -20, duration: 500, delay: 200 }}
+                out:fly={{ y: 20, duration: 200 }}
               >
-                <div class="flex items-center gap-2 mb-2">
-                  <label
-                    for="eventId"
-                    class="block text-sm font-medium text-gray-300"
-                  >
-                    Event *
-                  </label>
-                  <div class="flex items-center gap-1 text-xs text-gray-400">
-                    <span>✨</span>
-                    <span>= Custom Design</span>
-                  </div>
-                </div>
-                <select
-                  id="eventId"
-                  bind:value={formData.eventId}
-                  class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#00F5FF] focus:border-[#00F5FF] transition-all duration-300 hover:border-gray-500"
-                  required
-                >
-                  <option value="">Select an event</option>
-                  {#each events as event}
-                    <option value={event.id}>
-                      {event.name}
-                      {#if event.ticket_design_config}
-                        ✨
-                      {/if}
-                    </option>
-                  {/each}
-                </select>
-              </div>
-            {/if}
-
-            <!-- Guest Name Field -->
-            <div
-              in:fly={{ y: 20, duration: 400, delay: 300 }}
-              out:fly={{ y: -20, duration: 200 }}
-            >
-              <label
-                for="guestName"
-                class="block text-sm font-medium text-gray-300 mb-2"
-              >
-                Guest Name *
-              </label>
-              <input
-                id="guestName"
-                type="text"
-                bind:value={formData.guestName}
-                placeholder="e.g., Alice Johnson or Guest #1"
-                class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-[#00F5FF] focus:border-[#00F5FF] transition-all duration-300 hover:border-gray-500"
-                required
-              />
-            </div>
-
-            <!-- Ticket Type -->
-            <div
-              in:fly={{ y: 20, duration: 400, delay: 400 }}
-              out:fly={{ y: -20, duration: 200 }}
-            >
-              <label
-                for="ticketType"
-                class="block text-sm font-medium text-gray-300 mb-2"
-              >
-                Ticket Type
-              </label>
-              {#if formData.eventId === "all"}
                 <div
-                  class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-400 transition-all duration-300"
-                >
-                  Please select a specific event to choose ticket type
-                </div>
-              {:else if loadingTicketTypes}
-                <div
-                  class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-400 transition-all duration-300"
-                >
-                  <span class="inline-block animate-pulse"
-                    >Loading ticket types...</span
-                  >
-                </div>
-              {:else if ticketTypes.length > 0}
-                <select
-                  id="ticketType"
-                  bind:value={formData.ticketTypeId}
-                  class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#00F5FF] focus:border-[#00F5FF] transition-all duration-300 hover:border-gray-500"
-                >
-                  {#each ticketTypes as ticketType}
-                    <option value={ticketType.id}>
-                      {ticketType.name} - ${ticketType.price}
-                    </option>
-                  {/each}
-                </select>
-              {:else}
-                <div
-                  class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-400 transition-all duration-300"
-                >
-                  No ticket types available for this event
-                </div>
-              {/if}
-            </div>
-
-            <!-- Guest Preview -->
-            {#if formData.guestName}
-              <div
-                class="border-2 border-dashed border-gray-600 rounded-lg p-4 bg-gray-800/50 transition-all duration-500"
-                in:scale={{ duration: 400, delay: 500 }}
-                out:scale={{ duration: 200 }}
-              >
-                <h3
-                  class="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2"
+                  class="w-20 h-20 mx-auto bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center border-4 border-green-400/30 shadow-lg"
                 >
                   <svg
-                    class="w-4 h-4 text-[#00F5FF]"
+                    class="w-10 h-10 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="3"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Success Message -->
+              <h3
+                class="text-2xl font-bold text-white mb-2"
+                in:fly={{ y: -20, duration: 500, delay: 300 }}
+                out:fly={{ y: 20, duration: 200 }}
+              >
+                Ticket Generated Successfully!
+              </h3>
+              <p
+                class="text-gray-400 mb-6"
+                in:fly={{ y: -20, duration: 500, delay: 400 }}
+                out:fly={{ y: 20, duration: 200 }}
+              >
+                Your ticket for <span class="text-[#00F5FF] font-semibold"
+                  >{generatedGuestName}</span
+                >
+                has been created for
+                <span class="text-[#00F5FF] font-semibold"
+                  >{generatedEventName}</span
+                >
+              </p>
+
+              <!-- Generated Ticket Display -->
+              {#if generatedTicketUrl}
+                <div
+                  class="mb-6"
+                  in:fly={{ y: -20, duration: 500, delay: 500 }}
+                  out:fly={{ y: 20, duration: 200 }}
+                >
+                  <div
+                    class="max-w-sm mx-auto bg-gray-800 rounded-lg p-4 border border-gray-600 shadow-lg"
+                  >
+                    <img
+                      src={generatedTicketUrl}
+                      alt="Generated Ticket"
+                      class="w-full rounded-lg shadow-md"
+                    />
+                    <div class="mt-3 text-center">
+                      <p class="text-sm text-gray-400">
+                        Ticket #: <span class="text-[#00F5FF] font-mono"
+                          >{generatedTicketNumber}</span
+                        >
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              {/if}
+
+              <!-- Action Buttons -->
+              <div
+                class="flex flex-col sm:flex-row gap-3 justify-center"
+                in:fly={{ y: -20, duration: 500, delay: 600 }}
+                out:fly={{ y: 20, duration: 200 }}
+              >
+                <button
+                  on:click={downloadTicket}
+                  class="px-6 py-3 bg-gradient-to-r from-[#9D4EDD] to-[#00F5FF] text-white rounded-lg hover:from-[#9D4EDD]/90 hover:to-[#00F5FF]/90 transition-all duration-300 flex items-center justify-center space-x-2 hover:scale-105 hover:shadow-lg"
+                >
+                  <svg
+                    class="w-5 h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -547,102 +655,159 @@
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
+                  </svg>
+                  <span>Download Ticket</span>
+                </button>
+
+                <button
+                  on:click={shareTicket}
+                  class="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-all duration-300 flex items-center justify-center space-x-2 hover:scale-105 hover:shadow-lg border border-gray-600"
+                >
+                  <svg
+                    class="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
                     />
                   </svg>
-                  Ticket Details
-                </h3>
-                <div class="space-y-3 text-sm">
-                  <!-- Guest Name -->
-                  <div class="flex justify-between items-center">
-                    <span class="text-gray-400">Guest Name:</span>
-                    <span
-                      class="font-medium text-white text-right max-w-[60%] break-words"
-                      >{formData.guestName}</span
-                    >
-                  </div>
-
-                  <!-- Event -->
-                  {#if formData.eventId && formData.eventId !== "all"}
-                    {@const selectedEvent = events.find(
-                      (e) => e.id === formData.eventId
-                    )}
-                    {#if selectedEvent}
-                      <div class="flex justify-between items-center">
-                        <span class="text-gray-400">Event:</span>
-                        <span
-                          class="font-medium text-white text-right max-w-[60%] break-words"
-                          >{selectedEvent.name}</span
-                        >
-                      </div>
-                    {/if}
-                  {/if}
-
-                  <!-- Ticket Type -->
-                  {#if formData.ticketTypeId}
-                    {@const selectedTicketType = ticketTypes.find(
-                      (tt) => tt.id === formData.ticketTypeId
-                    )}
-                    {#if selectedTicketType}
-                      <div class="flex justify-between items-center">
-                        <span class="text-gray-400">Ticket Type:</span>
-                        <span class="font-medium text-white text-right"
-                          >{selectedTicketType.name} - ${selectedTicketType.price}</span
-                        >
-                      </div>
-                    {/if}
-                  {/if}
-
-                  <!-- Status -->
-                  <div class="flex justify-between items-center">
-                    <span class="text-gray-400">Status:</span>
-                    <span
-                      class="font-medium capitalize px-2 py-1 rounded-full text-xs bg-green-900/30 text-green-300 border border-green-700/50"
-                      >{formData.status}</span
-                    >
-                  </div>
-
-                  <!-- Ticket Number Preview -->
-                  <div class="flex justify-between items-center">
-                    <span class="text-gray-400">Ticket #:</span>
-                    <span
-                      class="font-mono text-white text-right text-xs bg-gray-700/50 px-2 py-1 rounded border"
-                      >Will be generated</span
-                    >
-                  </div>
-                </div>
-
-                <!-- Preview Note -->
-                <div class="mt-3 pt-3 border-t border-gray-700">
-                  <p class="text-xs text-gray-500 italic">
-                    A ticket will be generated and the guest will be added to
-                    your event
-                  </p>
-                  {#if currentDesignConfig}
-                    <p class="text-xs text-purple-400 italic mt-1">
-                      ✨ This event uses custom ticket design settings
-                    </p>
-                  {/if}
-                </div>
+                  <span>Share Ticket</span>
+                </button>
+              </div>
+            </div>
+          {:else}
+            <!-- Form State -->
+            <!-- Error Message -->
+            {#if error}
+              <div
+                class="mb-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg text-red-200 text-sm"
+              >
+                {error}
               </div>
             {/if}
 
-            <!-- Ticket Preview -->
-            {#if formData.guestName && formData.eventId && formData.eventId !== "all" && formData.eventId !== ""}
+            <!-- Form Fields -->
+            <div class="space-y-6">
+              <!-- Event Selection -->
+              {#if events.length > 0}
+                <div
+                  in:fly={{ y: 20, duration: 400, delay: 200 }}
+                  out:fly={{ y: -20, duration: 200 }}
+                >
+                  <div class="flex items-center gap-2 mb-2">
+                    <label
+                      for="eventId"
+                      class="block text-sm font-medium text-gray-300"
+                    >
+                      Event *
+                    </label>
+                    <div class="flex items-center gap-1 text-xs text-gray-400">
+                      <span>✨</span>
+                      <span>= Custom Design</span>
+                    </div>
+                  </div>
+                  <select
+                    id="eventId"
+                    bind:value={formData.eventId}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#00F5FF] focus:border-[#00F5FF] transition-all duration-300 hover:border-gray-500"
+                    required
+                  >
+                    <option value="">Select an event</option>
+                    {#each events as event}
+                      <option value={event.id}>
+                        {event.name}
+                        {#if event.ticket_design_config}
+                          ✨
+                        {/if}
+                      </option>
+                    {/each}
+                  </select>
+                </div>
+              {/if}
+
+              <!-- Guest Name Field -->
               <div
-                class="border-2 border-dashed border-gray-600 rounded-lg p-4 bg-gray-800/50 transition-all duration-500"
-                in:scale={{ duration: 400, delay: 600 }}
-                out:scale={{ duration: 200 }}
+                in:fly={{ y: 20, duration: 400, delay: 300 }}
+                out:fly={{ y: -20, duration: 200 }}
               >
-                <div class="flex items-center justify-between mb-3">
+                <label
+                  for="guestName"
+                  class="block text-sm font-medium text-gray-300 mb-2"
+                >
+                  Guest Name *
+                </label>
+                <input
+                  id="guestName"
+                  type="text"
+                  bind:value={formData.guestName}
+                  placeholder="e.g., Alice Johnson or Guest #1"
+                  class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-[#00F5FF] focus:border-[#00F5FF] transition-all duration-300 hover:border-gray-500"
+                  required
+                />
+              </div>
+
+              <!-- Ticket Type -->
+              <div
+                in:fly={{ y: 20, duration: 400, delay: 400 }}
+                out:fly={{ y: -20, duration: 200 }}
+              >
+                <label
+                  for="ticketType"
+                  class="block text-sm font-medium text-gray-300 mb-2"
+                >
+                  Ticket Type
+                </label>
+                {#if formData.eventId === "all"}
+                  <div
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-400 transition-all duration-300"
+                  >
+                    Please select a specific event to choose ticket type
+                  </div>
+                {:else if loadingTicketTypes}
+                  <div
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-400 transition-all duration-300"
+                  >
+                    <span class="inline-block animate-pulse"
+                      >Loading ticket types...</span
+                    >
+                  </div>
+                {:else if ticketTypes.length > 0}
+                  <select
+                    id="ticketType"
+                    bind:value={formData.ticketTypeId}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#00F5FF] focus:border-[#00F5FF] transition-all duration-300 hover:border-gray-500"
+                  >
+                    {#each ticketTypes as ticketType}
+                      <option value={ticketType.id}>
+                        {ticketType.name} - ${ticketType.price}
+                      </option>
+                    {/each}
+                  </select>
+                {:else}
+                  <div
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-400 transition-all duration-300"
+                  >
+                    No ticket types available for this event
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Guest Preview -->
+              {#if formData.guestName}
+                <div
+                  class="border-2 border-dashed border-gray-600 rounded-lg p-4 bg-gray-800/50 transition-all duration-500"
+                  in:scale={{ duration: 400, delay: 500 }}
+                  out:scale={{ duration: 200 }}
+                >
                   <h3
-                    class="text-sm font-medium text-gray-300 flex items-center gap-2"
+                    class="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2"
                   >
                     <svg
                       class="w-4 h-4 text-[#00F5FF]"
@@ -654,154 +819,105 @@
                         stroke-linecap="round"
                         stroke-linejoin="round"
                         stroke-width="2"
-                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                       />
                     </svg>
-                    Ticket Preview
+                    Ticket Details
                   </h3>
-
-                  <!-- Custom Design Indicator -->
-                  {#if currentDesignConfig}
-                    <div
-                      class="flex items-center gap-1 px-2 py-1 bg-purple-900/30 border border-purple-500/50 rounded-full"
-                    >
-                      <svg
-                        class="w-3 h-3 text-purple-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
-                        />
-                      </svg>
-                      <span class="text-xs text-purple-300 font-medium"
-                        >Custom Design</span
+                  <div class="space-y-3 text-sm">
+                    <!-- Guest Name -->
+                    <div class="flex justify-between items-center">
+                      <span class="text-gray-400">Guest Name:</span>
+                      <span
+                        class="font-medium text-white text-right max-w-[60%] break-words"
+                        >{formData.guestName}</span
                       >
                     </div>
-                  {:else}
-                    <div
-                      class="flex items-center gap-1 px-2 py-1 bg-gray-700/50 border border-gray-600/50 rounded-full"
-                    >
-                      <svg
-                        class="w-3 h-3 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span class="text-xs text-gray-400 font-medium"
-                        >Default Design</span
+
+                    <!-- Event -->
+                    {#if formData.eventId && formData.eventId !== "all"}
+                      {@const selectedEvent = events.find(
+                        (e) => e.id === formData.eventId
+                      )}
+                      {#if selectedEvent}
+                        <div class="flex justify-between items-center">
+                          <span class="text-gray-400">Event:</span>
+                          <span
+                            class="font-medium text-white text-right max-w-[60%] break-words"
+                            >{selectedEvent.name}</span
+                          >
+                        </div>
+                      {/if}
+                    {/if}
+
+                    <!-- Ticket Type -->
+                    {#if formData.ticketTypeId}
+                      {@const selectedTicketType = ticketTypes.find(
+                        (tt) => tt.id === formData.ticketTypeId
+                      )}
+                      {#if selectedTicketType}
+                        <div class="flex justify-between items-center">
+                          <span class="text-gray-400">Ticket Type:</span>
+                          <span class="font-medium text-white text-right"
+                            >{selectedTicketType.name} - ${selectedTicketType.price}</span
+                          >
+                        </div>
+                      {/if}
+                    {/if}
+
+                    <!-- Status -->
+                    <div class="flex justify-between items-center">
+                      <span class="text-gray-400">Status:</span>
+                      <span
+                        class="font-medium capitalize px-2 py-1 rounded-full text-xs bg-green-900/30 text-green-300 border border-green-700/50"
+                        >{formData.status}</span
                       >
                     </div>
-                  {/if}
-                </div>
 
-                {#if generatingPreview}
-                  <div class="flex items-center justify-center py-8">
-                    <div class="text-center">
-                      <div
-                        class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00F5FF] mx-auto mb-2"
-                      ></div>
-                      <p class="text-sm text-gray-400">
-                        Generating ticket preview...
-                      </p>
+                    <!-- Ticket Number Preview -->
+                    <div class="flex justify-between items-center">
+                      <span class="text-gray-400">Ticket #:</span>
+                      <span
+                        class="font-mono text-white text-right text-xs bg-gray-700/50 px-2 py-1 rounded border"
+                        >Will be generated</span
+                      >
                     </div>
                   </div>
-                {:else if ticketPreviewUrl}
-                  <div class="text-center">
-                    <div
-                      class="inline-block border-2 border-gray-600 rounded-lg overflow-hidden bg-white p-2"
-                    >
-                      <img
-                        src={ticketPreviewUrl}
-                        alt="Ticket Preview"
-                        class="max-w-full h-auto max-h-64 object-contain"
-                        in:fade={{ duration: 500 }}
-                        out:fade={{ duration: 200 }}
-                      />
-                    </div>
-                    <p class="text-xs text-gray-500 mt-2 italic">
-                      This is how the ticket will look when generated
-                    </p>
 
-                    <!-- Design Config Summary -->
+                  <!-- Preview Note -->
+                  <div class="mt-3 pt-3 border-t border-gray-700">
+                    <p class="text-xs text-gray-500 italic">
+                      A ticket will be generated and the guest will be added to
+                      your event
+                    </p>
                     {#if currentDesignConfig}
-                      <div class="mt-3 pt-3 border-t border-gray-700">
-                        <div class="flex items-center gap-2 mb-2">
-                          <svg
-                            class="w-3 h-3 text-purple-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
-                            />
-                          </svg>
-                          <span class="text-xs text-purple-300 font-medium"
-                            >Custom Design Applied</span
-                          >
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-xs">
-                          <div class="flex justify-between">
-                            <span class="text-gray-400">Canvas:</span>
-                            <span class="text-gray-300"
-                              >{currentDesignConfig.canvas?.width ||
-                                400}×{currentDesignConfig.canvas?.height ||
-                                600}</span
-                            >
-                          </div>
-                          <div class="flex justify-between">
-                            <span class="text-gray-400">QR Size:</span>
-                            <span class="text-gray-300"
-                              >{currentDesignConfig.qrCode?.size || 100}px</span
-                            >
-                          </div>
-                          <div class="flex justify-between">
-                            <span class="text-gray-400">Primary Color:</span>
-                            <div class="flex items-center gap-1">
-                              <div
-                                class="w-3 h-3 rounded border border-gray-600"
-                                style="background-color: {currentDesignConfig
-                                  .colors?.primaryName || '#FFD700'}"
-                              ></div>
-                              <span class="text-gray-300 text-xs"
-                                >{currentDesignConfig.colors?.primaryName ||
-                                  "#FFD700"}</span
-                              >
-                            </div>
-                          </div>
-                          <div class="flex justify-between">
-                            <span class="text-gray-400">Font Size:</span>
-                            <span class="text-gray-300"
-                              >{currentDesignConfig.fonts?.primaryName?.size ||
-                                26}px</span
-                            >
-                          </div>
-                        </div>
-                      </div>
+                      <p class="text-xs text-purple-400 italic mt-1">
+                        ✨ This event uses custom ticket design settings
+                      </p>
                     {/if}
                   </div>
-                {:else}
-                  <div class="text-center py-4">
-                    <div
-                      class="w-16 h-16 mx-auto mb-2 bg-gray-700 rounded-lg flex items-center justify-center"
+                </div>
+              {/if}
+
+              <!-- Ticket Preview -->
+              {#if formData.guestName && formData.eventId && formData.eventId !== "all" && formData.eventId !== ""}
+                <div
+                  class="border-2 border-dashed border-gray-600 rounded-lg p-4 bg-gray-800/50 transition-all duration-500"
+                  in:scale={{ duration: 400, delay: 600 }}
+                  out:scale={{ duration: 200 }}
+                >
+                  <div class="flex items-center justify-between mb-3">
+                    <h3
+                      class="text-sm font-medium text-gray-300 flex items-center gap-2"
                     >
                       <svg
-                        class="w-8 h-8 text-gray-500"
+                        class="w-4 h-4 text-[#00F5FF]"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -813,15 +929,173 @@
                           d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
                         />
                       </svg>
-                    </div>
-                    <p class="text-sm text-gray-400">
-                      Ticket preview will appear here
-                    </p>
+                      Ticket Preview
+                    </h3>
+
+                    <!-- Custom Design Indicator -->
+                    {#if currentDesignConfig}
+                      <div
+                        class="flex items-center gap-1 px-2 py-1 bg-purple-900/30 border border-purple-500/50 rounded-full"
+                      >
+                        <svg
+                          class="w-3 h-3 text-purple-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+                          />
+                        </svg>
+                        <span class="text-xs text-purple-300 font-medium"
+                          >Custom Design</span
+                        >
+                      </div>
+                    {:else}
+                      <div
+                        class="flex items-center gap-1 px-2 py-1 bg-gray-700/50 border border-gray-600/50 rounded-full"
+                      >
+                        <svg
+                          class="w-3 h-3 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <span class="text-xs text-gray-400 font-medium"
+                          >Default Design</span
+                        >
+                      </div>
+                    {/if}
                   </div>
-                {/if}
-              </div>
-            {/if}
-          </form>
+
+                  {#if generatingPreview}
+                    <div class="flex items-center justify-center py-8">
+                      <div class="text-center">
+                        <div
+                          class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00F5FF] mx-auto mb-2"
+                        ></div>
+                        <p class="text-sm text-gray-400">
+                          Generating ticket preview...
+                        </p>
+                      </div>
+                    </div>
+                  {:else if ticketPreviewUrl}
+                    <div class="text-center">
+                      <div
+                        class="inline-block border-2 border-gray-600 rounded-lg overflow-hidden bg-white p-2"
+                      >
+                        <img
+                          src={ticketPreviewUrl}
+                          alt="Ticket Preview"
+                          class="max-w-full h-auto max-h-64 object-contain"
+                          in:fade={{ duration: 500 }}
+                          out:fade={{ duration: 200 }}
+                        />
+                      </div>
+                      <p class="text-xs text-gray-500 mt-2 italic">
+                        This is how the ticket will look when generated
+                      </p>
+
+                      <!-- Design Config Summary -->
+                      {#if currentDesignConfig}
+                        <div class="mt-3 pt-3 border-t border-gray-700">
+                          <div class="flex items-center gap-2 mb-2">
+                            <svg
+                              class="w-3 h-3 text-purple-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+                              />
+                            </svg>
+                            <span class="text-xs text-purple-300 font-medium"
+                              >Custom Design Applied</span
+                            >
+                          </div>
+                          <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="flex justify-between">
+                              <span class="text-gray-400">Canvas:</span>
+                              <span class="text-gray-300"
+                                >{currentDesignConfig.canvas?.width ||
+                                  400}×{currentDesignConfig.canvas?.height ||
+                                  600}</span
+                              >
+                            </div>
+                            <div class="flex justify-between">
+                              <span class="text-gray-400">QR Size:</span>
+                              <span class="text-gray-300"
+                                >{currentDesignConfig.qrCode?.size ||
+                                  100}px</span
+                              >
+                            </div>
+                            <div class="flex justify-between">
+                              <span class="text-gray-400">Primary Color:</span>
+                              <div class="flex items-center gap-1">
+                                <div
+                                  class="w-3 h-3 rounded border border-gray-600"
+                                  style="background-color: {currentDesignConfig
+                                    .colors?.primaryName || '#FFD700'}"
+                                ></div>
+                                <span class="text-gray-300 text-xs"
+                                  >{currentDesignConfig.colors?.primaryName ||
+                                    "#FFD700"}</span
+                                >
+                              </div>
+                            </div>
+                            <div class="flex justify-between">
+                              <span class="text-gray-400">Font Size:</span>
+                              <span class="text-gray-300"
+                                >{currentDesignConfig.fonts?.primaryName
+                                  ?.size || 26}px</span
+                              >
+                            </div>
+                          </div>
+                        </div>
+                      {/if}
+                    </div>
+                  {:else}
+                    <div class="text-center py-4">
+                      <div
+                        class="w-16 h-16 mx-auto mb-2 bg-gray-700 rounded-lg flex items-center justify-center"
+                      >
+                        <svg
+                          class="w-8 h-8 text-gray-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </div>
+                      <p class="text-sm text-gray-400">
+                        Ticket preview will appear here
+                      </p>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          {/if}
         </div>
 
         <!-- Action Buttons - Fixed at bottom -->
@@ -830,37 +1104,14 @@
           in:fly={{ y: 20, duration: 400, delay: 600 }}
           out:fly={{ y: -20, duration: 200 }}
         >
-          <div class="flex justify-end space-x-3">
-            <button
-              type="button"
-              on:click={closeModal}
-              class="px-4 py-2 text-gray-300 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition-all duration-300 hover:scale-105"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="guest-form"
-              class="px-6 py-2 bg-gradient-to-r from-[#9D4EDD] to-[#00F5FF] text-white rounded-lg hover:from-[#9D4EDD]/90 hover:to-[#00F5FF]/90 transition-all duration-300 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg"
-              disabled={loading}
-            >
-              {#if loading}
-                <svg
-                  class="w-4 h-4 animate-spin"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-                <span>Generating...</span>
-              {:else}
+          {#if successState}
+            <!-- Success State Buttons -->
+            <div class="flex justify-center space-x-3">
+              <button
+                type="button"
+                on:click={generateAnother}
+                class="px-6 py-2 bg-gradient-to-r from-[#9D4EDD] to-[#00F5FF] text-white rounded-lg hover:from-[#9D4EDD]/90 hover:to-[#00F5FF]/90 transition-all duration-300 flex items-center space-x-2 hover:scale-105 hover:shadow-lg"
+              >
                 <svg
                   class="w-4 h-4"
                   fill="none"
@@ -874,10 +1125,67 @@
                     d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                   />
                 </svg>
-                <span>Generate Ticket</span>
-              {/if}
-            </button>
-          </div>
+                <span>Generate Another</span>
+              </button>
+              <button
+                type="button"
+                on:click={closeModal}
+                class="px-4 py-2 text-gray-300 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition-all duration-300 hover:scale-105"
+              >
+                Close
+              </button>
+            </div>
+          {:else}
+            <!-- Form State Buttons -->
+            <div class="flex justify-end space-x-3">
+              <button
+                type="button"
+                on:click={closeModal}
+                class="px-4 py-2 text-gray-300 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition-all duration-300 hover:scale-105"
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                on:click={handleSubmit}
+                class="px-6 py-2 bg-gradient-to-r from-[#9D4EDD] to-[#00F5FF] text-white rounded-lg hover:from-[#9D4EDD]/90 hover:to-[#00F5FF]/90 transition-all duration-300 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg"
+                disabled={loading}
+              >
+                {#if loading}
+                  <svg
+                    class="w-4 h-4 animate-spin"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  <span>Generating...</span>
+                {:else}
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
+                  </svg>
+                  <span>Generate Ticket</span>
+                {/if}
+              </button>
+            </div>
+          {/if}
         </div>
       </div>
     </div>
