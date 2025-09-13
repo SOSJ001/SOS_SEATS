@@ -150,6 +150,72 @@
     });
   }
 
+  // Helper function to get image dimensions and calculate canvas size
+  async function getImageDimensions(
+    imageSrc: string | File
+  ): Promise<{ width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({ width: img.width, height: img.height });
+      };
+      img.onerror = reject;
+
+      if (typeof imageSrc === "string") {
+        img.src = imageSrc;
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          img.src = reader.result as string;
+        };
+        reader.readAsDataURL(imageSrc);
+      }
+    });
+  }
+
+  // Helper function to calculate optimal canvas size based on image dimensions
+  function calculateCanvasSize(
+    imageWidth: number,
+    imageHeight: number
+  ): { width: number; height: number } {
+    // Define minimum and maximum canvas dimensions
+    const minWidth = 300;
+    const maxWidth = 800;
+    const minHeight = 400;
+    const maxHeight = 1200;
+
+    // Calculate aspect ratio
+    const aspectRatio = imageWidth / imageHeight;
+
+    // Start with the image dimensions
+    let canvasWidth = imageWidth;
+    let canvasHeight = imageHeight;
+
+    // Adjust width if it's outside our bounds
+    if (canvasWidth < minWidth) {
+      canvasWidth = minWidth;
+      canvasHeight = canvasWidth / aspectRatio;
+    } else if (canvasWidth > maxWidth) {
+      canvasWidth = maxWidth;
+      canvasHeight = canvasWidth / aspectRatio;
+    }
+
+    // Adjust height if it's outside our bounds
+    if (canvasHeight < minHeight) {
+      canvasHeight = minHeight;
+      canvasWidth = canvasHeight * aspectRatio;
+    } else if (canvasHeight > maxHeight) {
+      canvasHeight = maxHeight;
+      canvasWidth = canvasHeight * aspectRatio;
+    }
+
+    // Round to nearest 10 for clean numbers
+    return {
+      width: Math.round(canvasWidth / 10) * 10,
+      height: Math.round(canvasHeight / 10) * 10,
+    };
+  }
+
   async function publishEvent() {
     isPublishing = true;
 
@@ -285,6 +351,37 @@
         eventImage = eventData.image;
       }
 
+      // Calculate dynamic canvas size based on event image
+      let dynamicDesignConfig = { ...ticketDesignConfig };
+
+      if (eventImage) {
+        try {
+          const imageDimensions = await getImageDimensions(eventImage);
+          const canvasSize = calculateCanvasSize(
+            imageDimensions.width,
+            imageDimensions.height
+          );
+
+          // Update the design config with dynamic canvas size
+          dynamicDesignConfig = {
+            ...ticketDesignConfig,
+            canvas: {
+              width: canvasSize.width,
+              height: canvasSize.height,
+            },
+          };
+
+          console.log(
+            `Dynamic canvas size: ${canvasSize.width}x${canvasSize.height} (from image: ${imageDimensions.width}x${imageDimensions.height})`
+          );
+        } catch (imageError) {
+          console.warn(
+            "Could not get image dimensions, using default canvas size:",
+            imageError
+          );
+        }
+      }
+
       // Generate ticket preview using the reusable function
       const previewUrl = await generateTicketPreview({
         eventName: eventData.name,
@@ -296,7 +393,7 @@
         ticketPrice: selectedTicketTypeForPreview.price,
         organizer: eventData.organizer,
         ticketNumber: "TIX-XXXXXXXX",
-        designConfig: ticketDesignConfig,
+        designConfig: dynamicDesignConfig,
       });
 
       ticketPreviewUrl = previewUrl;
@@ -314,7 +411,7 @@
     // Save to localStorage
     localStorage.setItem("eventCreationData", JSON.stringify(eventData));
 
-    // Regenerate preview with new config
+    // Regenerate preview with new config (will recalculate canvas size)
     generateTicketPreviewForEvent();
   }
 

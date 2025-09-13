@@ -137,21 +137,35 @@
 
       if (!selectedTicketType) return;
 
-      // Get event image as data URL
-      let eventImage = null;
+      // Calculate dynamic canvas size based on event image
+      let dynamicDesignConfig =
+        currentDesignConfig || defaultTicketDesignConfig;
+
       if (selectedEvent.image) {
         try {
-          const response = await fetch("/dataUrlApi", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ baseImageSrc: selectedEvent.image }),
-          });
-          const result = await response.json();
-          if (result.dataURL) {
-            eventImage = result.dataURL;
-          }
-        } catch (err) {
-          console.warn("Failed to fetch event image:", err);
+          const imageDimensions = await getImageDimensions(selectedEvent.image);
+          const canvasSize = calculateCanvasSize(
+            imageDimensions.width,
+            imageDimensions.height
+          );
+
+          // Update the design config with dynamic canvas size
+          dynamicDesignConfig = {
+            ...(currentDesignConfig || defaultTicketDesignConfig),
+            canvas: {
+              width: canvasSize.width,
+              height: canvasSize.height,
+            },
+          };
+
+          console.log(
+            `Form preview - Dynamic canvas size: ${canvasSize.width}x${canvasSize.height} (from image: ${imageDimensions.width}x${imageDimensions.height})`
+          );
+        } catch (imageError) {
+          console.warn(
+            "Could not get image dimensions for form preview, using default canvas size:",
+            imageError
+          );
         }
       }
 
@@ -164,14 +178,14 @@
         eventDate: selectedEvent.date,
         eventTime: selectedEvent.time,
         eventLocation: selectedEvent.location,
-        eventImage: eventImage,
+        eventImage: selectedEvent.image,
         ticketTypeName: selectedTicketType.name,
         ticketPrice: selectedTicketType.price,
         guestName: formData.guestName,
         organizer: selectedEvent.organizer,
         ticketNumber: "Will be generated",
         qrData: qrData,
-        designConfig: currentDesignConfig || undefined,
+        designConfig: dynamicDesignConfig,
       });
 
       ticketPreviewUrl = previewUrl;
@@ -329,6 +343,39 @@
         (tt) => tt.id === formData.ticketTypeId
       );
 
+      // Calculate dynamic canvas size based on event image
+      let dynamicDesignConfig =
+        selectedEvent?.ticket_design_config || defaultTicketDesignConfig;
+
+      if (selectedEvent?.image) {
+        try {
+          const imageDimensions = await getImageDimensions(selectedEvent.image);
+          const canvasSize = calculateCanvasSize(
+            imageDimensions.width,
+            imageDimensions.height
+          );
+
+          // Update the design config with dynamic canvas size
+          dynamicDesignConfig = {
+            ...(selectedEvent?.ticket_design_config ||
+              defaultTicketDesignConfig),
+            canvas: {
+              width: canvasSize.width,
+              height: canvasSize.height,
+            },
+          };
+
+          console.log(
+            `Dynamic canvas size: ${canvasSize.width}x${canvasSize.height} (from image: ${imageDimensions.width}x${imageDimensions.height})`
+          );
+        } catch (imageError) {
+          console.warn(
+            "Could not get image dimensions, using default canvas size:",
+            imageError
+          );
+        }
+      }
+
       // Generate ticket using the proper design system
       console.log("Passing guest ID as QR data:", guestId);
       const ticketUrl = await generateTicketPreview({
@@ -343,8 +390,7 @@
         organizer: selectedEvent?.organizer || "",
         ticketNumber: generatedTicketNumber,
         qrData: guestId, // Use guest ID as QR code data
-        designConfig:
-          selectedEvent?.ticket_design_config || defaultTicketDesignConfig, // Use event's custom design config or fallback to default
+        designConfig: dynamicDesignConfig, // Use dynamic design config with calculated canvas size
       });
 
       if (ticketUrl) {
@@ -358,6 +404,72 @@
       // Fallback to existing preview
       generatedTicketUrl = ticketPreviewUrl || "";
     }
+  }
+
+  // Helper function to get image dimensions and calculate canvas size
+  async function getImageDimensions(
+    imageSrc: string | File
+  ): Promise<{ width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({ width: img.width, height: img.height });
+      };
+      img.onerror = reject;
+
+      if (typeof imageSrc === "string") {
+        img.src = imageSrc;
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          img.src = reader.result as string;
+        };
+        reader.readAsDataURL(imageSrc);
+      }
+    });
+  }
+
+  // Helper function to calculate optimal canvas size based on image dimensions
+  function calculateCanvasSize(
+    imageWidth: number,
+    imageHeight: number
+  ): { width: number; height: number } {
+    // Define minimum and maximum canvas dimensions
+    const minWidth = 300;
+    const maxWidth = 800;
+    const minHeight = 400;
+    const maxHeight = 1200;
+
+    // Calculate aspect ratio
+    const aspectRatio = imageWidth / imageHeight;
+
+    // Start with the image dimensions
+    let canvasWidth = imageWidth;
+    let canvasHeight = imageHeight;
+
+    // Adjust width if it's outside our bounds
+    if (canvasWidth < minWidth) {
+      canvasWidth = minWidth;
+      canvasHeight = canvasWidth / aspectRatio;
+    } else if (canvasWidth > maxWidth) {
+      canvasWidth = maxWidth;
+      canvasHeight = canvasWidth / aspectRatio;
+    }
+
+    // Adjust height if it's outside our bounds
+    if (canvasHeight < minHeight) {
+      canvasHeight = minHeight;
+      canvasWidth = canvasHeight * aspectRatio;
+    } else if (canvasHeight > maxHeight) {
+      canvasHeight = maxHeight;
+      canvasWidth = canvasHeight * aspectRatio;
+    }
+
+    // Round to nearest 10 for clean numbers
+    return {
+      width: Math.round(canvasWidth / 10) * 10,
+      height: Math.round(canvasHeight / 10) * 10,
+    };
   }
 
   // Generate another ticket (reset to form)
