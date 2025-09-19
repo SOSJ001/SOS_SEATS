@@ -27,6 +27,10 @@
     // Check for available wallets
     checkAvailableWallets();
 
+    // Providers may inject after mount; re-check shortly after
+    setTimeout(checkAvailableWallets, 300);
+    setTimeout(checkAvailableWallets, 1500);
+
     // Set up wallet connection state listeners
     setupWalletListeners();
 
@@ -66,47 +70,33 @@
       });
     }
 
-    // Solflare wallet listeners
-    if (typeof window !== "undefined" && (window as any).solflare) {
-      (window as any).solflare.on("connect", () => {
+    // Brave wallet listeners
+    if (
+      typeof window !== "undefined" &&
+      (window as any).solana &&
+      (((window as any).solana as any).isBraveWallet === true ||
+        typeof (navigator as any)?.brave !== "undefined" ||
+        ((navigator as any)?.userAgent || "").includes("Brave"))
+    ) {
+      (window as any).solana.on("connect", () => {
         // Don't auto-authenticate here, let the user do it manually
       });
 
-      (window as any).solflare.on("disconnect", () => {
+      (window as any).solana.on("disconnect", () => {
+        // Clear session when wallet is disconnected
         handleWalletDisconnect();
       });
 
-      (window as any).solflare.on("accountChanged", (publicKey: any) => {
+      (window as any).solana.on("accountChanged", (publicKey: any) => {
         if (publicKey) {
+          // Account changed, update wallet address
           const newAddress = publicKey.toString();
           if (newAddress !== walletAddress) {
             walletAddress = newAddress;
             updateStore();
           }
         } else {
-          handleWalletDisconnect();
-        }
-      });
-    }
-
-    // Backpack wallet listeners
-    if (typeof window !== "undefined" && (window as any).backpack) {
-      (window as any).backpack.on("connect", () => {
-        // Don't auto-authenticate here, let the user do it manually
-      });
-
-      (window as any).backpack.on("disconnect", () => {
-        handleWalletDisconnect();
-      });
-
-      (window as any).backpack.on("accountChanged", (publicKey: any) => {
-        if (publicKey) {
-          const newAddress = publicKey.toString();
-          if (newAddress !== walletAddress) {
-            walletAddress = newAddress;
-            updateStore();
-          }
-        } else {
+          // Account cleared, handle as disconnect
           handleWalletDisconnect();
         }
       });
@@ -178,6 +168,7 @@
         (window as any).solana.isPhantom
       ) {
         try {
+          console.debug("[AutoConnect] Trying Phantom onlyIfTrusted");
           const response = await (window as any).solana.connect({
             onlyIfTrusted: true,
           });
@@ -189,7 +180,38 @@
             };
           }
         } catch (error) {
-          // Auto-connect failed silently
+          console.debug("[AutoConnect] Phantom failed silently", error);
+        }
+      }
+
+      // Try Brave Wallet
+      if (
+        typeof window !== "undefined" &&
+        (window as any).solana &&
+        (((window as any).solana as any).isBraveWallet === true ||
+          typeof (navigator as any)?.brave !== "undefined" ||
+          ((navigator as any)?.userAgent || "").includes("Brave"))
+      ) {
+        try {
+          const provider: any =
+            (window as any).braveSolana || (window as any).solana;
+          console.debug("[AutoConnect] Trying Brave onlyIfTrusted", {
+            hasProvider: !!provider,
+            isBraveWallet: !!provider?.isBraveWallet,
+            isPhantom: !!provider?.isPhantom,
+          });
+          const response = await provider.connect({
+            onlyIfTrusted: true,
+          });
+          if (response && response.publicKey) {
+            return {
+              success: true,
+              walletAddress: response.publicKey.toString(),
+              walletName: "Brave",
+            };
+          }
+        } catch (error) {
+          console.debug("[AutoConnect] Brave failed silently", error);
         }
       }
 
@@ -208,7 +230,7 @@
             }
           }
         } catch (error) {
-          // Auto-connect failed silently
+          console.debug("[AutoConnect] Solflare failed silently", error);
         }
       }
 
@@ -227,7 +249,7 @@
             }
           }
         } catch (error) {
-          // Auto-connect failed silently
+          console.debug("[AutoConnect] Backpack failed silently", error);
         }
       }
 
@@ -249,6 +271,17 @@
       availableWallets.push("Phantom");
     }
 
+    // Check for Brave Wallet
+    if (
+      typeof window !== "undefined" &&
+      (window as any).solana &&
+      (((window as any).solana as any).isBraveWallet === true ||
+        typeof (navigator as any)?.brave !== "undefined" ||
+        ((navigator as any)?.userAgent || "").includes("Brave"))
+    ) {
+      availableWallets.push("Brave");
+    }
+
     // Check for Solflare
     if (typeof window !== "undefined" && (window as any).solflare) {
       availableWallets.push("Solflare");
@@ -261,6 +294,25 @@
 
     // Update store after wallet detection
     updateStore();
+
+    try {
+      const w: any = typeof window !== "undefined" ? (window as any) : {};
+      const detected = {
+        phantom: !!(w.solana && w.solana.isPhantom),
+        brave:
+          !!(w.solana && (w.solana as any).isBraveWallet === true) ||
+          typeof (navigator as any)?.brave !== "undefined" ||
+          ((navigator as any)?.userAgent || "").includes("Brave"),
+        solflare: !!w.solflare,
+        backpack: !!w.backpack,
+      };
+      console.debug(
+        "[WalletDetection] Detected wallets:",
+        detected,
+        "available:",
+        availableWallets
+      );
+    } catch {}
   }
 
   function updateStore() {
@@ -378,6 +430,7 @@
 
     try {
       let response;
+      console.debug("[Connect] Requested wallet:", walletName);
 
       if (
         walletName === "Phantom" &&
@@ -385,21 +438,48 @@
         (window as any).solana &&
         (window as any).solana.isPhantom
       ) {
-        response = await (window as any).solana.connect();
+        const provider: any =
+          (window as any).phantom?.solana || (window as any).solana;
+        console.debug("[Connect] Using Phantom provider", {
+          hasProvider: !!provider,
+          isPhantom: !!provider?.isPhantom,
+          hasConnect: typeof provider?.connect === "function",
+        });
+        response = await provider.connect();
+      } else if (
+        walletName === "Brave" &&
+        typeof window !== "undefined" &&
+        (window as any).solana &&
+        (((window as any).solana as any).isBraveWallet === true ||
+          typeof (navigator as any)?.brave !== "undefined" ||
+          ((navigator as any)?.userAgent || "").includes("Brave"))
+      ) {
+        const provider: any =
+          (window as any).braveSolana || (window as any).solana;
+        console.debug("[Connect] Using Brave provider", {
+          hasProvider: !!provider,
+          isBraveWallet: !!provider?.isBraveWallet,
+          isPhantom: !!provider?.isPhantom,
+          hasConnect: typeof provider?.connect === "function",
+        });
+        response = await provider.connect();
       } else if (
         walletName === "Solflare" &&
         typeof window !== "undefined" &&
         (window as any).solflare
       ) {
+        console.debug("[Connect] Using Solflare provider");
         response = await (window as any).solflare.connect();
       } else if (
         walletName === "Backpack" &&
         typeof window !== "undefined" &&
         (window as any).backpack
       ) {
+        console.debug("[Connect] Using Backpack provider");
         response = await (window as any).backpack.connect();
       } else {
         connectionError = `${walletName} wallet not found or not available.`;
+        console.error("[Connect] Provider not found:", walletName);
         updateStore();
         return false;
       }
@@ -419,7 +499,8 @@
 
       return authResult.success;
     } catch (error: any) {
-      connectionError = error.message || `Failed to connect to ${walletName}`;
+      console.error("[Connect] Wallet connect error:", walletName, error);
+      connectionError = error?.message || `Failed to connect to ${walletName}`;
       updateStore();
       return false;
     }
@@ -438,7 +519,7 @@
 
     // No wallets available
     connectionError =
-      "No wallets found. Please install Phantom, Solflare, or Backpack wallet.";
+      "No wallets found. Please install Phantom, Brave, Solflare, or Backpack wallet.";
     updateStore();
     return false;
   }
@@ -446,7 +527,9 @@
   function disconnectWallet() {
     // Disconnect from wallet extensions
     if (typeof window !== "undefined" && (window as any).solana) {
-      (window as any).solana.disconnect();
+      try {
+        ((window as any).braveSolana || (window as any).solana).disconnect();
+      } catch {}
     }
     if (typeof window !== "undefined" && (window as any).solflare) {
       (window as any).solflare.disconnect();
@@ -474,6 +557,6 @@
 
 <style>
   .solana-wallet-provider {
-    /* Provider styles */
+    display: contents;
   }
 </style>

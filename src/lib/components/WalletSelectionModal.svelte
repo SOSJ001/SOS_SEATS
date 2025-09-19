@@ -29,7 +29,7 @@
     type="button"
     class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
     on:click={handleBackdropClick}
-    on:keydown={(e) => e.key === 'Escape' && closeModal()}
+    on:keydown={(e) => e.key === "Escape" && closeModal()}
     aria-label="Close modal"
     transition:fade={{ duration: 200 }}
   >
@@ -97,6 +97,20 @@
                     >
                       <path
                         d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                      />
+                    </svg>
+                  </div>
+                {:else if wallet === "Brave"}
+                  <div
+                    class="w-8 h-8 bg-gradient-to-br from-[#FF6B00] to-[#FF8C3A] rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200"
+                  >
+                    <svg
+                      class="w-5 h-5 text-white"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M12 2l4 2 4 3-2 11-6 4-6-4L4 7l4-3 4-2zm0 3.2L9.2 6.5 6.7 8.3 8 16l4 2.6 4-2.6 1.3-7.7-2.5-1.8L12 5.2z"
                       />
                     </svg>
                   </div>
@@ -177,7 +191,7 @@
             </div>
             <p class="text-gray-200 font-medium mb-2">No wallets detected</p>
             <p class="text-sm text-gray-400">
-              Please install a Solana wallet like Phantom, Solflare, or
+              Please install a Solana wallet like Phantom, Brave, Solflare, or
               Backpack.
             </p>
           </div>
