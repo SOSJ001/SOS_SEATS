@@ -10,6 +10,14 @@ export async function load({ cookies }) {
   // Use the helper function to get user ID
   const user_Id = getUserIdFromCookies(cookies);
 
+  // If no authenticated user, return empty datasets
+  if (!user_Id) {
+    return {
+      guestsData: { data: [], error: null },
+      eventsData: { data: [], error: null },
+    };
+  }
+
   // Load both events and guests data
   try {
     const [guestsData, eventsData] = await Promise.all([

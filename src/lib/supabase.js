@@ -2277,8 +2277,8 @@ export function getUserIdFromCookies(cookies) {
   const web3UserId = extractWeb3UserId(cookies.get("web3Session"));
   if (web3UserId) return web3UserId;
 
-  // BYPASS: Return test user ID for development
-  return "66c0a293-b150-4847-9c44-a376d27e4de3";
+  // No authenticated user
+  return null;
 }
 
 // Bypass function for development - uses direct SQL to get around RLS
