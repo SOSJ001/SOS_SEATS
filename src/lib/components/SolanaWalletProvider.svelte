@@ -168,7 +168,6 @@
         (window as any).solana.isPhantom
       ) {
         try {
-          console.debug("[AutoConnect] Trying Phantom onlyIfTrusted");
           const response = await (window as any).solana.connect({
             onlyIfTrusted: true,
           });
@@ -179,9 +178,7 @@
               walletName: "Phantom",
             };
           }
-        } catch (error) {
-          console.debug("[AutoConnect] Phantom failed silently", error);
-        }
+        } catch (error) {}
       }
 
       // Try Brave Wallet
@@ -195,11 +192,6 @@
         try {
           const provider: any =
             (window as any).braveSolana || (window as any).solana;
-          console.debug("[AutoConnect] Trying Brave onlyIfTrusted", {
-            hasProvider: !!provider,
-            isBraveWallet: !!provider?.isBraveWallet,
-            isPhantom: !!provider?.isPhantom,
-          });
           const response = await provider.connect({
             onlyIfTrusted: true,
           });
@@ -210,9 +202,7 @@
               walletName: "Brave",
             };
           }
-        } catch (error) {
-          console.debug("[AutoConnect] Brave failed silently", error);
-        }
+        } catch (error) {}
       }
 
       // Try Solflare
@@ -229,9 +219,7 @@
               };
             }
           }
-        } catch (error) {
-          console.debug("[AutoConnect] Solflare failed silently", error);
-        }
+        } catch (error) {}
       }
 
       // Try Backpack
@@ -248,9 +236,7 @@
               };
             }
           }
-        } catch (error) {
-          console.debug("[AutoConnect] Backpack failed silently", error);
-        }
+        } catch (error) {}
       }
 
       return { success: false };
@@ -294,25 +280,6 @@
 
     // Update store after wallet detection
     updateStore();
-
-    try {
-      const w: any = typeof window !== "undefined" ? (window as any) : {};
-      const detected = {
-        phantom: !!(w.solana && w.solana.isPhantom),
-        brave:
-          !!(w.solana && (w.solana as any).isBraveWallet === true) ||
-          typeof (navigator as any)?.brave !== "undefined" ||
-          ((navigator as any)?.userAgent || "").includes("Brave"),
-        solflare: !!w.solflare,
-        backpack: !!w.backpack,
-      };
-      console.debug(
-        "[WalletDetection] Detected wallets:",
-        detected,
-        "available:",
-        availableWallets
-      );
-    } catch {}
   }
 
   function updateStore() {
@@ -430,7 +397,6 @@
 
     try {
       let response;
-      console.debug("[Connect] Requested wallet:", walletName);
 
       if (
         walletName === "Phantom" &&
@@ -440,11 +406,6 @@
       ) {
         const provider: any =
           (window as any).phantom?.solana || (window as any).solana;
-        console.debug("[Connect] Using Phantom provider", {
-          hasProvider: !!provider,
-          isPhantom: !!provider?.isPhantom,
-          hasConnect: typeof provider?.connect === "function",
-        });
         response = await provider.connect();
       } else if (
         walletName === "Brave" &&
@@ -456,30 +417,22 @@
       ) {
         const provider: any =
           (window as any).braveSolana || (window as any).solana;
-        console.debug("[Connect] Using Brave provider", {
-          hasProvider: !!provider,
-          isBraveWallet: !!provider?.isBraveWallet,
-          isPhantom: !!provider?.isPhantom,
-          hasConnect: typeof provider?.connect === "function",
-        });
         response = await provider.connect();
       } else if (
         walletName === "Solflare" &&
         typeof window !== "undefined" &&
         (window as any).solflare
       ) {
-        console.debug("[Connect] Using Solflare provider");
         response = await (window as any).solflare.connect();
       } else if (
         walletName === "Backpack" &&
         typeof window !== "undefined" &&
         (window as any).backpack
       ) {
-        console.debug("[Connect] Using Backpack provider");
         response = await (window as any).backpack.connect();
       } else {
         connectionError = `${walletName} wallet not found or not available.`;
-        console.error("[Connect] Provider not found:", walletName);
+        console.error("[Wallet] Provider not found:", walletName);
         updateStore();
         return false;
       }
@@ -499,7 +452,7 @@
 
       return authResult.success;
     } catch (error: any) {
-      console.error("[Connect] Wallet connect error:", walletName, error);
+      console.error("[Wallet] Connect error:", walletName, error);
       connectionError = error?.message || `Failed to connect to ${walletName}`;
       updateStore();
       return false;
