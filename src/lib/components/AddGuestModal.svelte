@@ -297,33 +297,65 @@
     document.body.removeChild(link);
   }
 
-  // Share ticket function (copy to clipboard)
+  // Share ticket function with mobile Web Share API (files), with fallbacks
   async function shareTicket() {
     if (!generatedTicketUrl) return;
 
     try {
-      // Convert data URL to blob
+      // Fetch the image blob from the data URL
       const response = await fetch(generatedTicketUrl);
       const blob = await response.blob();
 
-      // Copy to clipboard
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          [blob.type]: blob,
-        }),
-      ]);
+      const filename = `ticket-${generatedGuestName
+        .replace(/\s+/g, "-")
+        .toLowerCase()}-${generatedTicketNumber}.png`;
 
-      // Show success feedback (you could add a toast here)
-      console.log("Ticket copied to clipboard!");
-    } catch (err) {
-      console.error("Failed to copy ticket:", err);
-      // Fallback: copy the data URL as text
-      try {
-        await navigator.clipboard.writeText(generatedTicketUrl);
-        console.log("Ticket URL copied to clipboard!");
-      } catch (fallbackErr) {
-        console.error("Failed to copy ticket URL:", fallbackErr);
+      // Try Web Share Level 2 with files (best experience on mobile)
+      const file = new File([blob], filename, {
+        type: blob.type || "image/png",
+      });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: "Your Ticket",
+          text: "Here is your ticket.",
+        });
+        return;
       }
+
+      // Fallback: basic Web Share with URL (if supported)
+      if ((navigator as any).share) {
+        await (navigator as any).share({
+          title: "Your Ticket",
+          text: "Here is your ticket.",
+          url: generatedTicketUrl,
+        });
+        return;
+      }
+
+      // Fallback: trigger a download
+      downloadTicket();
+
+      // Also attempt to copy the image to clipboard if supported
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            [blob.type || "image/png"]: blob,
+          }),
+        ]);
+        console.log("Ticket copied to clipboard!");
+      } catch (_) {
+        // Last resort: copy data URL as text
+        try {
+          await navigator.clipboard.writeText(generatedTicketUrl);
+          console.log("Ticket URL copied to clipboard!");
+        } catch (__) {
+          /* noop */
+        }
+      }
+    } catch (err) {
+      console.error("Share failed, falling back to download:", err);
+      downloadTicket();
     }
   }
 
