@@ -1561,10 +1561,18 @@ export async function getEventById(eventId) {
       .select("*")
       .eq("event_id", eventId);
 
-    const { data: images, error: imageError } = await supabase
-      .from("images")
-      .select("*")
-      .eq("id", eventData.image_id);
+    // Load image data if event has an image_id
+    let images = [];
+    if (eventData.image_id) {
+      const { data: imageData, error: imageError } = await supabase
+        .from("images")
+        .select("*")
+        .eq("id", eventData.image_id);
+
+      if (!imageError && imageData) {
+        images = imageData;
+      }
+    }
 
     const { data: venueSections, error: venueError } = await supabase
       .from("venue_sections")
@@ -1580,7 +1588,7 @@ export async function getEventById(eventId) {
     const fullEventData = {
       ...eventData,
       ticket_types: ticketTypes || [],
-      images: images || [],
+      images: images,
       venue_sections: venueSections || [],
       seating_options: seatingOptions || [],
     };

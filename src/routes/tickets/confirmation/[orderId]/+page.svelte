@@ -7,10 +7,21 @@
     verifyWeb3Session,
     supabase,
     listAllOrders,
+    getEventById,
   } from "$lib/supabase.js";
-  import { sessionFromDb, showToast } from "$lib/store";
+  import {
+    sessionFromDb,
+    showToast,
+    generateTicketPreview,
+    defaultTicketDesignConfig,
+    type TicketDesignConfig,
+    shareImageDataUrl,
+    downloadImage,
+  } from "$lib/store";
   import BackButton from "$lib/components/BackButton.svelte";
   import GradientButton from "$lib/components/GradientButton.svelte";
+  import Spinner from "$lib/components/Spinner.svelte";
+  import ToastContainer from "$lib/components/ToastContainer.svelte";
 
   // Get order ID from URL params
   $: orderId = $page.params.orderId;
@@ -18,6 +29,12 @@
   let loading = true;
   let error: string | null = null;
   let ticketSummary: any = null;
+
+  // Ticket preview state
+  let eventDetails: any = null;
+  let ticketPreviews: string[] = [];
+  let generatingPreviews = false;
+  let currentTicketIndex = 0;
 
   onMount(async () => {
     try {
@@ -305,19 +322,241 @@
       }
 
       loading = false;
+
+      // Generate ticket previews after order is loaded
+      if (order && order.event_id) {
+        await generateTicketPreviews();
+      }
     } catch (err: any) {
       error = "Failed to load order";
       loading = false;
     }
   });
 
+  // Generate ticket previews for all tickets in the order
+  async function generateTicketPreviews() {
+    if (!order || !order.event_id || generatingPreviews) return;
+
+    generatingPreviews = true;
+    try {
+      // Get event details with design config
+      eventDetails = await getEventById(order.event_id);
+
+      if (!eventDetails) {
+        console.warn("Could not load event details for ticket generation");
+        return;
+      }
+
+      // Generate preview for each ticket
+      const previews: string[] = [];
+
+      for (let i = 0; i < (order.order_items?.length || 1); i++) {
+        const item = order.order_items?.[i];
+        const ticketNumber =
+          item?.ticket_number || `TIX-${order.order_number}-${i + 1}`;
+        const ticketTypeName = item?.ticket_types?.name || "General Admission";
+        const ticketPrice =
+          item?.ticket_types?.price ||
+          (order.payment_method === "free"
+            ? 0
+            : order.total_amount / (order.order_items?.length || 1));
+
+        // Use event's design config or default
+        let designConfig: TicketDesignConfig = defaultTicketDesignConfig;
+        if (eventDetails.ticket_design_config) {
+          designConfig = eventDetails.ticket_design_config;
+
+          // Ensure textBox.enabled exists for backward compatibility
+          if (
+            designConfig.textBox &&
+            designConfig.textBox.enabled === undefined
+          ) {
+            designConfig.textBox.enabled = true;
+          }
+        }
+
+        // Calculate dynamic canvas size based on event image
+        const eventImage = eventDetails.images?.[0] || eventDetails.image;
+
+        // Use fallback image if no event image is available
+        const imageUrl =
+          eventImage?.file_path ||
+          "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop";
+
+        if (eventImage?.file_path) {
+          try {
+            const imageDimensions = await getImageDimensions(
+              eventImage.file_path
+            );
+            const canvasSize = calculateCanvasSize(
+              imageDimensions.width,
+              imageDimensions.height
+            );
+
+            designConfig = {
+              ...designConfig,
+              canvas: {
+                width: canvasSize.width,
+                height: canvasSize.height,
+              },
+            };
+          } catch (imageError) {
+            console.warn(
+              "Could not get image dimensions, using default canvas size:",
+              imageError
+            );
+          }
+        }
+
+        // Generate QR code data (using ticket number as unique identifier)
+        const qrData = ticketNumber;
+
+        // Generate ticket preview
+        const previewUrl = await generateTicketPreview({
+          eventName: eventDetails.name,
+          eventDate: eventDetails.date,
+          eventTime: eventDetails.time,
+          eventLocation: eventDetails.location,
+          eventImage: imageUrl,
+          ticketTypeName: ticketTypeName,
+          ticketPrice: ticketPrice,
+          guestName: order.buyer_name || "Guest",
+          organizer: eventDetails.organizer || "Event Organizer",
+          ticketNumber: ticketNumber,
+          qrData: qrData,
+          designConfig: designConfig,
+        });
+
+        if (previewUrl) {
+          previews.push(previewUrl);
+        }
+      }
+
+      ticketPreviews = previews;
+    } catch (err) {
+      console.error("Error generating ticket previews:", err);
+    } finally {
+      generatingPreviews = false;
+    }
+  }
+
+  // Helper function to get image dimensions
+  async function getImageDimensions(
+    imageSrc: string
+  ): Promise<{ width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({ width: img.width, height: img.height });
+      };
+      img.onerror = reject;
+      img.src = imageSrc;
+    });
+  }
+
+  // Helper function to calculate optimal canvas size based on image dimensions
+  function calculateCanvasSize(
+    imageWidth: number,
+    imageHeight: number
+  ): { width: number; height: number } {
+    const minWidth = 300;
+    const maxWidth = 800;
+    const minHeight = 400;
+    const maxHeight = 1200;
+
+    const aspectRatio = imageWidth / imageHeight;
+
+    let canvasWidth = imageWidth;
+    let canvasHeight = imageHeight;
+
+    if (canvasWidth < minWidth) {
+      canvasWidth = minWidth;
+      canvasHeight = canvasWidth / aspectRatio;
+    } else if (canvasWidth > maxWidth) {
+      canvasWidth = maxWidth;
+      canvasHeight = canvasWidth / aspectRatio;
+    }
+
+    if (canvasHeight < minHeight) {
+      canvasHeight = minHeight;
+      canvasWidth = canvasHeight * aspectRatio;
+    } else if (canvasHeight > maxHeight) {
+      canvasHeight = maxHeight;
+      canvasWidth = canvasHeight * aspectRatio;
+    }
+
+    return {
+      width: Math.round(canvasWidth / 10) * 10,
+      height: Math.round(canvasHeight / 10) * 10,
+    };
+  }
+
+  // Download current ticket
+  function downloadCurrentTicket() {
+    if (!ticketPreviews[currentTicketIndex]) return;
+
+    const filename = `ticket-${order.order_number}-${currentTicketIndex + 1}.png`;
+    downloadImage(ticketPreviews[currentTicketIndex], filename);
+  }
+
+  // Share current ticket
+  async function shareCurrentTicket() {
+    if (!ticketPreviews[currentTicketIndex]) return;
+
+    const filename = `ticket-${order.order_number}-${currentTicketIndex + 1}.png`;
+
+    try {
+      await shareImageDataUrl({
+        dataUrl: ticketPreviews[currentTicketIndex],
+        filename,
+        title: "Your Ticket",
+        text: `Here is your ticket for ${order.events?.name}`,
+      });
+    } catch (err) {
+      console.error("Share failed, falling back to download:", err);
+      downloadCurrentTicket();
+    }
+  }
+
+  // Download all tickets
+  function downloadAllTickets() {
+    ticketPreviews.forEach((preview, index) => {
+      setTimeout(() => {
+        const filename = `ticket-${order.order_number}-${index + 1}.png`;
+        downloadImage(preview, filename);
+      }, index * 500); // Stagger downloads
+    });
+  }
+
+  // Navigation functions for ticket slider
+  function nextTicket() {
+    if (currentTicketIndex < ticketPreviews.length - 1) {
+      currentTicketIndex++;
+    }
+  }
+
+  function prevTicket() {
+    if (currentTicketIndex > 0) {
+      currentTicketIndex--;
+    }
+  }
+
+  function goToTicket(index: number) {
+    if (index >= 0 && index < ticketPreviews.length) {
+      currentTicketIndex = index;
+    }
+  }
+
   function downloadTickets() {
-    // TODO: Implement ticket download functionality
-    showToast(
-      "info",
-      "Coming Soon",
-      "Ticket download functionality will be implemented soon!"
-    );
+    if (ticketPreviews.length > 0) {
+      downloadAllTickets();
+    } else {
+      showToast(
+        "info",
+        "Coming Soon",
+        "Ticket download functionality will be implemented soon!"
+      );
+    }
   }
 
   function shareEvent() {
@@ -340,9 +579,9 @@
     <!-- Loading State -->
     <div class="flex items-center justify-center min-h-screen">
       <div class="text-center">
-        <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"
-        ></div>
+        <div class="flex justify-center mb-4">
+          <Spinner />
+        </div>
         <p class="text-gray-400">Loading ticket confirmation...</p>
       </div>
     </div>
@@ -371,207 +610,244 @@
     />
 
     <!-- Main Content -->
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
       <!-- Success Header -->
-      <div class="text-center mb-12">
-        <div class="text-green-500 text-8xl mb-6">🎉</div>
-        <h1 class="text-4xl font-bold text-white mb-4">
+      <div class="text-center mb-8">
+        <div class="text-green-500 text-6xl mb-4">🎉</div>
+        <h1 class="text-3xl font-bold text-white mb-2">
           {order.payment_method === "free"
-            ? "Free Tickets Claimed Successfully!"
-            : "Tickets Claimed Successfully!"}
+            ? ticketSummary?.totalTickets === 1
+              ? "Free Ticket Claimed!"
+              : "Free Tickets Claimed!"
+            : ticketSummary?.totalTickets === 1
+              ? "Ticket Confirmed!"
+              : "Tickets Confirmed!"}
         </h1>
-        <p class="text-xl text-gray-300 mb-2">
-          You've successfully claimed your {order.payment_method === "free"
-            ? "free "
-            : ""}tickets for
+        <p class="text-lg text-gray-300">
+          Your {ticketSummary?.totalTickets === 1 ? "ticket" : "tickets"} for
+          <span class="text-[#00F5FF] font-semibold">{order.events?.name}</span>
+          {ticketSummary?.totalTickets === 1 ? "is" : "are"} ready
         </p>
-        <h2
-          class="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent"
-        >
-          {order.events?.name}
-        </h2>
-
-        {#if order.payment_method === "free"}
-          <div
-            class="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg max-w-md mx-auto"
-          >
-            <div class="flex items-center gap-2 text-green-400">
-              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clip-rule="evenodd"
-                ></path>
-              </svg>
-              <span class="font-semibold">Free Ticket Order</span>
-            </div>
-            <p class="text-sm text-green-300 mt-1">
-              No payment required - your tickets are ready to use!
-            </p>
-          </div>
-        {:else if order.payment_method === "solana"}
-          <div
-            class="mt-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg max-w-md mx-auto"
-          >
-            <div class="flex items-center gap-2 text-blue-400">
-              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clip-rule="evenodd"
-                ></path>
-              </svg>
-              <span class="font-semibold">Solana Payment Completed</span>
-            </div>
-            <p class="text-sm text-blue-300 mt-1">
-              Payment of {order.total_amount}
-              {order.currency} confirmed on blockchain!
-            </p>
-          </div>
-        {/if}
       </div>
 
-      <!-- Order Details Card -->
-      <div class="bg-gray-800 rounded-xl p-8 mb-8 border border-gray-700">
-        <h3 class="text-2xl font-bold text-white mb-6">Order Details</h3>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <p class="text-gray-400 text-sm">Order Number</p>
-            <p class="text-white font-mono text-lg">{order.order_number}</p>
+      <!-- Compact Order Summary -->
+      <div class="bg-gray-800/50 rounded-lg p-4 mb-6 border border-gray-700/50">
+        <div class="flex flex-wrap items-center justify-between gap-4 text-sm">
+          <div class="flex items-center gap-4">
+            <span class="text-gray-400">Order:</span>
+            <span class="text-white font-mono">{order.order_number}</span>
           </div>
-
-          <div>
-            <p class="text-gray-400 text-sm">Order Date</p>
-            <p class="text-white text-lg">
-              {new Date(order.created_at).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </p>
+          <div class="flex items-center gap-4">
+            <span class="text-gray-400"
+              >{ticketSummary?.totalTickets === 1
+                ? "Ticket:"
+                : "Tickets:"}</span
+            >
+            <span class="text-white font-semibold"
+              >{ticketSummary?.totalTickets ||
+                order.order_items?.length ||
+                0}</span
+            >
           </div>
-
-          <div>
-            <p class="text-gray-400 text-sm">Event Date</p>
-            <p class="text-white text-lg">
-              {new Date(order.events?.date).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </p>
+          <div class="flex items-center gap-4">
+            <span class="text-gray-400">Status:</span>
+            <span class="text-green-400 font-semibold capitalize"
+              >{order.payment_status}</span
+            >
           </div>
-
-          <div>
-            <p class="text-gray-400 text-sm">Event Location</p>
-            <p class="text-white text-lg">{order.events?.location}</p>
-          </div>
-
-          <div>
-            <p class="text-gray-400 text-sm">Total Tickets</p>
-            <p class="text-white text-lg font-bold">
-              {ticketSummary?.totalTickets || order.order_items?.length || 0} tickets
-            </p>
-          </div>
-
-          <div>
-            <p class="text-gray-400 text-sm">Payment Status</p>
-            <p class="text-green-400 text-lg font-semibold capitalize">
-              {order.payment_status}
-            </p>
-          </div>
-
           {#if order.payment_method === "solana"}
-            <div>
-              <p class="text-gray-400 text-sm">Payment Method</p>
-              <p class="text-blue-400 text-lg font-semibold">
-                💎 Solana Blockchain
-              </p>
-            </div>
-
-            <div>
-              <p class="text-gray-400 text-sm">Amount Paid</p>
-              <p class="text-white text-lg font-semibold">
-                {order.total_amount}
-                {order.currency}
-              </p>
+            <div class="flex items-center gap-4">
+              <span class="text-gray-400">Paid:</span>
+              <span class="text-white font-semibold"
+                >{order.total_amount} {order.currency}</span
+              >
             </div>
           {/if}
         </div>
       </div>
 
-      <!-- Ticket Summary -->
-      {#if ticketSummary && Object.keys(ticketSummary.ticketTypes).length > 0}
-        <div class="bg-gray-800 rounded-xl p-8 mb-8 border border-gray-700">
-          <h3 class="text-2xl font-bold text-white mb-6">Ticket Summary</h3>
+      <!-- Main Ticket Display -->
+      {#if ticketPreviews.length > 0}
+        <div
+          class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl"
+        >
+          <div class="text-center mb-8">
+            <h2 class="text-2xl font-bold text-white mb-2">
+              Your {ticketPreviews.length === 1 ? "Ticket" : "Tickets"}
+            </h2>
+            {#if ticketPreviews.length > 1}
+              <p class="text-gray-400">
+                Ticket {currentTicketIndex + 1} of {ticketPreviews.length}
+              </p>
+            {/if}
+          </div>
 
-          <div class="space-y-4">
-            {#each Object.entries(ticketSummary.ticketTypes) as [ticketType, quantity]}
-              <div
-                class="flex items-center justify-between p-4 bg-gray-700 rounded-lg"
-              >
-                <div class="flex-1">
-                  <h4 class="text-white font-semibold">{ticketType}</h4>
-                  <p class="text-gray-400 text-sm">
-                    {quantity}
-                    {quantity === 1 ? "ticket" : "tickets"}
-                  </p>
-                </div>
-                <div class="text-right">
-                  <p class="text-green-400 font-bold">
-                    {order.payment_method === "free"
-                      ? "Free"
-                      : `${order.total_amount / ticketSummary.totalTickets} ${order.currency}`}
-                  </p>
-                  <p class="text-gray-400 text-sm">per ticket</p>
+          <!-- Ticket Preview Display -->
+          <div class="relative">
+            {#if generatingPreviews}
+              <div class="flex items-center justify-center py-12">
+                <div class="text-center">
+                  <div class="flex justify-center mb-4">
+                    <Spinner />
+                  </div>
+                  <p class="text-gray-400">Generating ticket previews...</p>
                 </div>
               </div>
-            {/each}
+            {:else}
+              <!-- Main Ticket Display -->
+              <div class="flex justify-center mb-8">
+                <div class="relative max-w-md ticket-slider">
+                  <div
+                    class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-300 transform hover:scale-105 transition-transform duration-300"
+                  >
+                    <img
+                      src={ticketPreviews[currentTicketIndex]}
+                      alt="Ticket Preview"
+                      class="w-full h-auto rounded-lg"
+                    />
+                  </div>
+
+                  <!-- Custom Design Indicator -->
+                  {#if eventDetails?.ticket_design_config}
+                    <div
+                      class="absolute -top-3 -right-3 flex items-center gap-1 px-3 py-1 bg-purple-600 border-2 border-purple-400 rounded-full shadow-lg"
+                    >
+                      <svg
+                        class="w-4 h-4 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+                        />
+                      </svg>
+                      <span class="text-xs text-white font-bold"
+                        >Custom Design</span
+                      >
+                    </div>
+                  {/if}
+                </div>
+              </div>
+
+              <!-- Navigation Controls (only show if multiple tickets) -->
+              {#if ticketPreviews.length > 1}
+                <div class="flex items-center justify-center gap-6 mb-8">
+                  <button
+                    on:click={prevTicket}
+                    disabled={currentTicketIndex === 0}
+                    class="p-3 bg-gray-700 text-white rounded-full hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+                  >
+                    <svg
+                      class="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 19l-7-7 7-7"
+                      />
+                    </svg>
+                  </button>
+
+                  <!-- Ticket Dots -->
+                  <div class="flex gap-3">
+                    {#each ticketPreviews as _, index}
+                      <button
+                        on:click={() => goToTicket(index)}
+                        class="w-4 h-4 rounded-full ticket-dot {currentTicketIndex ===
+                        index
+                          ? 'bg-[#00F5FF] active shadow-lg'
+                          : 'bg-gray-600 hover:bg-gray-500'}"
+                      ></button>
+                    {/each}
+                  </div>
+
+                  <button
+                    on:click={nextTicket}
+                    disabled={currentTicketIndex === ticketPreviews.length - 1}
+                    class="p-3 bg-gray-700 text-white rounded-full hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+                  >
+                    <svg
+                      class="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              {/if}
+
+              <!-- Ticket Actions -->
+              <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  on:click={downloadCurrentTicket}
+                  class="px-8 py-4 bg-gradient-to-r from-[#9D4EDD] to-[#00F5FF] text-white rounded-xl hover:from-[#9D4EDD]/90 hover:to-[#00F5FF]/90 transition-all duration-300 flex items-center justify-center space-x-3 hover:scale-105 hover:shadow-xl font-semibold"
+                >
+                  <svg
+                    class="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <span>Download Ticket</span>
+                </button>
+
+                <button
+                  on:click={shareCurrentTicket}
+                  class="px-8 py-4 bg-gray-700 text-white rounded-xl hover:bg-gray-600 transition-all duration-300 flex items-center justify-center space-x-3 hover:scale-105 hover:shadow-xl border border-gray-600 font-semibold"
+                >
+                  <svg
+                    class="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
+                    />
+                  </svg>
+                  <span>Share Ticket</span>
+                </button>
+              </div>
+            {/if}
           </div>
         </div>
       {/if}
 
-      <!-- Individual Ticket Details -->
-      {#if order.order_items && order.order_items.length > 0}
-        <div class="bg-gray-800 rounded-xl p-8 mb-8 border border-gray-700">
-          <h3 class="text-2xl font-bold text-white mb-6">Your Tickets</h3>
-
-          <div class="space-y-4">
-            {#each order.order_items as item}
-              <div
-                class="flex items-center justify-between p-4 bg-gray-700 rounded-lg"
-              >
-                <div class="flex-1">
-                  <h4 class="text-white font-semibold">
-                    {item.ticket_types?.name || "General Admission"}
-                  </h4>
-                  <p class="text-gray-400 text-sm">
-                    Ticket #{item.ticket_number}
-                  </p>
-                </div>
-                <div class="text-right">
-                  <p class="text-green-400 font-bold">
-                    {order.payment_method === "free"
-                      ? "Free"
-                      : `${order.total_amount / ticketSummary.totalTickets} ${order.currency}`}
-                  </p>
-                  <p class="text-gray-400 text-sm">Confirmed</p>
-                </div>
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/if}
-
-      <!-- Action Buttons -->
-      <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <GradientButton
-          text="Download Tickets"
-          onClick={downloadTickets}
-          icon="download"
-          class_="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-        />
+      <!-- Additional Actions -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+        {#if ticketPreviews.length > 1}
+          <GradientButton
+            text="Download All Tickets"
+            onClick={downloadTickets}
+            icon="download"
+            class_="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+          />
+        {/if}
 
         <GradientButton
           text="Share Event"
@@ -589,17 +865,11 @@
       </div>
 
       <!-- Important Information -->
-      <div
-        class="mt-12 p-6 bg-blue-900/20 border border-blue-500/30 rounded-lg"
-      >
-        <h4 class="text-blue-300 font-semibold mb-3">Important Information</h4>
-        <ul class="text-gray-300 space-y-2 text-sm">
-          <li>• Your tickets are confirmed and ready for the event</li>
-          <li>• Please arrive at least 15 minutes before the event starts</li>
-          <li>• Bring a valid ID for ticket verification</li>
-          <li>• Tickets are non-transferable and non-refundable</li>
-          <li>• Contact support if you have any questions</li>
-        </ul>
+      <div class="mt-8 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+        <p class="text-blue-300 text-sm text-center">
+          <span class="font-semibold">Important:</span> Your tickets are confirmed.
+          Please arrive 15 minutes early and bring a valid ID.
+        </p>
       </div>
 
       <!-- Temporary Solution Notice -->
@@ -619,19 +889,45 @@
       {/if}
     </div>
   {/if}
+
+  <!-- Toast Container -->
+  <ToastContainer />
 </div>
 
 <style>
-  .animate-spin {
-    animation: spin 1s linear infinite;
+  /* Smooth transitions for ticket slider */
+  .ticket-slider {
+    transition: all 0.3s ease-in-out;
   }
 
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
+  .ticket-dot {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .ticket-dot:hover {
+    transform: scale(1.2);
+  }
+
+  .ticket-dot.active {
+    transform: scale(1.3);
+  }
+
+  /* Custom scrollbar for better UX */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #374151;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #6b7280;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
   }
 </style>
