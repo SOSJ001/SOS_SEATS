@@ -304,6 +304,58 @@ export function downloadImage(url: string, filename: string) {
   link.click();
 }
 
+// Reusable: Share an image data URL using Web Share API with file fallback
+export async function shareImageDataUrl(options: {
+  dataUrl: string;
+  filename?: string;
+  title?: string;
+  text?: string;
+}) {
+  const { dataUrl, filename = "image.png", title = "", text = "" } = options;
+
+  // Fetch blob from data URL
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+
+  const file = new File([blob], filename, { type: blob.type || "image/png" });
+
+  // Prefer Web Share Level 2 with files
+  if (
+    (navigator as any).canShare &&
+    (navigator as any).canShare({ files: [file] })
+  ) {
+    await (navigator as any).share({ files: [file], title, text });
+    return { method: "web-share-file" } as const;
+  }
+
+  // Fallback: basic Web Share with URL
+  if ((navigator as any).share) {
+    await (navigator as any).share({ title, text, url: dataUrl });
+    return { method: "web-share-url" } as const;
+  }
+
+  // Fallback: trigger download
+  downloadImage(dataUrl, filename);
+
+  // Try clipboard image write
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        [blob.type || "image/png"]: blob,
+      }),
+    ]);
+    return { method: "clipboard-image" } as const;
+  } catch {
+    // Last resort: copy data URL as text
+    try {
+      await navigator.clipboard.writeText(dataUrl);
+      return { method: "clipboard-text" } as const;
+    } catch {
+      return { method: "download-only" } as const;
+    }
+  }
+}
+
 export function generateRandomChars() {
   const chars =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";

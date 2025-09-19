@@ -297,62 +297,22 @@
     document.body.removeChild(link);
   }
 
-  // Share ticket function with mobile Web Share API (files), with fallbacks
+  // Share ticket function delegated to reusable store utility
   async function shareTicket() {
     if (!generatedTicketUrl) return;
 
+    const filename = `ticket-${generatedGuestName
+      .replace(/\s+/g, "-")
+      .toLowerCase()}-${generatedTicketNumber}.png`;
+
     try {
-      // Fetch the image blob from the data URL
-      const response = await fetch(generatedTicketUrl);
-      const blob = await response.blob();
-
-      const filename = `ticket-${generatedGuestName
-        .replace(/\s+/g, "-")
-        .toLowerCase()}-${generatedTicketNumber}.png`;
-
-      // Try Web Share Level 2 with files (best experience on mobile)
-      const file = new File([blob], filename, {
-        type: blob.type || "image/png",
+      const { shareImageDataUrl } = await import("$lib/store");
+      await shareImageDataUrl({
+        dataUrl: generatedTicketUrl,
+        filename,
+        title: "Your Ticket",
+        text: "Here is your ticket.",
       });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: "Your Ticket",
-          text: "Here is your ticket.",
-        });
-        return;
-      }
-
-      // Fallback: basic Web Share with URL (if supported)
-      if ((navigator as any).share) {
-        await (navigator as any).share({
-          title: "Your Ticket",
-          text: "Here is your ticket.",
-          url: generatedTicketUrl,
-        });
-        return;
-      }
-
-      // Fallback: trigger a download
-      downloadTicket();
-
-      // Also attempt to copy the image to clipboard if supported
-      try {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            [blob.type || "image/png"]: blob,
-          }),
-        ]);
-        console.log("Ticket copied to clipboard!");
-      } catch (_) {
-        // Last resort: copy data URL as text
-        try {
-          await navigator.clipboard.writeText(generatedTicketUrl);
-          console.log("Ticket URL copied to clipboard!");
-        } catch (__) {
-          /* noop */
-        }
-      }
     } catch (err) {
       console.error("Share failed, falling back to download:", err);
       downloadTicket();
