@@ -613,7 +613,25 @@
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
       <!-- Success Header -->
       <div class="text-center mb-8">
-        <div class="text-green-500 text-6xl mb-4">🎉</div>
+        <div class="flex justify-center mb-4">
+          <div
+            class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg"
+          >
+            <svg
+              class="w-8 h-8 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="3"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+        </div>
         <h1 class="text-3xl font-bold text-white mb-2">
           {order.payment_method === "free"
             ? ticketSummary?.totalTickets === 1
