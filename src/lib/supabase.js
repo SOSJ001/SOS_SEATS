@@ -1817,7 +1817,7 @@ export async function createPaidTicketOrder(
       buyer_email: userData.email || null,
       buyer_name: userData.name || userData.display_name || "Anonymous",
       order_number: orderNumber,
-      total_amount: paymentInfo.amount,
+      total_amount: totalAmount,
       currency: paymentInfo.currency || "USDC",
       payment_method: paymentInfo.paymentMethod,
       payment_status: "completed",
@@ -1853,7 +1853,7 @@ export async function createPaidTicketOrder(
         p_buyer_name: orderData.buyer_name,
         p_order_number: orderNumber,
         p_ticket_details: ticketTypeDetails,
-        p_total_amount: paymentInfo.amount,
+        p_total_amount: totalAmount,
         p_currency: paymentInfo.currency || "USDC",
         p_transaction_hash: paymentInfo.transactionSignature,
         p_payment_method: paymentInfo.paymentMethod || "solana",
@@ -1989,7 +1989,7 @@ export async function claimFreeTickets(
       buyer_email: userData.email || null,
       buyer_name: userData.name || userData.display_name || "Anonymous",
       order_number: orderNumber,
-      total_amount: paymentInfo ? paymentInfo.amount : totalAmount,
+      total_amount: totalAmount, // Always use calculated total from ticket details
       currency: paymentInfo ? paymentInfo.currency || "USDC" : "USD", // Use payment currency or default to USDC for paid tickets
       payment_method: paymentInfo ? paymentInfo.paymentMethod : "free",
       payment_status: paymentInfo ? "completed" : "completed",
@@ -2033,7 +2033,7 @@ export async function claimFreeTickets(
           p_buyer_name: orderData.buyer_name,
           p_order_number: orderNumber,
           p_ticket_details: ticketTypeDetails,
-          p_total_amount: paymentInfo.amount,
+          p_total_amount: totalAmount,
           p_currency: paymentInfo.currency || "USDC",
           p_transaction_hash: paymentInfo.transactionSignature,
           p_payment_method: paymentInfo.paymentMethod || "solana",
@@ -2046,6 +2046,7 @@ export async function claimFreeTickets(
           error: `Database function error: ${rpcError.message}`,
         };
       }
+
       const paidResult = rpcResult;
       const paidError = rpcError;
 

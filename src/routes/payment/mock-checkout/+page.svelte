@@ -40,7 +40,28 @@
 
   function simulatePayment() {
     // Simulate successful payment
-    const successUrl = `/payment/orange-money/success?event_id=${$page.url.searchParams.get("event_id")}&session_id=${sessionId}&payment_method=${paymentMethod}`;
+    const eventId = $page.url.searchParams.get("event_id");
+    const selectedTickets = $page.url.searchParams.get("selected_tickets");
+    const ticketDetails = $page.url.searchParams.get("ticket_details");
+    const buyerName = $page.url.searchParams.get("buyer_name");
+    const buyerWallet = $page.url.searchParams.get("buyer_wallet");
+
+    // Build success URL with all ticket data
+    let successUrl = `/payment/orange-money/success?event_id=${eventId}&session_id=${sessionId}&payment_method=${paymentMethod}`;
+
+    if (selectedTickets) {
+      successUrl += `&selected_tickets=${selectedTickets}`;
+    }
+    if (ticketDetails) {
+      successUrl += `&ticket_details=${ticketDetails}`;
+    }
+    if (buyerName) {
+      successUrl += `&buyer_name=${buyerName}`;
+    }
+    if (buyerWallet) {
+      successUrl += `&buyer_wallet=${buyerWallet}`;
+    }
+
     goto(successUrl);
   }
 

@@ -101,8 +101,33 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
       const eventId = body.metadata?.event_id || "unknown";
       const paymentMethod = body.metadata?.payment_method || "orange_money";
 
-      // Redirect to our mock checkout page
-      const mockRedirectUrl = `/payment/mock-checkout?mock_session_id=${mockSessionId}&amount=${totalAmount}&currency=${currency}&event_id=${eventId}&payment_method=${paymentMethod}`;
+      // Extract ticket data from success URL parameters
+      const successUrl = new URL(body.successUrl);
+      const selectedTickets = successUrl.searchParams.get("selected_tickets");
+      const ticketDetails = successUrl.searchParams.get("ticket_details");
+      const buyerName = successUrl.searchParams.get("buyer_name");
+      const buyerWallet = successUrl.searchParams.get("buyer_wallet");
+
+      // Build mock checkout URL with ticket data
+      let mockRedirectUrl = `/payment/mock-checkout?mock_session_id=${mockSessionId}&amount=${totalAmount}&currency=${currency}&event_id=${eventId}&payment_method=${paymentMethod}`;
+
+      if (selectedTickets) {
+        mockRedirectUrl += `&selected_tickets=${selectedTickets}`;
+      }
+      if (ticketDetails) {
+        mockRedirectUrl += `&ticket_details=${ticketDetails}`;
+      }
+      if (buyerName) {
+        mockRedirectUrl += `&buyer_name=${buyerName}`;
+      }
+      if (buyerWallet) {
+        mockRedirectUrl += `&buyer_wallet=${buyerWallet}`;
+      }
+
+      console.log(
+        "🔍 [CHECKOUT SESSION] Final mock redirect URL:",
+        mockRedirectUrl
+      );
 
       return json({
         success: true,
@@ -149,6 +174,67 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+
+      // Check if this is a test mode error - fall back to mock
+      if (
+        response.status === 403 &&
+        errorData.message?.includes("Test mode is not supported")
+      ) {
+        console.log(
+          "Test mode not supported for checkout sessions, falling back to mock"
+        );
+
+        // Fall back to mock implementation
+        const mockSessionId = `mock_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        const totalAmount = body.lineItems.reduce(
+          (total, item) => total + item.price.value * item.quantity,
+          0
+        );
+        const currency = body.lineItems[0]?.price.currency || "SLE";
+        const eventId = body.metadata?.event_id || "unknown";
+        const paymentMethod = body.metadata?.payment_method || "orange_money";
+
+        // Extract ticket data from success URL parameters
+        const successUrl = new URL(body.successUrl);
+        const selectedTickets = successUrl.searchParams.get("selected_tickets");
+        const ticketDetails = successUrl.searchParams.get("ticket_details");
+        const buyerName = successUrl.searchParams.get("buyer_name");
+        const buyerWallet = successUrl.searchParams.get("buyer_wallet");
+
+        // Build mock checkout URL with ticket data
+        let mockRedirectUrl = `/payment/mock-checkout?mock_session_id=${mockSessionId}&amount=${totalAmount}&currency=${currency}&event_id=${eventId}&payment_method=${paymentMethod}`;
+
+        if (selectedTickets) {
+          mockRedirectUrl += `&selected_tickets=${selectedTickets}`;
+        }
+        if (ticketDetails) {
+          mockRedirectUrl += `&ticket_details=${ticketDetails}`;
+        }
+        if (buyerName) {
+          mockRedirectUrl += `&buyer_name=${buyerName}`;
+        }
+        if (buyerWallet) {
+          mockRedirectUrl += `&buyer_wallet=${buyerWallet}`;
+        }
+
+        return json({
+          success: true,
+          data: {
+            id: mockSessionId,
+            checkout_url: mockRedirectUrl,
+            status: "pending",
+            amount: body.lineItems.reduce(
+              (total, item) => total + item.price.value * item.quantity,
+              0
+            ),
+            currency: body.lineItems[0]?.price.currency || "SLE",
+            created_at: new Date().toISOString(),
+          },
+        });
+      }
+
       console.error("Monime API Error Details:", {
         status: response.status,
         statusText: response.statusText,

@@ -64,6 +64,25 @@ export async function handleMobileMoneyPayment(
         paymentMethod
       );
 
+    console.log(
+      "🔍 [MOBILE MONEY PAYMENT] Creating checkout session with data:",
+      {
+        eventId: purchaseData.eventId,
+        ticketDetailsLength: purchaseData.ticketDetails.length,
+        successUrlWithData,
+        cancelUrlWithData,
+        lineItems,
+        metadata: {
+          event_id: purchaseData.eventId,
+          buyer_name: purchaseData.buyerInfo.name,
+          buyer_wallet: purchaseData.buyerInfo.wallet_address || "guest",
+          payment_method: paymentMethod,
+          total_tickets: purchaseData.ticketDetails.length.toString(),
+          total_amount: purchaseData.totalAmount.toString(),
+        },
+      }
+    );
+
     // Create checkout session with Monime
     const checkoutSession = await monimeService.createCheckoutSession(
       `SOS SEATS - Event Tickets (${purchaseData.ticketDetails.length} items)`,
@@ -73,11 +92,11 @@ export async function handleMobileMoneyPayment(
       lineItems,
       {
         event_id: purchaseData.eventId,
-        selected_tickets: purchaseData.selectedTickets,
-        ticket_details: purchaseData.ticketDetails,
         buyer_name: purchaseData.buyerInfo.name,
-        buyer_wallet: purchaseData.buyerInfo.wallet_address,
+        buyer_wallet: purchaseData.buyerInfo.wallet_address || "guest",
         payment_method: paymentMethod,
+        total_tickets: purchaseData.ticketDetails.length.toString(),
+        total_amount: purchaseData.totalAmount.toString(),
       },
       `sos_seats_${purchaseData.eventId}_${Date.now()}`
     );

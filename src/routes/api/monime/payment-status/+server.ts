@@ -37,35 +37,29 @@ export const GET: RequestHandler = async ({ url }) => {
       const buyerName = "Mobile Money";
 
       // Return a mock completed payment status for testing
-      return json({
+      const mockData = {
         success: true,
         data: {
           id: sessionId,
           status: "completed",
-          amount: 50000, // Mock amount
+          amount: 5, // Mock amount
           currency: "SLE",
           payment_method: paymentMethod,
           transaction_id: `mock_txn_${Date.now()}`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           metadata: {
-            event_id: "53b886fe-6821-45c1-b529-87358b17aaf5", // Mock event ID
-            ticket_details: [
-              {
-                id: "f4dcc5b8-f733-469b-b376-e4db12d41ce3",
-                name: "General A",
-                price: 0.01,
-                quantity: 1,
-              },
-            ],
-            selected_tickets: {
-              "f4dcc5b8-f733-469b-b376-e4db12d41ce3": 1,
-            },
+            event_id: "mock_event_id",
             buyer_name: buyerName,
-            buyer_wallet: undefined,
+            buyer_wallet: "guest",
+            payment_method: paymentMethod,
+            total_tickets: "1",
+            total_amount: "5",
           },
         },
-      });
+      };
+
+      return json(mockData);
     }
 
     // Make request to Monime API

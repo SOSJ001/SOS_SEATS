@@ -41,6 +41,13 @@
       return;
     }
 
+    // Check if we have the required URL parameters for ticket data
+    if (!selectedTicketsParam || !ticketDetailsParam) {
+      error = "Missing ticket information in payment URL";
+      loading = false;
+      return;
+    }
+
     try {
       // For now, we'll simulate the callback processing
       // In a real implementation, you'd get the purchase data from the session
@@ -79,11 +86,9 @@
 
       const purchaseData = {
         eventId: eventId,
-        selectedTickets:
-          urlPurchaseData?.selectedTickets || metadata.selected_tickets || {},
+        selectedTickets: urlPurchaseData?.selectedTickets || {},
         totalAmount: paymentStatus.amount || 0,
-        ticketDetails:
-          urlPurchaseData?.ticketDetails || metadata.ticket_details || [],
+        ticketDetails: urlPurchaseData?.ticketDetails || [],
         buyerInfo: {
           name:
             urlPurchaseData?.buyerInfo?.name ||

@@ -40,37 +40,18 @@
   let loading = true;
   let error: string | null = null;
 
-  // Ticket types with pricing
-  let ticketTypes = [
-    {
-      id: 1,
-      name: "Standard Ticket",
-      price: 75,
-      description: "General admission with access to all main areas",
-      features: [
-        "General admission",
-        "Access to main stage",
-        "Food & drink vendors",
-      ],
-      available_quantity: 100,
-    },
-    {
-      id: 2,
-      name: "VIP Pass",
-      price: 150,
-      description: "Premium experience with exclusive benefits",
-      features: [
-        "VIP seating area",
-        "Exclusive lounge access",
-        "Complimentary drinks",
-        "Meet & greet opportunity",
-      ],
-      available_quantity: 50,
-    },
-  ];
+  // Ticket types with pricing - will be loaded from database
+  let ticketTypes: Array<{
+    id: string;
+    name: string;
+    price: number;
+    description: string;
+    features: string[];
+    available_quantity: number;
+  }> = [];
 
   // State management
-  let selectedTickets: Record<number, number> = {};
+  let selectedTickets: Record<string, number> = {};
   let pageLoaded = false;
   let claimingTickets = false;
   let processingPayment = false;
@@ -81,7 +62,7 @@
   let paymentDetails: {
     totalTickets: number;
     ticketDetails: Array<{
-      id: number;
+      id: string;
       name: string;
       price: number;
       quantity: number;
@@ -116,7 +97,7 @@
   // Event details - will be populated after event loads
   let eventDetails: Array<{ icon: string; label: string; value: string }> = [];
 
-  function handleQuantityChange(ticketId: number, newQuantity: number) {
+  function handleQuantityChange(ticketId: string, newQuantity: number) {
     // Get the ticket type to check its specific constraints
     const ticketType = ticketTypes.find((t) => t.id === ticketId);
     if (!ticketType) return;
@@ -128,7 +109,7 @@
 
     // Calculate current totals
     const otherTicketsTotal = Object.entries(selectedTickets)
-      .filter(([id]) => parseInt(id) !== ticketId)
+      .filter(([id]) => id !== ticketId)
       .reduce((sum, [, qty]) => sum + qty, 0);
 
     // Check if tickets are sold out
@@ -183,7 +164,7 @@
     }
   }
 
-  function handleAddToCart(ticketId: number) {
+  function handleAddToCart(ticketId: string) {
     const ticketType = ticketTypes.find((t) => t.id === ticketId);
     if (!ticketType) return;
 
@@ -193,7 +174,7 @@
     const ticketTypeCapacity = ticketType.available_quantity;
 
     const otherTicketsTotal = Object.entries(selectedTickets)
-      .filter(([id]) => parseInt(id) !== ticketId)
+      .filter(([id]) => id !== ticketId)
       .reduce((sum, [, qty]) => sum + qty, 0);
 
     // Check if tickets are sold out
@@ -293,14 +274,12 @@
 
       for (const [ticketTypeId, quantity] of Object.entries(selectedTickets)) {
         if (quantity > 0) {
-          const ticketType = ticketTypes.find(
-            (t) => t.id.toString() === ticketTypeId.toString()
-          );
+          const ticketType = ticketTypes.find((t) => t.id === ticketTypeId);
           if (ticketType) {
             totalTickets += quantity;
             totalPrice += ticketType.price * quantity;
             ticketDetails.push({
-              id: ticketType.id.toString(),
+              id: ticketType.id,
               name: ticketType.name,
               price: ticketType.price,
               quantity: quantity,
@@ -474,14 +453,12 @@
 
       for (const [ticketTypeId, quantity] of Object.entries(selectedTickets)) {
         if (quantity > 0) {
-          const ticketType = ticketTypes.find(
-            (t) => t.id.toString() === ticketTypeId.toString()
-          );
+          const ticketType = ticketTypes.find((t) => t.id === ticketTypeId);
           if (ticketType) {
             totalTickets += quantity;
             totalPrice += ticketType.price * quantity;
             ticketDetails.push({
-              id: ticketType.id.toString(),
+              id: ticketType.id,
               name: ticketType.name,
               price: ticketType.price,
               quantity: quantity,
@@ -586,14 +563,12 @@
 
       for (const [ticketTypeId, quantity] of Object.entries(selectedTickets)) {
         if (quantity > 0) {
-          const ticketType = ticketTypes.find(
-            (t) => t.id.toString() === ticketTypeId.toString()
-          );
+          const ticketType = ticketTypes.find((t) => t.id === ticketTypeId);
           if (ticketType) {
             totalTickets += quantity;
             totalPrice += ticketType.price * quantity;
             ticketDetails.push({
-              id: ticketType.id.toString(),
+              id: ticketType.id,
               name: ticketType.name,
               price: ticketType.price,
               quantity: quantity,
@@ -900,7 +875,7 @@
           // Fallback for events without ticket types
           ticketTypes = [
             {
-              id: 999,
+              id: "fallback-ticket-type",
               name: isFreeEvent ? "Free Admission" : "General Admission",
               price: isFreeEvent ? 0 : 0,
               description: "General admission to the event",

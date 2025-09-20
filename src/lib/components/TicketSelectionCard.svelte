@@ -1,12 +1,12 @@
 <script lang="ts">
   export let ticket: {
-    id: number;
+    id: string;
     name: string;
     price: number;
     description: string;
     features: string[];
   } = {
-    id: 1,
+    id: "1",
     name: "Ticket Name",
     price: 0,
     description: "",
