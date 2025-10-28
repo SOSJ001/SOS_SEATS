@@ -64,7 +64,7 @@
           class="w-16 h-16 rounded-full mb-4 border-2 border-[#00F5FF]"
         />
         <p class="text-gray-200 mb-4">
-          "TicketVerse made event management a breeze! The blockchain security
+          "S.O.S SEATS made event management a breeze! The blockchain security
           gave me so much confidence."
         </p>
         <span class="font-semibold text-[#00F5FF]">Jane Toe</span>
