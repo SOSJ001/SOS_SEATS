@@ -124,11 +124,6 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
         mockRedirectUrl += `&buyer_wallet=${buyerWallet}`;
       }
 
-      console.log(
-        "🔍 [CHECKOUT SESSION] Final mock redirect URL:",
-        mockRedirectUrl
-      );
-
       return json({
         success: true,
         data: {
@@ -145,7 +140,19 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
       });
     }
 
-    // Prepare the request to Monime API
+    // Determine payment method from metadata
+    const paymentMethod = body.metadata?.payment_method || "orange_money";
+
+    // Map payment methods to Monime provider IDs
+    // m17 = Orange Money, m18 = Afrimoney (check Monime docs for exact IDs)
+    const providerMap: Record<string, string[]> = {
+      orange_money: ["m17"], // Orange Money provider ID
+      afrimoney: ["m18"], // Afrimoney provider ID (adjust if different)
+    };
+
+    const enabledProviders = providerMap[paymentMethod] || ["m17"];
+
+    // Prepare the request to Monime API with payment options
     const monimeRequest = {
       name: body.name,
       description: body.description,
@@ -156,6 +163,22 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
       metadata: {
         source: "sos_seats",
         ...body.metadata,
+      },
+      paymentOptions: {
+        momo: {
+          disable: false,
+          enabledProviders: enabledProviders,
+          disabledProviders: [],
+        },
+        card: {
+          disable: true, // Disable card payments
+        },
+        bank: {
+          disable: true, // Disable bank transfers
+        },
+        wallet: {
+          disable: true, // Disable wallet payments
+        },
       },
     };
 
@@ -175,15 +198,21 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
 
+      // Log full error details for debugging
+      console.error(
+        "Monime API Error Full Details:",
+        JSON.stringify(errorData, null, 2)
+      );
+      console.error(
+        "Request Body Sent:",
+        JSON.stringify(monimeRequest, null, 2)
+      );
+
       // Check if this is a test mode error - fall back to mock
       if (
         response.status === 403 &&
         errorData.message?.includes("Test mode is not supported")
       ) {
-        console.log(
-          "Test mode not supported for checkout sessions, falling back to mock"
-        );
-
         // Fall back to mock implementation
         const mockSessionId = `mock_${Date.now()}_${Math.random()
           .toString(36)

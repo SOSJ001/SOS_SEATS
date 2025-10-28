@@ -15,6 +15,7 @@
   import {
     handleMobileMoneyPayment,
     generateOrangeMoneyUrls,
+    calculatePlatformFee,
   } from "$lib/orangeMoneyPayment.js";
   import {
     sessionFromDb,
@@ -93,6 +94,18 @@
   $: totalPrice = ticketTypes.reduce((total, ticket) => {
     return total + ticket.price * (selectedTickets[ticket.id] || 0);
   }, 0);
+
+  // Calculate platform fee for mobile money payments
+  $: platformFee =
+    totalPrice > 0
+      ? ticketTypes.reduce((total, ticket) => {
+          const qty = selectedTickets[ticket.id] || 0;
+          return total + calculatePlatformFee(ticket.price) * qty;
+        }, 0)
+      : 0;
+
+  // Total with platform fee (for mobile money)
+  $: totalWithFee = totalPrice + platformFee;
 
   // Event details - will be populated after event loads
   let eventDetails: Array<{ icon: string; label: string; value: string }> = [];
@@ -809,6 +822,22 @@
   }
 
   onMount(async () => {
+    // Check if payment was cancelled
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("payment") === "cancelled") {
+      showToast(
+        "warning",
+        "Payment Cancelled",
+        "Your payment was cancelled. You can try again or choose a different payment method."
+      );
+      // Clean up URL by removing the query parameter
+      window.history.replaceState(
+        {},
+        "",
+        `/marketplace/eventDetails/${eventId}`
+      );
+    }
+
     try {
       // Load event data from database
       const eventData = await getEventById(eventId);
@@ -1084,8 +1113,8 @@
 
           <!-- Payment Summary -->
           <PaymentSummaryCard
-            {totalPrice}
-            currency={event?.is_free_event ? "USD" : "USDC"}
+            totalPrice={totalWithFee}
+            currency={event?.is_free_event ? "USD" : "SLE"}
             pricePerTicket={event?.is_free_event
               ? 0
               : totalPrice /
@@ -1093,6 +1122,8 @@
                   (sum, qty) => sum + qty,
                   0
                 )}
+            {platformFee}
+            showFeeBreakdown={platformFee > 0}
           >
             <!-- Max seats per order info -->
             <div

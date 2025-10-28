@@ -28,22 +28,17 @@
     : "from-green-50 to-green-100";
 
   onMount(async () => {
-    const eventId = urlParams.get("event_id");
-    const sessionId = urlParams.get("session_id");
+    // Support both old and new URL parameter formats
+    const eventId = urlParams.get("e") || urlParams.get("event_id");
+    const sessionId = urlParams.get("s") || urlParams.get("session_id");
+    const buyerNameParam = urlParams.get("n") || urlParams.get("buyer_name");
+    const buyerWalletParam =
+      urlParams.get("w") || urlParams.get("buyer_wallet");
     const selectedTicketsParam = urlParams.get("selected_tickets");
     const ticketDetailsParam = urlParams.get("ticket_details");
-    const buyerNameParam = urlParams.get("buyer_name");
-    const buyerWalletParam = urlParams.get("buyer_wallet");
 
     if (!eventId || !sessionId) {
       error = "Missing payment information";
-      loading = false;
-      return;
-    }
-
-    // Check if we have the required URL parameters for ticket data
-    if (!selectedTicketsParam || !ticketDetailsParam) {
-      error = "Missing ticket information in payment URL";
       loading = false;
       return;
     }
@@ -61,45 +56,54 @@
       // Extract purchase data from session metadata
       const metadata = (paymentStatus as any).metadata || {};
 
-      // Try to get purchase data from URL parameters first (most reliable)
-      let urlPurchaseData = null;
-      if (selectedTicketsParam && ticketDetailsParam) {
-        try {
-          urlPurchaseData = {
-            selectedTickets: JSON.parse(
-              decodeURIComponent(selectedTicketsParam)
-            ),
-            ticketDetails: JSON.parse(decodeURIComponent(ticketDetailsParam)),
-            buyerInfo: {
-              name: buyerNameParam
-                ? decodeURIComponent(buyerNameParam)
-                : "Mobile Money User",
-              wallet_address: buyerWalletParam
-                ? decodeURIComponent(buyerWalletParam)
-                : undefined,
-            },
-          };
-        } catch (e) {
-          console.error("Failed to parse URL parameters:", e);
-        }
-      }
-
+      // Get purchase data from Monime metadata (URL params are now minimal)
       const purchaseData = {
         eventId: eventId,
-        selectedTickets: urlPurchaseData?.selectedTickets || {},
+        selectedTickets: {}, // Will be reconstructed from metadata
         totalAmount: paymentStatus.amount || 0,
-        ticketDetails: urlPurchaseData?.ticketDetails || [],
+        ticketDetails: [], // Will be reconstructed from metadata
         buyerInfo: {
-          name:
-            urlPurchaseData?.buyerInfo?.name ||
-            metadata.buyer_name ||
-            "Guest User",
-          wallet_address:
-            urlPurchaseData?.buyerInfo?.wallet_address ||
-            metadata.buyer_wallet ||
-            undefined,
+          name: buyerNameParam
+            ? decodeURIComponent(buyerNameParam)
+            : metadata.buyer_name || "Guest User",
+          wallet_address: buyerWalletParam
+            ? decodeURIComponent(buyerWalletParam)
+            : metadata.buyer_wallet || undefined,
         },
       };
+
+      // Reconstruct ticket data from metadata
+      // Since we can't pass full ticket details in URL, we'll fetch from checkout session
+      // The checkout session has the line items which tell us what was purchased
+      if (paymentStatus.lineItems?.data) {
+        const ticketLineItems = paymentStatus.lineItems.data.filter(
+          (item: any) => item.reference !== "platform_fee"
+        );
+
+        // Reconstruct ticket details
+        purchaseData.ticketDetails = ticketLineItems.map((item: any) => ({
+          id: item.reference || "",
+          name: item.name,
+          price: item.price.value / 100, // Convert from cents back to SLE
+          quantity: item.quantity,
+        }));
+
+        // Reconstruct selected tickets object
+        purchaseData.selectedTickets = {};
+        ticketLineItems.forEach((item: any) => {
+          if (item.reference) {
+            purchaseData.selectedTickets[item.reference] = item.quantity;
+          }
+        });
+
+        // Update total amount (convert from cents)
+        purchaseData.totalAmount = parseFloat(
+          (paymentStatus.amount || 0) / 100
+        );
+      } else if (metadata.total_amount) {
+        // Fallback: use metadata values
+        purchaseData.totalAmount = parseFloat(metadata.total_amount || "0");
+      }
 
       const result = await processOrangeMoneyCallback(
         sessionId,

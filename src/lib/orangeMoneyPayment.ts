@@ -1,5 +1,23 @@
 // Orange Money payment handler using Monime API
 import { monimeService } from "./monime.js";
+import { PUBLIC_APP_URL } from "$env/static/public";
+
+// Platform fee configuration
+const PLATFORM_FEE_PERCENTAGE = 0.1; // 10% platform fee (adjust as needed)
+const PLATFORM_FEE_MIN = 2; // Minimum fee in SLE (e.g., 2 SLE)
+const PLATFORM_FEE_MAX = 50; // Maximum fee in SLE (optional cap)
+
+/**
+ * Calculate platform service fee
+ */
+export function calculatePlatformFee(ticketPrice: number): number {
+  const percentageFee = ticketPrice * PLATFORM_FEE_PERCENTAGE;
+  const fee = Math.max(
+    PLATFORM_FEE_MIN,
+    Math.min(percentageFee, PLATFORM_FEE_MAX || Infinity)
+  );
+  return Math.round(fee * 100) / 100; // Round to 2 decimal places
+}
 
 interface TicketPurchaseData {
   eventId: string;
@@ -45,15 +63,39 @@ export async function handleMobileMoneyPayment(
       };
     }
 
-    // Create line items for Monime
-    const lineItems = purchaseData.ticketDetails.map((ticket) => ({
-      type: "custom" as const,
-      name: ticket.name,
-      price: { currency: "SLE", value: ticket.price },
-      quantity: ticket.quantity,
-      description: `Event ticket: ${ticket.name}`,
-      reference: ticket.id,
-    }));
+    // Calculate platform fees and create line items for Monime
+    let totalPlatformFee = 0;
+    const lineItems = purchaseData.ticketDetails.map((ticket) => {
+      const platformFee = calculatePlatformFee(ticket.price);
+      totalPlatformFee += platformFee * ticket.quantity;
+
+      // Return ticket as line item
+      // Note: Monime requires value in minor units (cents), so multiply by 100
+      return {
+        type: "custom" as const,
+        name: ticket.name,
+        price: { currency: "SLE", value: Math.round(ticket.price * 100) },
+        quantity: ticket.quantity,
+        description: `Event ticket: ${ticket.name}`,
+        reference: ticket.id,
+      };
+    });
+
+    // Add platform service fee as a separate line item
+    // Note: Monime requires value in minor units (cents)
+    if (totalPlatformFee > 0) {
+      lineItems.push({
+        type: "custom" as const,
+        name: "Service Fee",
+        price: { currency: "SLE", value: Math.round(totalPlatformFee * 100) },
+        quantity: 1,
+        description: "Platform service fee",
+        reference: "platform_fee",
+      });
+    }
+
+    // Update total amount to include platform fee
+    const totalAmountWithFee = purchaseData.totalAmount + totalPlatformFee;
 
     // Generate URLs with purchase data backup
     const { successUrl: successUrlWithData, cancelUrl: cancelUrlWithData } =
@@ -63,25 +105,6 @@ export async function handleMobileMoneyPayment(
         purchaseData,
         paymentMethod
       );
-
-    console.log(
-      "🔍 [MOBILE MONEY PAYMENT] Creating checkout session with data:",
-      {
-        eventId: purchaseData.eventId,
-        ticketDetailsLength: purchaseData.ticketDetails.length,
-        successUrlWithData,
-        cancelUrlWithData,
-        lineItems,
-        metadata: {
-          event_id: purchaseData.eventId,
-          buyer_name: purchaseData.buyerInfo.name,
-          buyer_wallet: purchaseData.buyerInfo.wallet_address || "guest",
-          payment_method: paymentMethod,
-          total_tickets: purchaseData.ticketDetails.length.toString(),
-          total_amount: purchaseData.totalAmount.toString(),
-        },
-      }
-    );
 
     // Create checkout session with Monime
     const checkoutSession = await monimeService.createCheckoutSession(
@@ -97,6 +120,8 @@ export async function handleMobileMoneyPayment(
         payment_method: paymentMethod,
         total_tickets: purchaseData.ticketDetails.length.toString(),
         total_amount: purchaseData.totalAmount.toString(),
+        platform_fee: totalPlatformFee.toString(),
+        total_with_fee: totalAmountWithFee.toString(),
       },
       `sos_seats_${purchaseData.eventId}_${Date.now()}`
     );
@@ -143,10 +168,13 @@ export async function processOrangeMoneyCallback(
     );
 
     // Create payment info for database
+    // Note: paymentStatus.amount is in cents (minor units), convert to SLE
+    const amountInSLE = paymentStatus.amount ? paymentStatus.amount / 100 : 0;
+
     const paymentInfo = {
       paymentMethod: paymentMethod,
       transactionSignature: paymentStatus.transaction_id || sessionId,
-      amount: paymentStatus.amount,
+      amount: amountInSLE,
       receivingWallet: `monime_${paymentMethod}`, // Dynamic identifier based on payment method
       buyerWallet: `mobile_money_${paymentMethod}`, // Use meaningful identifier for mobile money payments
       provider: "monime",
@@ -195,24 +223,24 @@ export async function generateOrangeMoneyUrls(
   purchaseData?: TicketPurchaseData,
   paymentMethod: string = "orange_money"
 ) {
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  // Use PUBLIC_APP_URL for public redirects (needed for Monime live mode)
+  // Fallback to window.location.origin for local development
+  const baseUrl =
+    PUBLIC_APP_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
 
-  // Pass purchase data directly through URL parameters as a more reliable method
+  // Pass minimal purchase data through URL parameters (Monime has 255 char limit)
   if (typeof window !== "undefined" && purchaseData) {
-    const selectedTicketsParam = encodeURIComponent(
-      JSON.stringify(purchaseData.selectedTickets)
-    );
-    const ticketDetailsParam = encodeURIComponent(
-      JSON.stringify(purchaseData.ticketDetails)
-    );
+    // Only pass essential data, not full ticket details
     const buyerNameParam = encodeURIComponent(purchaseData.buyerInfo.name);
     const buyerWalletParam = encodeURIComponent(
       purchaseData.buyerInfo.wallet_address || ""
     );
 
-    const successUrl = `${baseUrl}/payment/orange-money/success?event_id=${eventId}&session_id=${
+    // Use shorter parameter names and minimal data to stay under 255 chars
+    const successUrl = `${baseUrl}/payment/orange-money/success?e=${eventId}&s=${
       sessionId || ""
-    }&selected_tickets=${selectedTicketsParam}&ticket_details=${ticketDetailsParam}&buyer_name=${buyerNameParam}&buyer_wallet=${buyerWalletParam}&payment_method=${paymentMethod}`;
+    }&n=${buyerNameParam}&w=${buyerWalletParam}&p=${paymentMethod}`;
 
     return {
       successUrl,
