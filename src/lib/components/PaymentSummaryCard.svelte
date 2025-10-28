@@ -3,25 +3,39 @@
   export let currency = "NLe";
   export let pricePerTicket = 0.01;
   export let platformFee = 0; // Platform fee for mobile money
+  export let monimeFee = 0; // Monime's 1% processing fee
   export let showFeeBreakdown = false; // Show fee breakdown for mobile money
+
+  // Calculate ticket price (total - platform fee - monime fee)
+  $: ticketPrice = totalPrice - platformFee - monimeFee;
 </script>
 
 <div class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
   <!-- Price Breakdown (for mobile money with fees) -->
-  {#if showFeeBreakdown && platformFee > 0}
+  {#if showFeeBreakdown && (platformFee > 0 || monimeFee > 0)}
     <div class="mb-4 space-y-2">
       <div class="flex items-center justify-between text-gray-300">
         <span class="text-sm">Ticket Price:</span>
         <span class="text-sm font-medium"
-          >{currency} {(totalPrice - platformFee).toFixed(2)}</span
+          >{currency} {ticketPrice.toFixed(2)}</span
         >
       </div>
-      <div class="flex items-center justify-between text-gray-300">
-        <span class="text-sm">Service Fee:</span>
-        <span class="text-sm font-medium"
-          >{currency} {platformFee.toFixed(2)}</span
-        >
-      </div>
+      {#if platformFee > 0}
+        <div class="flex items-center justify-between text-gray-300">
+          <span class="text-sm">Service Fee:</span>
+          <span class="text-sm font-medium"
+            >{currency} {platformFee.toFixed(2)}</span
+          >
+        </div>
+      {/if}
+      {#if monimeFee > 0}
+        <div class="flex items-center justify-between text-gray-300">
+          <span class="text-sm">Processing Fee (1%):</span>
+          <span class="text-sm font-medium"
+            >{currency} {monimeFee.toFixed(2)}</span
+          >
+        </div>
+      {/if}
       <div class="border-t border-gray-600 pt-2 mt-2"></div>
     </div>
   {/if}

@@ -115,8 +115,14 @@
         }, 0)
       : 0;
 
-  // Total with platform fee (for mobile money)
-  $: totalWithFee = totalPrice + platformFee;
+  // Calculate base total (ticket price + platform fee)
+  $: baseTotal = totalPrice + platformFee;
+
+  // Calculate Monime's 1% processing fee
+  $: monimeFee = baseTotal > 0 ? baseTotal * 0.01 : 0;
+
+  // Total with platform fee and Monime fee (for mobile money)
+  $: totalWithFee = baseTotal + monimeFee;
 
   // Event details - will be populated after event loads
   let eventDetails: Array<{ icon: string; label: string; value: string }> = [];
@@ -495,7 +501,10 @@
       const platformFee = ticketDetails.reduce((total, ticket) => {
         return total + calculatePlatformFee(ticket.price) * ticket.quantity;
       }, 0);
-      const totalWithFee = totalPrice + platformFee;
+      // Calculate base total and Monime fee
+      const baseTotal = totalPrice + platformFee;
+      const monimeFee = baseTotal * 0.01;
+      const totalWithFee = baseTotal + monimeFee;
 
       // Prepare purchase data
       const purchaseData = {
@@ -610,7 +619,10 @@
       const platformFee = ticketDetails.reduce((total, ticket) => {
         return total + calculatePlatformFee(ticket.price) * ticket.quantity;
       }, 0);
-      const totalWithFee = totalPrice + platformFee;
+      // Calculate base total and Monime fee
+      const baseTotal = totalPrice + platformFee;
+      const monimeFee = baseTotal * 0.01;
+      const totalWithFee = baseTotal + monimeFee;
 
       // Prepare purchase data
       const purchaseData = {
@@ -1158,7 +1170,8 @@
                   0
                 )}
             {platformFee}
-            showFeeBreakdown={platformFee > 0}
+            {monimeFee}
+            showFeeBreakdown={platformFee > 0 || monimeFee > 0}
           >
             <!-- Max seats per order info -->
             <div

@@ -60,7 +60,13 @@ export async function handleMobileMoneyPaymentWithCode(
       totalPlatformFee += platformFee * ticket.quantity;
     });
 
-    const totalAmountWithFee = purchaseData.totalAmount + totalPlatformFee;
+    // Calculate base total (ticket price + platform fee)
+    const baseTotal = purchaseData.totalAmount + totalPlatformFee;
+
+    // Add Monime's 1% processing fee to the customer's total
+    // This ensures we receive the full amount after Monime deducts their fee
+    const monimeFee = baseTotal * 0.01;
+    const totalAmountWithFee = baseTotal + monimeFee;
 
     // Map payment method to Monime provider IDs
     const providerMap: Record<string, string[]> = {
@@ -94,6 +100,8 @@ export async function handleMobileMoneyPaymentWithCode(
         total_tickets: purchaseData.ticketDetails.length.toString(),
         total_amount: purchaseData.totalAmount.toString(),
         platform_fee: totalPlatformFee.toString(),
+        processing_fee: (totalAmountWithFee - baseTotal).toFixed(2),
+        base_total: baseTotal.toFixed(2),
         total_with_fee: totalAmountWithFee.toString(),
         ticket_details: JSON.stringify(purchaseData.ticketDetails),
         selected_tickets: JSON.stringify(purchaseData.selectedTickets),
