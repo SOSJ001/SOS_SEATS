@@ -36,6 +36,29 @@
       urlParams.get("w") || urlParams.get("buyer_wallet");
     const selectedTicketsParam = urlParams.get("selected_tickets");
     const ticketDetailsParam = urlParams.get("ticket_details");
+    const cancelledParam = urlParams.get("cancelled");
+
+    // Check if this is a cancellation
+    if (cancelledParam === "true" || urlParams.get("cancel") === "true") {
+      loading = false;
+      success = false;
+      error = "Payment was cancelled";
+      showToast(
+        "warning",
+        "Payment Cancelled",
+        "Your payment was cancelled. You can try again or choose a different payment method."
+      );
+
+      // Redirect to event details after a short delay
+      setTimeout(() => {
+        if (eventId) {
+          goto(`/marketplace/eventDetails/${eventId}?payment=cancelled`);
+        } else {
+          goto("/marketplace");
+        }
+      }, 2000);
+      return;
+    }
 
     if (!eventId || !sessionId) {
       error = "Missing payment information";

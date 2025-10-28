@@ -1,5 +1,6 @@
 // Orange Money payment handler using Monime API
 import { monimeService } from "./monime.js";
+import { PUBLIC_APP_URL } from "$env/static/public";
 
 // Platform fee configuration
 const PLATFORM_FEE_PERCENTAGE = 0.1; // 10% platform fee (adjust as needed)
@@ -35,7 +36,82 @@ interface TicketPurchaseData {
 }
 
 /**
+ * Handle Mobile Money payment using Payment Code (in-app, no redirect)
+ */
+export async function handleMobileMoneyPaymentWithCode(
+  purchaseData: TicketPurchaseData,
+  paymentMethod: string = "orange_money"
+): Promise<{
+  success: boolean;
+  paymentCodeId?: string;
+  ussdCode?: string;
+  error?: string;
+}> {
+  try {
+    // Validate purchase data
+    if (purchaseData.totalAmount <= 0) {
+      return { success: false, error: "Invalid amount" };
+    }
+
+    // Calculate platform fees
+    let totalPlatformFee = 0;
+    purchaseData.ticketDetails.forEach((ticket) => {
+      const platformFee = calculatePlatformFee(ticket.price);
+      totalPlatformFee += platformFee * ticket.quantity;
+    });
+
+    const totalAmountWithFee = purchaseData.totalAmount + totalPlatformFee;
+
+    // Map payment method to Monime provider IDs
+    const providerMap: Record<string, string[]> = {
+      orange_money: ["m17"],
+      afrimoney: ["m18"],
+    };
+
+    const authorizedProviders = providerMap[paymentMethod] || ["m17"];
+
+    // Create payment code
+    const paymentCode = await monimeService.createPaymentCode(
+      `SOS SEATS - ${purchaseData.ticketDetails.map((t) => t.name).join(", ")}`,
+      {
+        currency: "SLE",
+        value: Math.round(totalAmountWithFee * 100), // Convert to cents
+      },
+      authorizedProviders,
+      {
+        event_id: purchaseData.eventId,
+        buyer_name: purchaseData.buyerInfo.name,
+        buyer_wallet: purchaseData.buyerInfo.wallet_address || "guest",
+        payment_method: paymentMethod,
+        total_tickets: purchaseData.ticketDetails.length.toString(),
+        total_amount: purchaseData.totalAmount.toString(),
+        platform_fee: totalPlatformFee.toString(),
+        total_with_fee: totalAmountWithFee.toString(),
+        ticket_details: JSON.stringify(purchaseData.ticketDetails),
+        selected_tickets: JSON.stringify(purchaseData.selectedTickets),
+      },
+      `sos_seats_${purchaseData.eventId}_${Date.now()}`
+    );
+
+    return {
+      success: true,
+      paymentCodeId: paymentCode.id,
+      ussdCode: paymentCode.ussdCode,
+    };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Payment setup failed";
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
  * Handle Mobile Money payment for ticket purchase (Orange Money, Afrimoney, etc.)
+ * Using Checkout Session (redirects to Monime)
  */
 export async function handleMobileMoneyPayment(
   purchaseData: TicketPurchaseData,
@@ -223,15 +299,23 @@ export async function generateOrangeMoneyUrls(
   paymentMethod: string = "orange_money"
 ) {
   // Use PUBLIC_APP_URL for public redirects (needed for Monime live mode)
-  // Fallback to window.location.origin for local development
-  const publicAppUrl =
-    typeof import.meta !== "undefined"
-      ? import.meta.env.PUBLIC_APP_URL
-      : undefined;
-
+  // For Monime redirects, we MUST use a public URL (ngrok or production domain)
+  // Fallback to window.location.origin only if PUBLIC_APP_URL is not set
   const baseUrl =
-    publicAppUrl ||
+    PUBLIC_APP_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
+
+  // Log warning if using localhost (for debugging)
+  if (
+    typeof window !== "undefined" &&
+    baseUrl.includes("localhost") &&
+    !PUBLIC_APP_URL
+  ) {
+    console.warn(
+      "⚠️ Monime cancel redirect will fail: Using localhost URL. " +
+        "Set PUBLIC_APP_URL in .env and restart dev server."
+    );
+  }
 
   // Pass minimal purchase data through URL parameters (Monime has 255 char limit)
   if (typeof window !== "undefined" && purchaseData) {
@@ -248,6 +332,8 @@ export async function generateOrangeMoneyUrls(
 
     return {
       successUrl,
+      // Use success URL for cancel too - we'll check status there
+      // This avoids cross-site POST blocking issues
       cancelUrl: `${baseUrl}/marketplace/eventDetails/${eventId}?payment=cancelled`,
     };
   }
@@ -256,6 +342,7 @@ export async function generateOrangeMoneyUrls(
     successUrl: `${baseUrl}/payment/orange-money/success?event_id=${eventId}&session_id=${
       sessionId || ""
     }`,
+    // Use success URL for cancel too - we'll check status there
     cancelUrl: `${baseUrl}/marketplace/eventDetails/${eventId}?payment=cancelled`,
   };
 }

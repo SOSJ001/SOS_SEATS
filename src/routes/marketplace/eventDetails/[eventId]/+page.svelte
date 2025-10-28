@@ -14,9 +14,11 @@
   } from "$lib/web3";
   import {
     handleMobileMoneyPayment,
+    handleMobileMoneyPaymentWithCode,
     generateOrangeMoneyUrls,
     calculatePlatformFee,
   } from "$lib/orangeMoneyPayment.js";
+  import MobileMoneyPaymentModal from "$lib/components/MobileMoneyPaymentModal.svelte";
   import {
     sessionFromDb,
     walletStore,
@@ -60,6 +62,17 @@
   let processingAfrimoney = false;
   let showPaymentConfirmation = false;
   let showGuestCheckout = false;
+
+  // Payment Code modal state
+  let showPaymentModal = false;
+  let paymentModalData: {
+    paymentCodeId: string;
+    ussdCode: string;
+    amount: number;
+    currency: string;
+    paymentMethod: "orange_money" | "afrimoney";
+    purchaseData: any;
+  } | null = null;
   let paymentDetails: {
     totalTickets: number;
     ticketDetails: Array<{
@@ -456,7 +469,7 @@
       showToast(
         "info",
         "Setting up Orange Money Payment",
-        "Redirecting to secure payment page..."
+        "Creating payment code..."
       );
 
       // Calculate total tickets and price from selected tickets
@@ -480,6 +493,12 @@
         }
       }
 
+      // Calculate platform fee
+      const platformFee = ticketDetails.reduce((total, ticket) => {
+        return total + calculatePlatformFee(ticket.price) * ticket.quantity;
+      }, 0);
+      const totalWithFee = totalPrice + platformFee;
+
       // Prepare purchase data
       const purchaseData = {
         eventId,
@@ -492,28 +511,26 @@
         },
       };
 
-      // Generate URLs for Orange Money payment
-      const { successUrl, cancelUrl } = await generateOrangeMoneyUrls(
-        eventId,
-        undefined,
-        purchaseData,
-        "orange_money"
-      );
-
-      // Create Orange Money payment
-      const result = await handleMobileMoneyPayment(
+      // Create Payment Code for in-app payment (no redirect)
+      const result = await handleMobileMoneyPaymentWithCode(
         purchaseData as any,
-        successUrl,
-        cancelUrl,
         "orange_money"
       );
 
-      if (result.success && result.checkoutUrl) {
-        // Redirect to Monime's hosted checkout page
-        window.location.href = result.checkoutUrl;
+      if (result.success && result.paymentCodeId && result.ussdCode) {
+        // Show payment modal with USSD code
+        paymentModalData = {
+          paymentCodeId: result.paymentCodeId,
+          ussdCode: result.ussdCode,
+          amount: totalWithFee,
+          currency: "SLE",
+          paymentMethod: "orange_money",
+          purchaseData,
+        };
+        showPaymentModal = true;
       } else {
         throw new Error(
-          result.error || "Failed to create Orange Money payment"
+          result.error || "Failed to create Orange Money payment code"
         );
       }
     } catch (error) {
@@ -566,7 +583,7 @@
       showToast(
         "info",
         "Setting up Afrimoney Payment",
-        "Redirecting to secure payment page..."
+        "Creating payment code..."
       );
 
       // Calculate total tickets and price from selected tickets
@@ -590,6 +607,12 @@
         }
       }
 
+      // Calculate platform fee
+      const platformFee = ticketDetails.reduce((total, ticket) => {
+        return total + calculatePlatformFee(ticket.price) * ticket.quantity;
+      }, 0);
+      const totalWithFee = totalPrice + platformFee;
+
       // Prepare purchase data
       const purchaseData = {
         eventId,
@@ -602,27 +625,27 @@
         },
       };
 
-      // Generate URLs for Afrimoney payment
-      const { successUrl, cancelUrl } = await generateOrangeMoneyUrls(
-        eventId,
-        undefined,
-        purchaseData,
-        "afrimoney"
-      );
-
-      // Create Afrimoney payment (using same logic as Orange Money but with Afrimoney metadata)
-      const result = await handleMobileMoneyPayment(
+      // Create Payment Code for in-app payment (no redirect)
+      const result = await handleMobileMoneyPaymentWithCode(
         purchaseData as any,
-        successUrl,
-        cancelUrl,
         "afrimoney"
       );
 
-      if (result.success && result.checkoutUrl) {
-        // Redirect to Monime's hosted checkout page
-        window.location.href = result.checkoutUrl;
+      if (result.success && result.paymentCodeId && result.ussdCode) {
+        // Show payment modal with USSD code
+        paymentModalData = {
+          paymentCodeId: result.paymentCodeId,
+          ussdCode: result.ussdCode,
+          amount: totalWithFee,
+          currency: "SLE",
+          paymentMethod: "afrimoney",
+          purchaseData,
+        };
+        showPaymentModal = true;
       } else {
-        throw new Error(result.error || "Failed to create Afrimoney payment");
+        throw new Error(
+          result.error || "Failed to create Afrimoney payment code"
+        );
       }
     } catch (error) {
       console.error("Afrimoney payment error:", error);
@@ -836,6 +859,33 @@
         "",
         `/marketplace/eventDetails/${eventId}`
       );
+    }
+
+    // Also check if user came back from Monime without success
+    // (This handles the case where browser blocks the cancel redirect)
+    const sessionId = urlParams.get("session_id") || urlParams.get("s");
+    if (sessionId && !urlParams.get("payment") && !urlParams.has("success")) {
+      // User might have cancelled - poll session status to check
+      try {
+        const { monimeService } = await import("$lib/monime.js");
+        const status = await monimeService.getPaymentStatus(sessionId);
+
+        if (status.status === "cancelled") {
+          showToast(
+            "warning",
+            "Payment Cancelled",
+            "Your payment was cancelled. You can try again or choose a different payment method."
+          );
+          // Clean up URL
+          window.history.replaceState(
+            {},
+            "",
+            `/marketplace/eventDetails/${eventId}`
+          );
+        }
+      } catch (e) {
+        // Ignore errors - session might not exist or be expired
+      }
     }
 
     try {
@@ -1397,6 +1447,29 @@
   on:connectWallet={handleConnectWalletFromGuest}
   on:close={() => (showGuestCheckout = false)}
 />
+
+{#if paymentModalData}
+  <MobileMoneyPaymentModal
+    bind:show={showPaymentModal}
+    paymentCodeId={paymentModalData.paymentCodeId}
+    ussdCode={paymentModalData.ussdCode}
+    amount={paymentModalData.amount}
+    currency={paymentModalData.currency}
+    paymentMethod={paymentModalData.paymentMethod}
+    purchaseData={paymentModalData.purchaseData}
+    on:close={() => {
+      showPaymentModal = false;
+      paymentModalData = null;
+    }}
+    on:success={(e) => {
+      const { orderId } = e.detail;
+      // Redirect to confirmation page
+      goto(`/tickets/confirmation/${orderId}`);
+      showPaymentModal = false;
+      paymentModalData = null;
+    }}
+  />
+{/if}
 
 <style>
   /* Page load animation */
