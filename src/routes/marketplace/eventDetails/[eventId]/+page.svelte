@@ -13,9 +13,7 @@
     sendTransactionWithWallet,
   } from "$lib/web3";
   import {
-    handleMobileMoneyPayment,
     handleMobileMoneyPaymentWithCode,
-    generateOrangeMoneyUrls,
     calculatePlatformFee,
   } from "$lib/orangeMoneyPayment.js";
   import MobileMoneyPaymentModal from "$lib/components/MobileMoneyPaymentModal.svelte";
@@ -502,6 +500,7 @@
       // Prepare purchase data
       const purchaseData = {
         eventId,
+        eventName: event?.name || "Event",
         selectedTickets,
         totalAmount: totalPrice,
         ticketDetails,
@@ -616,6 +615,7 @@
       // Prepare purchase data
       const purchaseData = {
         eventId,
+        eventName: event?.name || "Event",
         selectedTickets,
         totalAmount: totalPrice,
         ticketDetails,
@@ -861,31 +861,16 @@
       );
     }
 
-    // Also check if user came back from Monime without success
-    // (This handles the case where browser blocks the cancel redirect)
+    // Clean up any old checkout session URL parameters
+    // Payment codes handle cancellation in the modal, so this is no longer needed
     const sessionId = urlParams.get("session_id") || urlParams.get("s");
     if (sessionId && !urlParams.get("payment") && !urlParams.has("success")) {
-      // User might have cancelled - poll session status to check
-      try {
-        const { monimeService } = await import("$lib/monime.js");
-        const status = await monimeService.getPaymentStatus(sessionId);
-
-        if (status.status === "cancelled") {
-          showToast(
-            "warning",
-            "Payment Cancelled",
-            "Your payment was cancelled. You can try again or choose a different payment method."
-          );
-          // Clean up URL
-          window.history.replaceState(
-            {},
-            "",
-            `/marketplace/eventDetails/${eventId}`
-          );
-        }
-      } catch (e) {
-        // Ignore errors - session might not exist or be expired
-      }
+      // Remove old session parameters from URL
+      window.history.replaceState(
+        {},
+        "",
+        `/marketplace/eventDetails/${eventId}`
+      );
     }
 
     try {

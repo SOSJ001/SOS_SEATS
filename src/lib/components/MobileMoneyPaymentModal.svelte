@@ -90,7 +90,9 @@
     try {
       const status = await monimeService.getPaymentCodeStatus(paymentCodeId);
 
-      if (status.status === "completed" && status.processedPaymentData) {
+      // Check if payment is completed (with or without processedPaymentData)
+      if (status.status === "completed") {
+        // Stop polling once we detect completion
         paymentStatus = "completed";
 
         if (pollingInterval) {
@@ -102,12 +104,10 @@
           timeInterval = null;
         }
 
-        // Process the payment callback
-        const paymentData = status.processedPaymentData;
-
-        // Extract purchase data
+        // Extract purchase data from stored data or metadata
         let ticketDetails = purchaseData?.ticketDetails || [];
         let selectedTickets = purchaseData?.selectedTickets || {};
+        let paymentAmount = amount;
 
         // If metadata has ticket details, use those
         if (status.metadata) {
@@ -123,14 +123,19 @@
           }
         }
 
-        // Amount from payment data (convert from cents)
-        const paymentAmount = paymentData.amount?.value
-          ? paymentData.amount.value / 100
-          : amount;
+        // Try to get amount from processedPaymentData if available, otherwise use stored amount
+        if (status.processedPaymentData?.amount?.value) {
+          paymentAmount = status.processedPaymentData.amount.value / 100;
+        }
 
-        // Process callback
+        // Use payment ID from processedPaymentData if available, otherwise use payment code ID
+        const paymentId =
+          status.processedPaymentData?.paymentId || paymentCodeId;
+
+        // Process callback - create order using payment code ID as transaction reference
+        // Skip status check for payment codes since we already confirmed it's completed
         const result = await processOrangeMoneyCallback(
-          paymentData.paymentId || paymentCodeId,
+          paymentId,
           {
             eventId: purchaseData?.eventId || "",
             selectedTickets,
@@ -138,7 +143,8 @@
             ticketDetails,
             buyerInfo: purchaseData?.buyerInfo || { name: "Guest User" },
           },
-          paymentMethod
+          paymentMethod,
+          true // Skip status check - payment code is already confirmed as completed
         );
 
         if (result.success) {
@@ -159,7 +165,11 @@
             result.error || "Failed to process payment"
           );
         }
-      } else if (status.status === "cancelled" || status.status === "expired") {
+      } else if (
+        status.status === "cancelled" ||
+        status.status === "expired" ||
+        status.status === "failed"
+      ) {
         paymentStatus = status.status;
         if (pollingInterval) {
           clearInterval(pollingInterval);
@@ -169,9 +179,20 @@
           clearInterval(timeInterval);
           timeInterval = null;
         }
+
+        if (status.status === "failed") {
+          showToast(
+            "error",
+            "Payment Failed",
+            "The payment could not be processed. Please try again."
+          );
+        }
+      } else if (status.status === "processing") {
+        // Payment is being processed - keep polling
       }
     } catch (error) {
       console.error("Payment status check error:", error);
+      // Don't stop polling on error, might be temporary network issue
     }
   }
 
