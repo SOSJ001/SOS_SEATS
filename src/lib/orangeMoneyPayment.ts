@@ -1,6 +1,5 @@
 // Orange Money payment handler using Monime API
 import { monimeService } from "./monime.js";
-import { PUBLIC_APP_URL } from "$env/static/public";
 
 // Platform fee configuration
 const PLATFORM_FEE_PERCENTAGE = 0.1; // 10% platform fee (adjust as needed)
@@ -225,8 +224,13 @@ export async function generateOrangeMoneyUrls(
 ) {
   // Use PUBLIC_APP_URL for public redirects (needed for Monime live mode)
   // Fallback to window.location.origin for local development
+  const publicAppUrl =
+    typeof import.meta !== "undefined"
+      ? import.meta.env.PUBLIC_APP_URL
+      : undefined;
+
   const baseUrl =
-    PUBLIC_APP_URL ||
+    publicAppUrl ||
     (typeof window !== "undefined" ? window.location.origin : "");
 
   // Pass minimal purchase data through URL parameters (Monime has 255 char limit)
