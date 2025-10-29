@@ -22,6 +22,7 @@
   let timeInterval: ReturnType<typeof setInterval> | null = null;
   let showCloseConfirmation = false;
   let cancelingCode = false;
+  let isProcessingPayment = false; // Prevent duplicate payment processing
 
   const providerName =
     paymentMethod === "orange_money" ? "Orange Money" : "Afrimoney";
@@ -85,13 +86,20 @@
   }
 
   async function checkPaymentStatus() {
-    if (!paymentCodeId || paymentStatus !== "pending") return;
+    if (!paymentCodeId || paymentStatus !== "pending" || isProcessingPayment)
+      return;
 
     try {
       const status = await monimeService.getPaymentCodeStatus(paymentCodeId);
 
       // Check if payment is completed (with or without processedPaymentData)
       if (status.status === "completed") {
+        // Prevent duplicate processing - check if already processing
+        if (isProcessingPayment) return;
+
+        // Set flag to prevent duplicate processing
+        isProcessingPayment = true;
+
         // Stop polling once we detect completion
         paymentStatus = "completed";
 
@@ -158,6 +166,8 @@
             dispatch("success", { orderId: result.orderId });
           }, 2000);
         } else {
+          // Reset processing flag on error so user can retry
+          isProcessingPayment = false;
           paymentStatus = "error";
           showToast(
             "error",

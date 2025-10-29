@@ -161,8 +161,30 @@ export async function processOrangeMoneyCallback(
       currency: "SLE", // Sierra Leone Leone for mobile money
     };
 
-    // Import the claimFreeTickets function to use the same logic as Solana payments
-    const { claimFreeTickets } = await import("./supabase.js");
+    // Import the claimFreeTickets function and supabase client
+    const { claimFreeTickets, supabase } = await import("./supabase.js");
+
+    // Check if an order with this transaction signature already exists (idempotency check)
+    const { data: existingOrder, error: checkError } = await supabase
+      .from("orders")
+      .select("id, order_number")
+      .eq("transaction_hash", transactionId)
+      .eq("event_id", purchaseData.eventId)
+      .eq("payment_method", paymentMethod)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== "PGRST116") {
+      // PGRST116 is "not found" which is fine, other errors should be logged
+      console.error("Error checking for existing order:", checkError);
+    }
+
+    // If order already exists, return success with existing order ID
+    if (existingOrder) {
+      return {
+        success: true,
+        orderId: existingOrder.id,
+      };
+    }
 
     // Record the purchase in database using the same function as Solana payments
     const result = await claimFreeTickets(
