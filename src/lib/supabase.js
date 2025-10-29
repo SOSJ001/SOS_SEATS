@@ -1183,6 +1183,134 @@ export async function getEventStatistics(eventId) {
   }
 }
 
+// Get recent activities for dashboard
+export async function getRecentActivities(userId) {
+  try {
+    const activities = [];
+
+    // 1. Get recent orders (ticket sales)
+    const { data: recentOrders, error: ordersError } = await supabase
+      .from("orders")
+      .select(
+        `
+        id,
+        order_number,
+        total_amount,
+        payment_method,
+        created_at,
+        events!inner(
+          id,
+          name,
+          user_id
+        )
+      `
+      )
+      .eq("events.user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (!ordersError && recentOrders) {
+      recentOrders.forEach((order) => {
+        activities.push({
+          type: "ticket_sale",
+          icon: "ticket",
+          message: `Ticket Sold: ${order.events.name}`,
+          details: `Order #${order.order_number} - $${parseFloat(
+            order.total_amount
+          ).toFixed(2)} via ${order.payment_method}`,
+          time: formatTimeAgo(order.created_at),
+          timestamp: order.created_at,
+        });
+      });
+    }
+
+    // 2. Get recent guest check-ins
+    const { data: recentCheckIns, error: checkInsError } = await supabase
+      .from("guests")
+      .select(
+        `
+        id,
+        first_name,
+        last_name,
+        check_in_time,
+        events!inner(
+          id,
+          name,
+          user_id
+        )
+      `
+      )
+      .eq("events.user_id", userId)
+      .not("check_in_time", "is", null)
+      .order("check_in_time", { ascending: false })
+      .limit(3);
+
+    if (!checkInsError && recentCheckIns) {
+      recentCheckIns.forEach((guest) => {
+        activities.push({
+          type: "check_in",
+          icon: "users",
+          message: `Guest Checked In: ${guest.first_name} ${guest.last_name}`,
+          details: `Event: ${guest.events.name}`,
+          time: formatTimeAgo(guest.check_in_time),
+          timestamp: guest.check_in_time,
+        });
+      });
+    }
+
+    // 3. Get recent events created
+    const { data: recentEvents, error: eventsError } = await supabase
+      .from("events")
+      .select("id, name, created_at, status")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(2);
+
+    if (!eventsError && recentEvents) {
+      recentEvents.forEach((event) => {
+        activities.push({
+          type: "event_created",
+          icon: "calendar",
+          message: `Event Created: ${event.name}`,
+          details: `Status: ${event.status}`,
+          time: formatTimeAgo(event.created_at),
+          timestamp: event.created_at,
+        });
+      });
+    }
+
+    // Sort all activities by timestamp (most recent first) and take the 6 most recent
+    return activities
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, 6);
+  } catch (error) {
+    console.error("Error fetching recent activities:", error);
+    return [];
+  }
+}
+
+// Helper function to format time ago
+function formatTimeAgo(dateString) {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffInSeconds = Math.floor((now - date) / 1000);
+
+  if (diffInSeconds < 60) {
+    return "Just now";
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60);
+    return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  } else if (diffInSeconds < 604800) {
+    const days = Math.floor(diffInSeconds / 86400);
+    return `${days} day${days > 1 ? "s" : ""} ago`;
+  } else {
+    return date.toLocaleDateString();
+  }
+}
+
 // Update event status
 export async function updateEventStatus(eventId, status) {
   try {

@@ -1,7 +1,7 @@
 <script>
   // @ts-nocheck
   import { getDomain, sessionFromDb, updatedEventsData } from "$lib/store";
-  import { invalidateAll } from "$app/navigation";
+  import { invalidateAll, goto } from "$app/navigation";
   import DashboardOverview from "$lib/components/DashboardOverview.svelte";
   import DashboardRecentActivity from "$lib/components/DashboardRecentActivity.svelte";
   import { fade } from "svelte/transition";
@@ -14,81 +14,124 @@
 
   // Get event data
   let EventTableResult = data.EventTableResult;
+  const dashboardStats = data.dashboardStats || {
+    liveEvents: 0,
+    totalTicketsSold: 0,
+    totalRevenue: 0,
+    guestsCheckedIn: 0,
+  };
 
-  // Calculate dashboard metrics
+  // Helper function to format currency
+  function formatCurrency(amount) {
+    const numAmount = parseFloat(amount) || 0;
+    if (numAmount >= 1000000) {
+      return `$${(numAmount / 1000000).toFixed(2)}M`;
+    } else if (numAmount >= 1000) {
+      return `$${(numAmount / 1000).toFixed(0)}k`;
+    } else {
+      return `$${numAmount.toFixed(2)}`;
+    }
+  }
+
+  // Calculate dashboard metrics dynamically
   $: dashboardMetrics = [
     {
       icon: "calendar",
-      value: EventTableResult ? EventTableResult.length.toString() : "0",
+      value: dashboardStats.liveEvents.toString(),
       label: "LIVE EVENTS",
       color: "teal",
     },
     {
       icon: "ticket",
-      value: "5,432",
+      value: dashboardStats.totalTicketsSold.toLocaleString(),
       label: "TICKETS SOLD",
       color: "blue",
     },
     {
       icon: "currency",
-      value: "$125k",
+      value: formatCurrency(dashboardStats.totalRevenue),
       label: "TOTAL REVENUE",
       color: "green",
     },
     {
       icon: "users",
-      value: "4,890",
+      value: dashboardStats.guestsCheckedIn.toLocaleString(),
       label: "GUESTS CHECKED IN",
       color: "purple",
     },
   ];
 
-  // Recent activity data
-  let recentActivities = [
-    {
-      icon: "ticket",
-      message: "Ticket Sold: VIP Pass for Summer Fest",
-      time: "2 minutes ago",
-    },
-    {
-      icon: "users",
-      message: "New Guest Registered: Jane Doe",
-      time: "1 hour ago",
-    },
+  // Temporary fallback metrics for testing
+  $: fallbackMetrics = [
     {
       icon: "calendar",
-      message: "New Event Created: Winter Gala",
-      time: "Yesterday",
+      value: "0",
+      label: "LIVE EVENTS",
+      color: "teal",
+    },
+    {
+      icon: "ticket",
+      value: "0",
+      label: "TICKETS SOLD",
+      color: "blue",
     },
     {
       icon: "currency",
-      message: "Revenue Payout Processed",
-      time: "3 days ago",
+      value: "$0",
+      label: "TOTAL REVENUE",
+      color: "green",
+    },
+    {
+      icon: "users",
+      value: "0",
+      label: "GUESTS CHECKED IN",
+      color: "purple",
     },
   ];
 
-  // Update activities based on real data if available
-  $: {
-    if (EventTableResult && EventTableResult.length > 0) {
-      // Update the first activity with real event data
-      const latestEvent = EventTableResult[0];
-      if (latestEvent && latestEvent.Event) {
-        recentActivities[2] = {
-          icon: "calendar",
-          message: `New Event Created: ${latestEvent.Event.name}`,
-          time: "Recently",
-        };
-      }
-    }
+  // Use fallback if dashboardMetrics is empty or undefined
+  $: displayMetrics =
+    dashboardMetrics && dashboardMetrics.length > 0
+      ? dashboardMetrics
+      : fallbackMetrics;
+
+  // Get recent activities from server data
+  const recentActivities = data.recentActivities || [];
+
+  // Use real activities if available, otherwise show empty array for proper empty state handling
+  $: displayActivities = recentActivities;
+
+  // Quick action handlers
+  let isNavigating = false;
+
+  async function handleCreateEvent() {
+    if (isNavigating) return;
+    isNavigating = true;
+    await goto("/dashboard/events/createEvent");
+    isNavigating = false;
+  }
+
+  async function handleScanQR() {
+    if (isNavigating) return;
+    isNavigating = true;
+    await goto("/dashboard/scanner");
+    isNavigating = false;
+  }
+
+  async function handleManageGuests() {
+    if (isNavigating) return;
+    isNavigating = true;
+    await goto("/dashboard/guests");
+    isNavigating = false;
   }
 </script>
 
 <div class="space-y-8">
   <!-- Dashboard Overview -->
-  <DashboardOverview {dashboardMetrics} />
+  <DashboardOverview metrics={displayMetrics} />
 
   <!-- Recent Activity -->
-  <DashboardRecentActivity activities={recentActivities} />
+  <DashboardRecentActivity activities={displayActivities} />
 
   <!-- Quick Actions Section -->
   <div
@@ -99,7 +142,9 @@
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <button
-        class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
+        class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+        on:click={handleCreateEvent}
+        disabled={isNavigating}
       >
         <div class="flex items-center space-x-3">
           <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -114,7 +159,9 @@
       </button>
 
       <button
-        class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
+        class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+        on:click={handleScanQR}
+        disabled={isNavigating}
       >
         <div class="flex items-center space-x-3">
           <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -129,7 +176,9 @@
       </button>
 
       <button
-        class="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
+        class="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+        on:click={handleManageGuests}
+        disabled={isNavigating}
       >
         <div class="flex items-center space-x-3">
           <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
