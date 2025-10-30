@@ -30,6 +30,11 @@
     confirmVariant: "success" as const,
   };
 
+  // Confirmation dialog modes and pending wallet flow
+  let confirmMode: "start" | "wallet" | "guest" = "start";
+  let pendingWalletAddress: string | null = null;
+  let pendingGuestId: string | null = null;
+
   // Animation states
   let isLoaded = false;
   let showScanner = false;
@@ -112,6 +117,15 @@
     return /^[1-9A-HJ-NP-Za-km-z]{32,64}$/.test(value);
   }
 
+  async function processWalletScan(walletAddress: string) {
+    const res = await validateAndCheckInTicket(walletAddress, selectedEvent);
+    return {
+      route: "wallet" as const,
+      result: res,
+      scannedValue: walletAddress,
+    };
+  }
+
   async function handleScanResult(scannedValue: string) {
     if (!selectedEvent) {
       showToast(
@@ -129,27 +143,84 @@
       if (isUuid(scannedValue)) {
         // Guest ID path
         route = "guest";
-        const check = await checkInGuest(scannedValue);
-        if (check.success) {
-          // Minimal ticketInfo for guest path (we don't have full join here)
-          result = {
-            success: true,
-            message: check.message || "Guest checked in successfully",
-            ticketInfo: {
-              original_buyer_name: "Guest",
-              ticket_type_name: "Ticket",
-            },
-          };
-        } else {
+        // Enforce selected event: ensure guest belongs to selectedEvent before check-in
+        const { data: guestRow, error: guestErr } = await supabase
+          .from("guests")
+          .select("id, event_id, status")
+          .eq("id", scannedValue)
+          .maybeSingle();
+
+        if (guestErr || !guestRow) {
           result = {
             success: false,
-            message: check.error || "Guest not found or already checked in",
+            message: "Guest not found",
           };
+        } else if (guestRow.event_id !== selectedEvent) {
+          result = {
+            success: false,
+            message: "Invalid code",
+          };
+        } else {
+          // Valid guest for this event; ensure not already checked in
+          if (guestRow.status && guestRow.status !== "confirmed") {
+            result = { success: false, message: "Invalid code" };
+          } else {
+            // Confirm before performing guest check-in
+            pendingGuestId = scannedValue;
+            confirmMode = "guest";
+            confirmDialogData = {
+              title: "Confirm Check-In",
+              message: "Proceed to check in this ticket?",
+              confirmText: "Check In",
+              confirmVariant: "success",
+            };
+            showConfirmDialog = true;
+            isScanning = false;
+            return;
+          }
         }
       } else if (isLikelySolanaAddress(scannedValue)) {
-        // Wallet path (Web3)
-        route = "wallet";
-        result = await validateAndCheckInTicket(scannedValue, selectedEvent);
+        // Wallet path (Web3) — if multiple unscanned tickets exist, confirm before consuming one
+        const { data: orderRows } = await supabase
+          .from("orders")
+          .select("id")
+          .eq("event_id", selectedEvent);
+        const orderIds = orderRows?.map((o: any) => o.id) || [];
+
+        let unscannedCount = 0;
+        if (orderIds.length > 0) {
+          const { count } = await supabase
+            .from("order_items")
+            .select("id", { count: "exact", head: true })
+            .eq("current_owner", scannedValue)
+            .is("check_in_time", null)
+            .in("order_id", orderIds);
+          unscannedCount = count || 0;
+        }
+
+        // Only show dialog if there is at least one unscanned ticket; otherwise invalid
+        if ((unscannedCount || 0) < 1) {
+          route = "invalid";
+          result = { success: false, message: "Invalid code" };
+        } else {
+          pendingWalletAddress = scannedValue;
+          confirmMode = "wallet";
+          confirmDialogData = {
+            title:
+              unscannedCount > 1
+                ? "Multiple Tickets Found"
+                : "Confirm Check-In",
+            message:
+              unscannedCount > 1
+                ? `This wallet has ${unscannedCount} unscanned tickets. Proceed to check in one?`
+                : "Proceed to check in this ticket?",
+            confirmText: unscannedCount > 1 ? "Check In One" : "Check In",
+            confirmVariant: "success",
+          };
+          showConfirmDialog = true;
+          isScanning = false;
+          return;
+        }
       } else {
         route = "invalid";
         result = { success: false, message: "Invalid code format" };
@@ -180,7 +251,7 @@
             status: "success" as const,
             message: `${ticketInfo.ticket_type_name} - Checked In`,
             timestamp: currentScanResult.timestamp,
-            walletAddress: route === "wallet" ? scannedValue : undefined,
+            walletAddress: undefined,
           },
           ...scanHistory.slice(0, 9), // Keep only last 10 entries
         ];
@@ -209,7 +280,7 @@
             status: "error" as const,
             message: result.message,
             timestamp: currentScanResult.timestamp,
-            walletAddress: route === "wallet" ? scannedValue : undefined,
+            walletAddress: undefined,
           },
           ...scanHistory.slice(0, 9),
         ];
@@ -266,6 +337,7 @@
 
     const selectedEventData = events.find((e) => e.id === selectedEvent);
 
+    confirmMode = "start";
     confirmDialogData = {
       title: "Start Scanning",
       message: `Are you sure you want to start scanning tickets for "${selectedEventData?.name}"?`,
@@ -277,7 +349,133 @@
 
   function handleScanConfirm() {
     showConfirmDialog = false;
-    startScanning();
+    if (confirmMode === "wallet" && pendingWalletAddress) {
+      processWalletScan(pendingWalletAddress)
+        .then(({ result }) => {
+          if (result.success) {
+            const ticketInfo = result.ticketInfo;
+            currentScanResult = {
+              success: true,
+              message: result.message,
+              guestName: ticketInfo.original_buyer_name || "Unknown",
+              ticketType: ticketInfo.ticket_type_name || "Standard Ticket",
+              section: "General Admission",
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              ticketInfo: ticketInfo,
+            };
+            scanHistory = [
+              {
+                id: Date.now().toString(),
+                guestName: ticketInfo.original_buyer_name || "Unknown",
+                status: "success" as const,
+                message: `${ticketInfo.ticket_type_name} - Checked In`,
+                timestamp: currentScanResult.timestamp,
+                walletAddress: pendingWalletAddress || undefined,
+              },
+              ...scanHistory.slice(0, 9),
+            ];
+            showToast(
+              "success",
+              "Ticket Validated",
+              `${ticketInfo.original_buyer_name} checked in successfully`
+            );
+          } else {
+            currentScanResult = {
+              success: false,
+              message: result.message,
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+            scanHistory = [
+              {
+                id: Date.now().toString(),
+                guestName: "Invalid Ticket",
+                status: "error" as const,
+                message: result.message,
+                timestamp: currentScanResult.timestamp,
+                walletAddress: pendingWalletAddress || undefined,
+              },
+              ...scanHistory.slice(0, 9),
+            ];
+            showToast("error", "Validation Failed", result.message);
+          }
+        })
+        .finally(() => {
+          pendingWalletAddress = null;
+          confirmMode = "start";
+          isScanning = false;
+        });
+    } else if (confirmMode === "guest" && pendingGuestId) {
+      // Proceed with guest check-in after confirmation
+      checkInGuest(pendingGuestId)
+        .then((check) => {
+          if (check.success) {
+            const ticketInfo: any = {
+              original_buyer_name: "Guest",
+              ticket_type_name: "Ticket",
+            };
+            currentScanResult = {
+              success: true,
+              message: check.message || "Guest checked in successfully",
+              guestName: ticketInfo.original_buyer_name,
+              ticketType: ticketInfo.ticket_type_name,
+              section: "General Admission",
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              ticketInfo,
+            };
+            scanHistory = [
+              {
+                id: Date.now().toString(),
+                guestName: ticketInfo.original_buyer_name,
+                status: "success" as const,
+                message: `${ticketInfo.ticket_type_name} - Checked In`,
+                timestamp: currentScanResult.timestamp,
+              },
+              ...scanHistory.slice(0, 9),
+            ];
+            showToast(
+              "success",
+              "Ticket Validated",
+              `${ticketInfo.original_buyer_name} checked in successfully`
+            );
+          } else {
+            currentScanResult = {
+              success: false,
+              message: check.error || "Guest not found or already checked in",
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+            scanHistory = [
+              {
+                id: Date.now().toString(),
+                guestName: "Invalid Ticket",
+                status: "error" as const,
+                message: currentScanResult.message,
+                timestamp: currentScanResult.timestamp,
+              },
+              ...scanHistory.slice(0, 9),
+            ];
+            showToast("error", "Validation Failed", currentScanResult.message);
+          }
+        })
+        .finally(() => {
+          pendingGuestId = null;
+          confirmMode = "start";
+          isScanning = false;
+        });
+    } else {
+      startScanning();
+    }
   }
 
   function handleScanCancel() {
