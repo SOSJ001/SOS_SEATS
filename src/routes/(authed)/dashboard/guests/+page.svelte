@@ -274,12 +274,8 @@
   {/if}
 
   <!-- Event Selector -->
-  {#if events.length > 0}
-    <EventSelector
-      bind:selectedEvent
-      {events}
-      on:eventChange={handleEventChange}
-    />
+  {#if true}
+    <EventSelector bind:selectedEvent on:eventChange={handleEventChange} />
   {/if}
 
   <!-- Guest Filters -->

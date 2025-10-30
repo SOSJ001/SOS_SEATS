@@ -1,52 +1,14 @@
 <script lang="ts">
-  // Sample transaction data - in real app this would come from props
-  let transactions = [
-    {
-      id: "1",
-      type: "deposit",
-      description: "Deposit",
-      date: "2024-07-20, 14:30",
-      amount: "+ 5.00 ETH",
-      status: "completed",
-      icon: "deposit",
-    },
-    {
-      id: "2",
-      type: "ticket_sale",
-      description: "Ticket Sale: Neon Night Rave",
-      date: "2024-07-19, 16:45",
-      amount: "+ 0.80 ETH",
-      status: "completed",
-      icon: "ticket",
-    },
-    {
-      id: "3",
-      type: "withdrawal",
-      description: "Withdrawal",
-      date: "2024-07-18, 09:15",
-      amount: "- 2.00 ETH",
-      status: "completed",
-      icon: "withdrawal",
-    },
-    {
-      id: "4",
-      type: "refund",
-      description: "Refund: Synthwave Symphony",
-      date: "2024-07-17, 11:20",
-      amount: "- 0.50 ETH",
-      status: "pending",
-      icon: "refund",
-    },
-    {
-      id: "5",
-      type: "deposit",
-      description: "Deposit",
-      date: "2024-07-16, 13:10",
-      amount: "+ 10.00 ETH",
-      status: "completed",
-      icon: "deposit",
-    },
-  ];
+  // Dynamic transactions passed from parent
+  export let transactions: Array<{
+    id: string;
+    type: string;
+    description: string;
+    date: string;
+    amount: string;
+    status: string;
+    icon: string;
+  }> = [];
 
   function getTransactionIcon(iconType: string) {
     switch (iconType) {
@@ -95,53 +57,59 @@
   <h2 class="text-lg md:text-xl font-bold text-white">Recent Transactions</h2>
 
   <div class="space-y-3">
-    {#each transactions as transaction}
-      <div class="bg-gray-800 rounded-lg p-3 md:p-4">
-        <div
-          class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0"
-        >
-          <!-- Left side - Icon and Description -->
-          <div class="flex items-center space-x-3 md:space-x-4">
-            <!-- Transaction Icon -->
-            <div
-              class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0"
-            >
-              {@html getTransactionIcon(transaction.icon)}
-            </div>
-
-            <!-- Description and Date -->
-            <div class="min-w-0 flex-1">
-              <p class="text-white font-medium text-sm md:text-base truncate">
-                {transaction.description}
-              </p>
-              <p class="text-gray-400 text-xs md:text-sm">{transaction.date}</p>
-            </div>
-          </div>
-
-          <!-- Right side - Amount and Status -->
+    {#if transactions.length === 0}
+      <div class="text-gray-400 text-sm">No recent transactions.</div>
+    {:else}
+      {#each transactions as transaction}
+        <div class="bg-gray-800 rounded-lg p-3 md:p-4">
           <div
-            class="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-3"
+            class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0"
           >
-            <!-- Amount -->
-            <span
-              class="font-semibold text-sm md:text-base {getAmountClass(
-                transaction.amount
-              )}"
-            >
-              {transaction.amount}
-            </span>
+            <!-- Left side - Icon and Description -->
+            <div class="flex items-center space-x-3 md:space-x-4">
+              <!-- Transaction Icon -->
+              <div
+                class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0"
+              >
+                {@html getTransactionIcon(transaction.icon)}
+              </div>
 
-            <!-- Status Tag -->
-            <span
-              class="px-2 py-1 text-xs font-medium rounded-full {getStatusClass(
-                transaction.status
-              )} whitespace-nowrap"
+              <!-- Description and Date -->
+              <div class="min-w-0 flex-1">
+                <p class="text-white font-medium text-sm md:text-base truncate">
+                  {transaction.description}
+                </p>
+                <p class="text-gray-400 text-xs md:text-sm">
+                  {transaction.date}
+                </p>
+              </div>
+            </div>
+
+            <!-- Right side - Amount and Status -->
+            <div
+              class="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-3"
             >
-              {transaction.status.toUpperCase()}
-            </span>
+              <!-- Amount -->
+              <span
+                class="font-semibold text-sm md:text-base {getAmountClass(
+                  transaction.amount
+                )}"
+              >
+                {transaction.amount}
+              </span>
+
+              <!-- Status Tag -->
+              <span
+                class="px-2 py-1 text-xs font-medium rounded-full {getStatusClass(
+                  transaction.status
+                )} whitespace-nowrap"
+              >
+                {transaction.status.toUpperCase()}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    {/each}
+      {/each}
+    {/if}
   </div>
 </div>

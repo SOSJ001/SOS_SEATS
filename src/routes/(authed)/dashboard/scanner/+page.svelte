@@ -585,7 +585,7 @@
       <!-- Left Column - Scanner Controls -->
       <div class="lg:col-span-2 space-y-6">
         <!-- Event Selector -->
-        <EventSelector bind:selectedEvent {events} />
+        <EventSelector bind:selectedEvent />
 
         <!-- QR Scanner -->
         <div class="flex justify-center">

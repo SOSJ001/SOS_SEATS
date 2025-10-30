@@ -3,10 +3,10 @@ import * as web3 from "@solana/web3.js";
 import { signTransactionKey } from "./supabase";
 import { env } from "$env/dynamic/public";
 
-// create a new connection instance
-export const connection = new web3.Connection(
-  web3.clusterApiUrl(env.PUBLIC_SOLANA_NETWORK as any, "confirmed")
-);
+// create a new connection instance with robust fallbacks
+const network = (env.PUBLIC_SOLANA_NETWORK as any) || "mainnet-beta";
+const rpcUrl = env.PUBLIC_SOLANA_RPC_URL || web3.clusterApiUrl(network);
+export const connection = new web3.Connection(rpcUrl, "confirmed");
 
 // Helper function to get the currently connected wallet
 function getConnectedWallet() {
@@ -59,6 +59,24 @@ export async function getBalance(publickey: string) {
     return balance;
   } catch (error) {
     console.error("Error getting balance:", error);
+    return null;
+  }
+}
+
+// Get an active wallet address from any injected provider if available
+export function getActiveWalletAddress(): string | null {
+  try {
+    const w: any = (typeof window !== 'undefined') ? (window as any) : null;
+    if (!w) return null;
+    const providers = [w.solana, w.solflare, w.backpack];
+    for (const p of providers) {
+      if (p && (p.isConnected || p.publicKey)) {
+        const pk = p.publicKey?.toBase58 ? p.publicKey.toBase58() : p.publicKey;
+        if (pk && typeof pk === 'string') return pk;
+      }
+    }
+    return null;
+  } catch {
     return null;
   }
 }

@@ -7,15 +7,7 @@
 
   export const data = undefined;
 
-  // Sample events data
-  let events = [
-    { id: "1", name: "Summer Music Festival 2024", date: "2024-07-15" },
-    { id: "2", name: "Tech Conference 2024", date: "2024-08-20" },
-    { id: "3", name: "Art Exhibition Opening", date: "2024-09-10" },
-    { id: "4", name: "Food & Wine Festival", date: "2024-10-05" },
-  ];
-
-  let selectedEvent = "1";
+  let selectedEvent = "";
   let selectedSeat: string | null = null;
 
   // Animation states
@@ -79,7 +71,10 @@
       : 'translate-y-8 opacity-0'}"
   >
     <h2 class="block text-sm font-medium text-gray-400 mb-2">Select Event</h2>
-    <EventSelector {selectedEvent} {events} onEventChange={handleEventChange} />
+    <EventSelector
+      bind:selectedEvent
+      on:eventChange={(e) => handleEventChange(e.detail.eventId)}
+    />
   </div>
 
   <!-- Main Content Grid -->
