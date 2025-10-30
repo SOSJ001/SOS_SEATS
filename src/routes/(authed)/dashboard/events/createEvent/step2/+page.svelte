@@ -10,7 +10,7 @@
     tags: [], // Database: TEXT[]
     image: null, // Will be handled separately for storage
     organizer: "", // Database: TEXT
-    contact_email: "", // Database: TEXT (field name)
+    contact_email: null, // Database: TEXT - set to null for privacy
     website: "", // Database: TEXT
     social_media: {
       // Database: JSONB
@@ -84,11 +84,6 @@
     }
     if (!eventData.organizer.trim()) {
       errors.organizer = "Organizer name is required";
-    }
-    if (!eventData.contact_email.trim()) {
-      errors.contactEmail = "Contact email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eventData.contact_email)) {
-      errors.contactEmail = "Please enter a valid email";
     }
 
     return Object.keys(errors).length === 0;
@@ -308,48 +303,25 @@
     </div>
 
     <!-- Organizer Information -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-      <div>
-        <label
-          for="organizer"
-          class="block text-sm font-medium text-gray-300 mb-2"
-        >
-          Organizer Name *
-        </label>
-        <input
-          id="organizer"
-          type="text"
-          bind:value={eventData.organizer}
-          class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.organizer
-            ? 'border-red-500'
-            : ''}"
-          placeholder="Enter organizer name"
-        />
-        {#if errors.organizer}
-          <p class="text-red-400 text-sm mt-1">{errors.organizer}</p>
-        {/if}
-      </div>
-
-      <div>
-        <label
-          for="contactEmail"
-          class="block text-sm font-medium text-gray-300 mb-2"
-        >
-          Contact Email *
-        </label>
-        <input
-          id="contactEmail"
-          type="email"
-          bind:value={eventData.contact_email}
-          class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.contactEmail
-            ? 'border-red-500'
-            : ''}"
-          placeholder="Enter contact email"
-        />
-        {#if errors.contactEmail}
-          <p class="text-red-400 text-sm mt-1">{errors.contactEmail}</p>
-        {/if}
-      </div>
+    <div>
+      <label
+        for="organizer"
+        class="block text-sm font-medium text-gray-300 mb-2"
+      >
+        Organizer Name *
+      </label>
+      <input
+        id="organizer"
+        type="text"
+        bind:value={eventData.organizer}
+        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.organizer
+          ? 'border-red-500'
+          : ''}"
+        placeholder="Enter organizer name"
+      />
+      {#if errors.organizer}
+        <p class="text-red-400 text-sm mt-1">{errors.organizer}</p>
+      {/if}
     </div>
 
     <!-- Website -->

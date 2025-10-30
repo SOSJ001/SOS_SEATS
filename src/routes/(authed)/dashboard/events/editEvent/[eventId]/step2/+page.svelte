@@ -22,7 +22,7 @@
     tags: [], // Database: TEXT[]
     image: null, // Will be handled separately for storage
     organizer: "", // Database: TEXT
-    contact_email: "", // Database: TEXT (field name)
+    contact_email: null, // Database: TEXT - set to null for privacy
     website: "", // Database: TEXT
     social_media: {
       // Database: JSONB
@@ -112,11 +112,6 @@
     }
     if (!eventData.organizer.trim()) {
       errors.organizer = "Organizer name is required";
-    }
-    if (!eventData.contact_email.trim()) {
-      errors.contactEmail = "Contact email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eventData.contact_email)) {
-      errors.contactEmail = "Please enter a valid email";
     }
 
     return Object.keys(errors).length === 0;
@@ -260,84 +255,125 @@
         </div>
       </div>
 
-      <!-- Event Image -->
-      <div>
-        <label class="block text-sm font-medium text-gray-300 mb-2">
-          Event Image
-        </label>
-        <div class="space-y-4">
-          {#if imagePreview}
-            <div class="relative">
-              <img
-                src={imagePreview}
-                alt="Event preview"
-                class="w-full h-48 object-cover rounded-lg"
-              />
-              <button
-                type="button"
-                on:click={() => {
-                  imagePreview = null;
-                  eventData.image = null;
-                }}
-                class="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors duration-200"
-              >
-                ×
-              </button>
-            </div>
-          {/if}
+    <!-- Image Upload -->
+    <div>
+      <label
+        for="image-upload"
+        class="block text-sm font-medium text-gray-300 mb-2"
+      >
+        Event Image
+      </label>
+
+      {#if imagePreview}
+        <!-- Image Preview -->
+        <div class="mb-4">
+          <div class="relative inline-block">
+            <img
+              src={imagePreview}
+              alt=""
+              class="max-w-full h-64 object-cover rounded-lg border border-gray-600"
+            />
+            <button
+              on:click={() => {
+                eventData.image = null;
+                imagePreview = null;
+              }}
+              class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-colors"
+              title="Remove image"
+            >
+              ×
+            </button>
+          </div>
+          <p class="text-sm text-gray-400 mt-2">
+            {eventData.image?.name || "Image uploaded"}
+          </p>
+        </div>
+      {/if}
+
+      {#if !imagePreview}
+        <!-- Upload Area -->
+        <div
+          class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center"
+        >
           <input
             type="file"
             accept="image/*"
             on:change={handleImageUpload}
-            class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+            class="hidden"
+            id="image-upload"
           />
-        </div>
-      </div>
-
-      <!-- Organizer Information -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        <div>
-          <label
-            for="organizer"
-            class="block text-sm font-medium text-gray-300 mb-2"
-          >
-            Organizer Name *
+          <label for="image-upload" class="cursor-pointer">
+            <svg
+              class="mx-auto h-12 w-12 text-gray-400"
+              stroke="currentColor"
+              fill="none"
+              viewBox="0 0 48 48"
+            >
+              <path
+                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <p class="mt-2 text-sm text-gray-400">
+              Click to upload an image or drag and drop
+            </p>
+            <p class="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 10MB</p>
           </label>
-          <input
-            id="organizer"
-            type="text"
-            bind:value={eventData.organizer}
-            class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.organizer
-              ? 'border-red-500'
-              : ''}"
-            placeholder="Enter organizer name"
-          />
-          {#if errors.organizer}
-            <p class="text-red-400 text-sm mt-1">{errors.organizer}</p>
-          {/if}
         </div>
-
-        <div>
+      {:else}
+        <!-- Change Image Button -->
+        <div class="text-center">
+          <input
+            type="file"
+            accept="image/*"
+            on:change={handleImageUpload}
+            class="hidden"
+            id="change-image-upload"
+          />
           <label
-            for="contact_email"
-            class="block text-sm font-medium text-gray-300 mb-2"
+            for="change-image-upload"
+            class="inline-flex items-center px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors cursor-pointer"
           >
-            Contact Email *
+            <svg
+              class="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            Change Image
           </label>
-          <input
-            id="contact_email"
-            type="email"
-            bind:value={eventData.contact_email}
-            class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.contactEmail
-              ? 'border-red-500'
-              : ''}"
-            placeholder="Enter contact email"
-          />
-          {#if errors.contactEmail}
-            <p class="text-red-400 text-sm mt-1">{errors.contactEmail}</p>
-          {/if}
         </div>
-      </div>
+      {/if}
+    </div>
+
+    <!-- Organizer Information -->
+    <div>
+      <label
+        for="organizer"
+        class="block text-sm font-medium text-gray-300 mb-2"
+      >
+        Organizer Name *
+      </label>
+      <input
+        id="organizer"
+        type="text"
+        bind:value={eventData.organizer}
+        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.organizer ? 'border-red-500' : ''}"
+        placeholder="Enter organizer name"
+      />
+      {#if errors.organizer}
+        <p class="text-red-400 text-sm mt-1">{errors.organizer}</p>
+      {/if}
+    </div>
 
       <!-- Website -->
       <div>

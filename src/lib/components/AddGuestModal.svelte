@@ -1,7 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { fade, scale, fly } from "svelte/transition";
-  import { addGuestToEvent, loadEventTicketTypes } from "$lib/supabase";
+  import {
+    addGuestToEvent,
+    loadEventTicketTypes,
+    supabase,
+  } from "$lib/supabase";
   import {
     generateTicketPreview,
     generateQrImage,
@@ -44,6 +48,66 @@
   let generatedGuestName = "";
   let generatedEventName = "";
   let generatedTicketNumber = "";
+
+  // Derived state for event constraints
+  let selectedEvent: any = null;
+  $: selectedEvent = events.find((e) => e.id === formData.eventId);
+
+  // Minimal meta fetched from DB to ensure flags exist even if parent didn't pass them
+  let selectedEventMeta: {
+    is_free_event?: boolean;
+    event_visibility?: string;
+  } = {};
+  let loadingEventMeta = false;
+
+  $: if (
+    formData.eventId &&
+    formData.eventId !== "" &&
+    formData.eventId !== "all"
+  ) {
+    // Show loader immediately on change
+    loadingEventMeta = true;
+    fetchEventMeta(formData.eventId);
+  } else {
+    selectedEventMeta = {};
+    loadingEventMeta = false;
+  }
+
+  async function fetchEventMeta(eventId: string) {
+    try {
+      loadingEventMeta = true;
+      const { data, error } = await supabase
+        .from("events")
+        .select("is_free_event, event_visibility")
+        .eq("id", eventId)
+        .limit(1)
+        .maybeSingle();
+      if (!error && data) {
+        selectedEventMeta = {
+          is_free_event: data.is_free_event,
+          event_visibility: data.event_visibility,
+        };
+      }
+    } catch (e) {
+      // ignore fetch meta errors; fallback will handle
+    } finally {
+      loadingEventMeta = false;
+    }
+  }
+
+  $: isPaidEvent = (() => {
+    // Prefer fetched meta; fallback to event object if present
+    if (
+      selectedEventMeta &&
+      typeof selectedEventMeta.is_free_event === "boolean"
+    ) {
+      return selectedEventMeta.is_free_event === false;
+    }
+    if (selectedEvent && typeof selectedEvent.is_free_event === "boolean") {
+      return selectedEvent.is_free_event === false;
+    }
+    return false;
+  })();
 
   // Reset form when modal opens
   $: if (show) {
@@ -204,6 +268,11 @@
   }
 
   async function handleSubmit() {
+    // Block generation for paid events
+    if (isPaidEvent) {
+      error = "Cannot generate tickets for paid events. Use the checkout flow.";
+      return;
+    }
     if (!formData.guestName) {
       error = "Guest name is required";
       return;
@@ -835,6 +904,16 @@
                       </option>
                     {/each}
                   </select>
+                  {#if loadingEventMeta}
+                    <div
+                      class="mt-2 flex items-center gap-2 text-xs text-gray-400"
+                    >
+                      <div
+                        class="w-3 h-3 border-2 border-gray-500 border-t-[#00F5FF] rounded-full animate-spin"
+                      ></div>
+                      <span>Checking event eligibility…</span>
+                    </div>
+                  {/if}
                 </div>
               {/if}
 
@@ -1256,7 +1335,7 @@
                 type="button"
                 on:click={handleSubmit}
                 class="px-6 py-2 bg-gradient-to-r from-[#9D4EDD] to-[#00F5FF] text-white rounded-lg hover:from-[#9D4EDD]/90 hover:to-[#00F5FF]/90 transition-all duration-300 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg"
-                disabled={loading}
+                disabled={loading || loadingEventMeta || isPaidEvent}
               >
                 {#if loading}
                   <svg

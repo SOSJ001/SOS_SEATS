@@ -10,6 +10,7 @@
   // Get the event data from the server
   export let data;
 
+  /** @type {any} */
   let eventData = {};
   let error = data.error || "";
   let isLoading = true;
@@ -21,7 +22,8 @@
   let publishSuccess = false;
 
   // Ticket design configuration
-  let ticketDesignConfig = null;
+  /** @type {import('$lib/store').TicketDesignConfig} */
+  let ticketDesignConfig = defaultTicketDesignConfig;
 
   $: eventId = $page.params.eventId;
 
@@ -46,7 +48,10 @@
     // Initialize ticket design config from event data
     // Priority: localStorage > server data > default
     if (eventData.ticket_design_config) {
-      ticketDesignConfig = eventData.ticket_design_config;
+      ticketDesignConfig =
+        /** @type {import('$lib/store').TicketDesignConfig} */ (
+          eventData.ticket_design_config
+        );
 
       // Ensure textBox.enabled exists for backward compatibility
       if (
@@ -167,6 +172,7 @@
   }
 
   // Helper function to convert File to base64
+  /** @param {File} file */
   function convertFileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -184,6 +190,7 @@
     goto(`/dashboard/events/editEvent/${eventId}`);
   }
 
+  /** @param {number} amount */
   function formatCurrency(amount) {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -191,6 +198,7 @@
     }).format(amount || 0);
   }
 
+  /** @param {string} dateString */
   function formatDate(dateString) {
     if (!dateString) return "Not set";
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -200,18 +208,28 @@
     });
   }
 
+  /** @param {string} timeString */
   function formatTime(timeString) {
     if (!timeString) return "Not set";
     return timeString;
   }
 
   // Handle ticket design config changes
+  /** @param {import('$lib/store').TicketDesignConfig} newConfig */
   function handleDesignConfigChange(newConfig) {
     ticketDesignConfig = newConfig;
     eventData.ticket_design_config = newConfig;
 
     // Save to localStorage for persistence
     localStorage.setItem("eventEditData", JSON.stringify(eventData));
+  }
+
+  /**
+   * Navigate to a specific edit step
+   * @param {number} step
+   */
+  function editStep(step) {
+    goto(`/dashboard/events/editEvent/${eventId}/step${step}`);
   }
 </script>
 
@@ -356,55 +374,79 @@
         </div>
 
         <!-- Event Details -->
-        <div class="bg-gray-800 rounded-xl p-6">
-          <h3 class="text-lg font-medium text-white mb-4">Event Details</h3>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <span class="text-gray-400 text-sm">Organizer:</span>
-              <p class="text-white font-medium">
-                {eventData.organizer || "Not set"}
-              </p>
-            </div>
-            <div>
-              <span class="text-gray-400 text-sm">Contact Email:</span>
-              <p class="text-white font-medium">
-                {eventData.contact_email || "Not set"}
-              </p>
-            </div>
-            {#if eventData.website}
+        <div class="bg-gray-800 rounded-xl p-3 sm:p-6 md:p-8">
+          <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6"
+          >
+            <h2 class="text-base sm:text-lg md:text-xl font-bold text-white">
+              Event Details
+            </h2>
+            <button
+              on:click={() => editStep(2)}
+              class="w-full sm:w-auto px-3 sm:px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-xs sm:text-sm"
+            >
+              Edit Step 2
+            </button>
+          </div>
+          <div class="space-y-3 sm:space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <span class="text-gray-400 text-sm">Website:</span>
-                <p class="text-white font-medium">{eventData.website}</p>
+                <span class="text-gray-400 text-xs sm:text-sm">Category:</span>
+                <p
+                  class="text-white font-medium text-xs sm:text-sm md:text-base break-words"
+                >
+                  {eventData.category || "Not set"}
+                </p>
               </div>
-            {/if}
+              <div>
+                <span class="text-gray-400 text-xs sm:text-sm">Organizer:</span>
+                <p
+                  class="text-white font-medium text-xs sm:text-sm md:text-base break-words"
+                >
+                  {eventData.organizer || "Not set"}
+                </p>
+              </div>
+              <div>
+                <span class="text-gray-400 text-xs sm:text-sm">Website:</span>
+                <p
+                  class="text-white font-medium text-xs sm:text-sm md:text-base break-words"
+                >
+                  {eventData.website || "Not set"}
+                </p>
+              </div>
+            </div>
+
             {#if eventData.tags && eventData.tags.length > 0}
               <div>
-                <span class="text-gray-400 text-sm">Tags:</span>
-                <div class="flex flex-wrap gap-2 mt-1">
+                <span class="text-gray-400 text-xs sm:text-sm">Tags:</span>
+                <div class="flex flex-wrap gap-1 sm:gap-2 mt-1">
                   {#each eventData.tags as tag}
                     <span
-                      class="px-2 py-1 bg-teal-600 text-white text-sm rounded-full"
+                      class="px-2 sm:px-3 py-1 bg-teal-500 text-white text-xs sm:text-sm rounded-full"
                       >{tag}</span
                     >
                   {/each}
                 </div>
               </div>
             {/if}
+
             <div>
-              <span class="text-gray-400 text-sm">Event Image:</span>
+              <span class="text-gray-400 text-xs sm:text-sm md:text-base"
+                >Event Image:</span
+              >
               <div class="mt-2">
                 {#if eventData.imagePreview}
                   <img
                     src={eventData.imagePreview}
                     alt="Event preview"
-                    class="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-lg border border-gray-600"
+                    class="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 object-cover rounded-lg border border-gray-600"
                   />
                 {:else if eventData.image}
                   <div
-                    class="w-24 h-24 sm:w-32 sm:h-32 bg-gray-700 rounded-lg flex items-center justify-center"
+                    class="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 bg-gray-700 rounded-lg flex items-center justify-center"
                   >
                     <svg
-                      class="w-6 h-6 sm:w-8 sm:h-8 text-gray-500"
+                      class="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-gray-500"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -416,129 +458,201 @@
                     </svg>
                   </div>
                 {:else}
-                  <span class="text-gray-500 text-sm">No image uploaded</span>
+                  <span class="text-gray-500 text-xs sm:text-sm"
+                    >No image uploaded</span
+                  >
                 {/if}
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Ticket Information -->
-        <div class="bg-gray-800 rounded-xl p-6">
-          <h3 class="text-lg font-medium text-white mb-4">
-            Ticket Information
-          </h3>
-          <div class="mb-4">
-            <span class="text-gray-400 text-sm">Event Type:</span>
-            <p class="text-white font-medium">
-              {eventData.is_free_event ? "Free Event" : "Paid Event"}
-            </p>
-          </div>
-          <div class="mb-4">
-            <span class="text-gray-400 text-sm">Seating Type:</span>
-            <p class="text-white font-medium capitalize">
-              {eventData.seating_type || "Not set"}
-            </p>
-          </div>
-          <div class="mb-4">
-            <span class="text-gray-400 text-sm">Total Capacity:</span>
-            <p class="text-white font-medium">
-              {eventData.total_capacity || "Not set"}
-            </p>
+        <!-- Step 3: Ticket Types & Seating -->
+        <div class="bg-gray-800 rounded-xl p-3 sm:p-6 md:p-8">
+          <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6"
+          >
+            <h2 class="text-base sm:text-lg md:text-xl font-bold text-white">
+              Ticket Types & Seating
+            </h2>
+            <button
+              on:click={() => editStep(3)}
+              class="w-full sm:w-auto px-3 sm:px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-xs sm:text-sm"
+            >
+              Edit Step 3
+            </button>
           </div>
 
-          {#if eventData.ticket_types && eventData.ticket_types.length > 0}
-            <div>
-              <span class="text-gray-400 text-sm">Ticket Types:</span>
-              <div class="mt-2 space-y-2">
+          <!-- Ticket Types Section -->
+          <div class="mb-4 sm:mb-6">
+            <div
+              class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-4"
+            >
+              <h3 class="text-base sm:text-lg font-semibold text-white">
+                Ticket Types
+              </h3>
+              {#if eventData.is_free_event}
+                <span
+                  class="px-2 sm:px-3 py-1 bg-green-500 text-white text-xs sm:text-sm rounded-full"
+                >
+                  Free Event
+                </span>
+              {/if}
+            </div>
+            <div class="space-y-3 sm:space-y-4">
+              {#if eventData.ticket_types && eventData.ticket_types.length > 0}
                 {#each eventData.ticket_types as ticket}
-                  <div class="border border-gray-600 rounded-lg p-3">
-                    <div class="flex justify-between items-start">
-                      <div>
-                        <p class="text-white font-medium">{ticket.name}</p>
-                        {#if ticket.description}
-                          <p class="text-gray-400 text-sm">
-                            {ticket.description}
-                          </p>
+                  <div class="p-3 sm:p-4 bg-gray-700 rounded-lg">
+                    <div
+                      class="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-3"
+                    >
+                      <div class="flex-1 min-w-0">
+                        <h4
+                          class="font-medium text-white text-xs sm:text-sm md:text-base break-words"
+                        >
+                          {ticket.name}
+                        </h4>
+                        <p class="text-gray-400 text-xs sm:text-sm break-words">
+                          {ticket.description}
+                        </p>
+                        {#if ticket.benefits && ticket.benefits.length > 0}
+                          <div class="mt-2">
+                            <span class="text-gray-400 text-xs">Benefits:</span>
+                            <ul class="text-gray-300 text-xs mt-1 space-y-1">
+                              {#each ticket.benefits as benefit}
+                                <li class="break-words">• {benefit}</li>
+                              {/each}
+                            </ul>
+                          </div>
                         {/if}
                       </div>
-                      <div class="text-right">
-                        <p class="text-white font-medium">
+                      <div class="text-right sm:text-left flex-shrink-0">
+                        <p
+                          class="text-white font-semibold text-xs sm:text-sm md:text-base"
+                        >
                           {formatCurrency(ticket.price)}
                         </p>
-                        <p class="text-gray-400 text-sm">
-                          Qty: {ticket.quantity || "Not set"}
+                        <p class="text-gray-400 text-xs sm:text-sm">
+                          {ticket.quantity} available
                         </p>
                       </div>
                     </div>
-                    {#if ticket.benefits && ticket.benefits.length > 0}
-                      <div class="mt-2">
-                        <p class="text-gray-400 text-sm">Benefits:</p>
-                        <ul class="text-white text-sm mt-1">
-                          {#each ticket.benefits as benefit}
-                            <li>• {benefit}</li>
-                          {/each}
-                        </ul>
-                      </div>
-                    {/if}
                   </div>
                 {/each}
+              {:else}
+                <p class="text-gray-400 text-xs sm:text-sm">
+                  No ticket types configured
+                </p>
+              {/if}
+            </div>
+          </div>
+
+          <!-- Seating & Capacity Section -->
+          <div class="border-t border-gray-700 pt-4 sm:pt-6">
+            <h3
+              class="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4"
+            >
+              Seating & Capacity
+            </h3>
+            <div class="space-y-3 sm:space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <span class="text-gray-400 text-xs sm:text-sm"
+                    >Seating Type:</span
+                  >
+                  <p
+                    class="text-white font-medium capitalize text-xs sm:text-sm md:text-base"
+                  >
+                    {eventData.seating_type || "Not set"}
+                  </p>
+                </div>
+                <div>
+                  <span class="text-gray-400 text-xs sm:text-sm"
+                    >Total Capacity:</span
+                  >
+                  <p
+                    class="text-white font-medium text-xs sm:text-sm md:text-base"
+                  >
+                    {eventData.total_capacity || "Not set"}
+                  </p>
+                </div>
               </div>
             </div>
-          {/if}
+          </div>
         </div>
 
-        <!-- Settings -->
-        <div class="bg-gray-800 rounded-xl p-6">
-          <h3 class="text-lg font-medium text-white mb-4">Event Settings</h3>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <span class="text-gray-400 text-sm">Audience Type:</span>
-              <p class="text-white font-medium capitalize">
-                {eventData.audience_type?.replace("-", " ") || "Not set"}
-              </p>
+        <!-- Step 4: Event Settings -->
+        <div class="bg-gray-800 rounded-xl p-3 sm:p-6 md:p-8">
+          <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6"
+          >
+            <h2 class="text-base sm:text-lg md:text-xl font-bold text-white">
+              Event Settings
+            </h2>
+            <button
+              on:click={() => editStep(4)}
+              class="w-full sm:w-auto px-3 sm:px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-xs sm:text-sm"
+            >
+              Edit Step 4
+            </button>
+          </div>
+          <div class="space-y-3 sm:space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div>
+                <span class="text-gray-400 text-xs sm:text-sm"
+                  >Audience Type:</span
+                >
+                <p
+                  class="text-white font-medium capitalize text-xs sm:text-sm md:text-base"
+                >
+                  {eventData.audience_type?.replace("-", " ") || "Not set"}
+                </p>
+              </div>
+              <div>
+                <span class="text-gray-400 text-xs sm:text-sm"
+                  >Event Visibility:</span
+                >
+                <p
+                  class="text-white font-medium capitalize text-xs sm:text-sm md:text-base"
+                >
+                  {eventData.event_visibility?.replace("-", " ") || "Not set"}
+                </p>
+              </div>
             </div>
-
-            <div>
-              <span class="text-gray-400 text-sm">Visibility:</span>
-              <p class="text-white font-medium capitalize">
-                {eventData.event_visibility || "Not set"}
-              </p>
-            </div>
-            <!-- <div>
+          </div>
+          <!-- <div>
             <span class="text-gray-400 text-sm">Registration Required:</span>
             <p class="text-white font-medium">
               {eventData.registration_required ? "Yes" : "No"}
             </p>
           </div> -->
-            <!-- <div>
+          <!-- <div>
             <span class="text-gray-400 text-sm">Allow Waitlist:</span>
             <p class="text-white font-medium">
               {eventData.allow_waitlist ? "Yes" : "No"}
             </p>
           </div> -->
-            <!-- <div>
+          <!-- <div>
             <span class="text-gray-400 text-sm">Allow Refunds:</span>
             <p class="text-white font-medium">
               {eventData.allow_refunds ? "Yes" : "No"}
             </p>
           </div> -->
-          </div>
         </div>
+      </div>
 
-        <!-- Ticket Design Editor -->
-        <div class="bg-gray-800 rounded-xl p-2">
-          <h3 class="text-lg font-medium text-white mb-4">Ticket Design</h3>
-          <p class="text-gray-400 text-sm mb-6">
-            Customize the appearance of your event tickets with colors, fonts,
-            and layout options.
-          </p>
-          <TicketDesignEditor
-            bind:designConfig={ticketDesignConfig}
-            {eventData}
-            onConfigChange={handleDesignConfigChange}
-          />
-        </div>
+      <!-- Ticket Design Editor -->
+      <div class="bg-gray-800 rounded-xl p-2">
+        <h3 class="text-lg font-medium text-white mb-4">Ticket Design</h3>
+        <p class="text-gray-400 text-sm mb-6">
+          Customize the appearance of your event tickets with colors, fonts, and
+          layout options.
+        </p>
+        <TicketDesignEditor
+          bind:designConfig={ticketDesignConfig}
+          {eventData}
+          onConfigChange={handleDesignConfigChange}
+        />
       </div>
     {/if}
 

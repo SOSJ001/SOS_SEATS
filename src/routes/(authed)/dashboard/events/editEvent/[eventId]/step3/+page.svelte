@@ -99,8 +99,7 @@
       const parsed = JSON.parse(savedData);
       eventData = { ...eventData, ...parsed };
     }
-
-    });
+  });
 
   function addTicketType() {
     eventData.ticket_types = [
@@ -177,8 +176,8 @@
         errors[`ticket${index}Name`] = "Ticket name is required";
       }
       if (!eventData.is_free_event) {
-        if (ticket.price === null || ticket.price < 0) {
-          errors[`ticket${index}Price`] = "Valid price is required";
+        if (ticket.price === null || ticket.price <= 0) {
+          errors[`ticket${index}Price`] = "Price must be greater than $0";
         }
       }
       if (ticket.quantity === null || ticket.quantity <= 0) {
@@ -235,8 +234,8 @@
         errors[`section${index}Capacity`] = "Valid capacity is required";
       }
       if (!eventData.is_free_event) {
-        if (section.price === null || section.price < 0) {
-          errors[`section${index}Price`] = "Valid price is required";
+        if (section.price === null || section.price <= 0) {
+          errors[`section${index}Price`] = "Price must be greater than $0";
         }
       }
     });
@@ -383,158 +382,6 @@
       {/if}
     </div>
 
-    <!-- Ticket Types -->
-    <div>
-      <div class="flex justify-between items-center mb-4">
-        <label class="block text-sm font-medium text-gray-300">
-          Ticket Types *
-        </label>
-        <button
-          type="button"
-          on:click={addTicketType}
-          class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 text-sm"
-        >
-          Add Ticket Type
-        </button>
-      </div>
-
-      <div class="space-y-6">
-        {#each eventData.ticket_types as ticket, ticketIndex}
-          <div class="border border-gray-600 rounded-lg p-4">
-            <div class="flex justify-between items-center mb-4">
-              <h4 class="text-white font-medium">
-                Ticket Type {ticketIndex + 1}
-              </h4>
-              {#if eventData.ticket_types.length > 1}
-                <button
-                  type="button"
-                  on:click={() => removeTicketType(ticketIndex)}
-                  class="text-red-400 hover:text-red-300 transition-colors duration-200"
-                >
-                  Remove
-                </button>
-              {/if}
-            </div>
-
-            <div
-              class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6"
-            >
-              <div>
-                <label class="block text-sm text-gray-400 mb-1">Name *</label>
-                <input
-                  type="text"
-                  bind:value={ticket.name}
-                  class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
-                    `ticket${ticketIndex}Name`
-                  ]
-                    ? 'border-red-500'
-                    : ''}"
-                  placeholder="e.g., General Admission"
-                />
-                {#if errors[`ticket${ticketIndex}Name`]}
-                  <p class="text-red-400 text-sm mt-1">
-                    {errors[`ticket${ticketIndex}Name`]}
-                  </p>
-                {/if}
-              </div>
-
-              <div>
-                <label class="block text-sm text-gray-400 mb-1"
-                  >Quantity *</label
-                >
-                <input
-                  type="number"
-                  bind:value={ticket.quantity}
-                  min="1"
-                  class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
-                    `ticket${ticketIndex}Quantity`
-                  ]
-                    ? 'border-red-500'
-                    : ''}"
-                  placeholder="Number of tickets"
-                />
-                {#if errors[`ticket${ticketIndex}Quantity`]}
-                  <p class="text-red-400 text-sm mt-1">
-                    {errors[`ticket${ticketIndex}Quantity`]}
-                  </p>
-                {/if}
-              </div>
-            </div>
-
-            <div class="mb-4">
-              <label class="block text-sm text-gray-400 mb-1">Description</label
-              >
-              <textarea
-                bind:value={ticket.description}
-                rows="2"
-                class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
-                placeholder="Describe what's included with this ticket"
-              ></textarea>
-            </div>
-
-            {#if !eventData.is_free_event}
-              <div class="mb-4">
-                <label class="block text-sm text-gray-400 mb-1">Price *</label>
-                <div class="relative">
-                  <span class="absolute left-3 top-2 text-gray-400">$</span>
-                  <input
-                    type="number"
-                    bind:value={ticket.price}
-                    min="0"
-                    step="0.01"
-                    class="w-full pl-8 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
-                      `ticket${ticketIndex}Price`
-                    ]
-                      ? 'border-red-500'
-                      : ''}"
-                    placeholder="0.00"
-                  />
-                </div>
-                {#if errors[`ticket${ticketIndex}Price`]}
-                  <p class="text-red-400 text-sm mt-1">
-                    {errors[`ticket${ticketIndex}Price`]}
-                  </p>
-                {/if}
-              </div>
-            {/if}
-
-            <!-- Benefits -->
-            <div>
-              <div class="flex justify-between items-center mb-2">
-                <label class="block text-sm text-gray-400">Benefits</label>
-                <button
-                  type="button"
-                  on:click={() => addBenefit(ticketIndex)}
-                  class="text-teal-400 hover:text-teal-300 transition-colors duration-200 text-sm"
-                >
-                  Add Benefit
-                </button>
-              </div>
-              <div class="space-y-2">
-                {#each ticket.benefits as benefit, benefitIndex}
-                  <div class="flex gap-2">
-                    <input
-                      type="text"
-                      bind:value={ticket.benefits[benefitIndex]}
-                      class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
-                      placeholder="e.g., VIP access, Free parking"
-                    />
-                    <button
-                      type="button"
-                      on:click={() => removeBenefit(ticketIndex, benefitIndex)}
-                      class="px-3 py-2 text-red-400 hover:text-red-300 transition-colors duration-200"
-                    >
-                      ×
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
-
     <!-- Venue Sections (for assigned seating) -->
     {#if eventData.seating_type === "assigned"}
       <div>
@@ -635,7 +482,7 @@
                     <input
                       type="number"
                       bind:value={section.price}
-                      min="0"
+                      min={eventData.is_free_event ? "0" : "0.01"}
                       step="0.01"
                       class="w-full pl-8 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
                         `section${sectionIndex}Price`
@@ -705,6 +552,160 @@
           />
         </div>
       {/if}
+    </div>
+  </div>
+
+  <!-- Ticket Types -->
+  <div class="pt-6 sm:pt-8">
+    <div>
+      <div class="flex justify-between items-center mb-4">
+        <label class="block text-sm font-medium text-gray-300">
+          Ticket Types *
+        </label>
+        <button
+          type="button"
+          on:click={addTicketType}
+          class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 text-sm"
+        >
+          Add Ticket Type
+        </button>
+      </div>
+
+      <div class="space-y-6">
+        {#each eventData.ticket_types as ticket, ticketIndex}
+          <div class="border border-gray-600 rounded-lg p-4">
+            <div class="flex justify-between items-center mb-4">
+              <h4 class="text-white font-medium">
+                Ticket Type {ticketIndex + 1}
+              </h4>
+              {#if eventData.ticket_types.length > 1}
+                <button
+                  type="button"
+                  on:click={() => removeTicketType(ticketIndex)}
+                  class="text-red-400 hover:text-red-300 transition-colors duration-200"
+                >
+                  Remove
+                </button>
+              {/if}
+            </div>
+
+            <div
+              class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6"
+            >
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">Name *</label>
+                <input
+                  type="text"
+                  bind:value={ticket.name}
+                  class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
+                    `ticket${ticketIndex}Name`
+                  ]
+                    ? 'border-red-500'
+                    : ''}"
+                  placeholder="e.g., General Admission"
+                />
+                {#if errors[`ticket${ticketIndex}Name`]}
+                  <p class="text-red-400 text-sm mt-1">
+                    {errors[`ticket${ticketIndex}Name`]}
+                  </p>
+                {/if}
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-400 mb-1"
+                  >Quantity *</label
+                >
+                <input
+                  type="number"
+                  bind:value={ticket.quantity}
+                  min="1"
+                  class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
+                    `ticket${ticketIndex}Quantity`
+                  ]
+                    ? 'border-red-500'
+                    : ''}"
+                  placeholder="Number of tickets"
+                />
+                {#if errors[`ticket${ticketIndex}Quantity`]}
+                  <p class="text-red-400 text-sm mt-1">
+                    {errors[`ticket${ticketIndex}Quantity`]}
+                  </p>
+                {/if}
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm text-gray-400 mb-1">Description</label
+              >
+              <textarea
+                bind:value={ticket.description}
+                rows="2"
+                class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+                placeholder="Describe what's included with this ticket"
+              ></textarea>
+            </div>
+
+            {#if !eventData.is_free_event}
+              <div class="mb-4">
+                <label class="block text-sm text-gray-400 mb-1">Price *</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-2 text-gray-400">$</span>
+                  <input
+                    type="number"
+                    bind:value={ticket.price}
+                    min={eventData.is_free_event ? "0" : "0.01"}
+                    step="0.01"
+                    class="w-full pl-8 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
+                      `ticket${ticketIndex}Price`
+                    ]
+                      ? 'border-red-500'
+                      : ''}"
+                    placeholder="0.00"
+                  />
+                </div>
+                {#if errors[`ticket${ticketIndex}Price`]}
+                  <p class="text-red-400 text-sm mt-1">
+                    {errors[`ticket${ticketIndex}Price`]}
+                  </p>
+                {/if}
+              </div>
+            {/if}
+
+            <!-- Benefits -->
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label class="block text-sm text-gray-400">Benefits</label>
+                <button
+                  type="button"
+                  on:click={() => addBenefit(ticketIndex)}
+                  class="text-teal-400 hover:text-teal-300 transition-colors duration-200 text-sm"
+                >
+                  Add Benefit
+                </button>
+              </div>
+              <div class="space-y-2">
+                {#each ticket.benefits as benefit, benefitIndex}
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      bind:value={ticket.benefits[benefitIndex]}
+                      class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+                      placeholder="e.g., VIP access, Free parking"
+                    />
+                    <button
+                      type="button"
+                      on:click={() => removeBenefit(ticketIndex, benefitIndex)}
+                      class="px-3 py-2 text-red-400 hover:text-red-300 transition-colors duration-200"
+                    >
+                      ×
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
     </div>
   </div>
 

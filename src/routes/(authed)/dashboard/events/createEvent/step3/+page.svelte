@@ -27,7 +27,7 @@
     // Seating options for database
     seating_options: {
       allow_seat_selection: false, // Database field name
-      max_seats_per_order: 4, // Database: INTEGER
+      max_seats_per_order: 1, // Database: INTEGER
       reserved_seating: false, // Database field name
       has_seating_chart: false, // Database field name
     },
@@ -142,8 +142,8 @@
         errors[`ticket${index}Name`] = "Ticket name is required";
       }
       if (!eventData.is_free_event) {
-        if (ticket.price === null || ticket.price < 0) {
-          errors[`ticket${index}Price`] = "Valid price is required";
+        if (ticket.price === null || ticket.price <= 0) {
+          errors[`ticket${index}Price`] = "Price must be greater than $0";
         }
       }
       if (ticket.quantity === null || ticket.quantity <= 0) {
@@ -200,8 +200,8 @@
         errors[`section${index}Capacity`] = "Valid capacity is required";
       }
       if (!eventData.is_free_event) {
-        if (section.price === null || section.price < 0) {
-          errors[`section${index}Price`] = "Valid price is required";
+        if (section.price === null || section.price <= 0) {
+          errors[`section${index}Price`] = "Price must be greater than $0";
         }
       }
     });
@@ -244,205 +244,30 @@
     </p>
   </div>
 
-  <!-- Ticket Types -->
-  <div class="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
-    <h3 class="text-2xl font-semibold text-white mb-4">
-      Ticket Types & Pricing
+  <!-- Free Event Toggle -->
+  <div class="bg-gray-800 rounded-xl p-6 mb-6 sm:mb-8">
+    <h3 class="block text-sm font-medium text-gray-300 mb-4">
+      Is this a free event?
     </h3>
-
-    <!-- Free Event Toggle -->
-    <div class="bg-gray-800 rounded-xl p-6">
-      <h3 class="block text-sm font-medium text-gray-300 mb-4">
-        Is this a free event?
-      </h3>
-      <div class="flex gap-6">
-        <label class="flex items-center">
-          <input
-            type="radio"
-            bind:group={eventData.is_free_event}
-            value={true}
-            class="w-4 h-4 text-teal-400 bg-gray-700 border-gray-600 focus:ring-teal-400 focus:ring-2"
-          />
-          <span class="ml-2 text-gray-300">Yes</span>
-        </label>
-        <label class="flex items-center">
-          <input
-            type="radio"
-            bind:group={eventData.is_free_event}
-            value={false}
-            class="w-4 h-4 text-teal-400 bg-gray-700 border-gray-600 focus:ring-teal-400 focus:ring-2"
-          />
-          <span class="ml-2 text-gray-300">No</span>
-        </label>
-      </div>
-    </div>
-
-    {#each eventData.ticket_types as ticket, ticketIndex}
-      <div class="bg-gray-800 rounded-xl p-8">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-xl font-semibold text-white">
-            Ticket Type {ticketIndex + 1}
-          </h3>
-          {#if eventData.ticket_types.length > 1}
-            <button
-              on:click={() => removeTicketType(ticketIndex)}
-              class="text-red-400 hover:text-red-300"
-            >
-              Remove
-            </button>
-          {/if}
-        </div>
-
-        <div
-          class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6"
-        >
-          <!-- Ticket Name -->
-          <div>
-            <label
-              for="ticket-name-{ticketIndex}"
-              class="block text-sm font-medium text-gray-300 mb-2"
-            >
-              Ticket Name *
-            </label>
-            <input
-              id="ticket-name-{ticketIndex}"
-              type="text"
-              bind:value={ticket.name}
-              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
-                `ticket${ticketIndex}Name`
-              ]
-                ? 'border-red-500'
-                : ''}"
-              placeholder="e.g., General Admission, VIP, Early Bird"
-            />
-            {#if errors[`ticket${ticketIndex}Name`]}
-              <p class="text-red-400 text-sm mt-1">
-                {errors[`ticket${ticketIndex}Name`]}
-              </p>
-            {/if}
-          </div>
-
-          <!-- Price -->
-          <div>
-            <label
-              for="ticket-price-{ticketIndex}"
-              class="block text-sm font-medium text-gray-300 mb-2"
-            >
-              Price {eventData.is_free_event ? "(Free)" : "($) *"}
-            </label>
-            <input
-              id="ticket-price-{ticketIndex}"
-              type="number"
-              bind:value={ticket.price}
-              min="0"
-              step="0.01"
-              disabled={eventData.is_free_event}
-              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
-                `ticket${ticketIndex}Price`
-              ]
-                ? 'border-red-500'
-                : ''} {eventData.is_free_event
-                ? 'opacity-50 cursor-not-allowed'
-                : ''}"
-              placeholder={eventData.is_free_event ? "0.00" : "0.00"}
-            />
-            {#if errors[`ticket${ticketIndex}Price`]}
-              <p class="text-red-400 text-sm mt-1">
-                {errors[`ticket${ticketIndex}Price`]}
-              </p>
-            {/if}
-          </div>
-        </div>
-
-        <div
-          class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6"
-        >
-          <!-- Quantity -->
-          <div>
-            <label
-              for="ticket-quantity-{ticketIndex}"
-              class="block text-sm font-medium text-gray-300 mb-2"
-            >
-              Available Quantity *
-            </label>
-            <input
-              id="ticket-quantity-{ticketIndex}"
-              type="number"
-              bind:value={ticket.quantity}
-              min="1"
-              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
-                `ticket${ticketIndex}Quantity`
-              ]
-                ? 'border-red-500'
-                : ''}"
-              placeholder="100"
-            />
-            {#if errors[`ticket${ticketIndex}Quantity`]}
-              <p class="text-red-400 text-sm mt-1">
-                {errors[`ticket${ticketIndex}Quantity`]}
-              </p>
-            {/if}
-          </div>
-
-          <!-- Description -->
-          <div>
-            <label
-              for="ticket-description-{ticketIndex}"
-              class="block text-sm font-medium text-gray-300 mb-2"
-            >
-              Description
-            </label>
-            <input
-              id="ticket-description-{ticketIndex}"
-              type="text"
-              bind:value={ticket.description}
-              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
-              placeholder="Brief description of this ticket type"
-            />
-          </div>
-        </div>
-
-        <!-- Benefits -->
-        <div>
-          <h4 class="block text-sm font-medium text-gray-300 mb-2">
-            Benefits/Features
-          </h4>
-          <div class="space-y-2">
-            {#each ticket.benefits as benefit, benefitIndex}
-              <div class="flex gap-2">
-                <input
-                  type="text"
-                  bind:value={ticket.benefits[benefitIndex]}
-                  class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"
-                  placeholder="e.g., Priority seating, Meet & greet"
-                />
-                <button
-                  on:click={() => removeBenefit(ticketIndex, benefitIndex)}
-                  class="px-3 py-2 text-red-400 hover:text-red-300"
-                >
-                  ×
-                </button>
-              </div>
-            {/each}
-            <button
-              on:click={() => addBenefit(ticketIndex)}
-              class="text-teal-400 hover:text-teal-300 text-sm"
-            >
-              + Add Benefit
-            </button>
-          </div>
-        </div>
-      </div>
-    {/each}
-
-    <!-- Add Ticket Type Button -->
-    <div class="text-center">
-      <button
-        on:click={addTicketType}
-        class="px-6 py-3 border-2 border-dashed border-gray-600 text-gray-400 rounded-lg hover:border-teal-400 hover:text-teal-400 transition-colors duration-200"
-      >
-        + Add Another Ticket Type
-      </button>
+    <div class="flex gap-6">
+      <label class="flex items-center">
+        <input
+          type="radio"
+          bind:group={eventData.is_free_event}
+          value={true}
+          class="w-4 h-4 text-teal-400 bg-gray-700 border-gray-600 focus:ring-teal-400 focus:ring-2"
+        />
+        <span class="ml-2 text-gray-300">Yes</span>
+      </label>
+      <label class="flex items-center">
+        <input
+          type="radio"
+          bind:group={eventData.is_free_event}
+          value={false}
+          class="w-4 h-4 text-teal-400 bg-gray-700 border-gray-600 focus:ring-teal-400 focus:ring-2"
+        />
+        <span class="ml-2 text-gray-300">No</span>
+      </label>
     </div>
   </div>
 
@@ -703,7 +528,7 @@
                       id="section-price-{sectionIndex}"
                       type="number"
                       bind:value={section.price}
-                      min="0"
+                      min={eventData.is_free_event ? "0" : "0.01"}
                       step="0.01"
                       disabled={eventData.is_free_event}
                       class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm {eventData.is_free_event
@@ -751,6 +576,181 @@
         {/if}
       </div>
     {/if}
+  </div>
+
+  <!-- Ticket Types -->
+  <div class="space-y-4 sm:space-y-6 mb-6 sm:mb-8 pt-6 sm:pt-8">
+    <h3 class="text-2xl font-semibold text-white mb-4">
+      Ticket Types & Pricing
+    </h3>
+
+    {#each eventData.ticket_types as ticket, ticketIndex}
+      <div class="bg-gray-800 rounded-xl p-8">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-semibold text-white">
+            Ticket Type {ticketIndex + 1}
+          </h3>
+          {#if eventData.ticket_types.length > 1}
+            <button
+              on:click={() => removeTicketType(ticketIndex)}
+              class="text-red-400 hover:text-red-300"
+            >
+              Remove
+            </button>
+          {/if}
+        </div>
+
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6"
+        >
+          <!-- Ticket Name -->
+          <div>
+            <label
+              for="ticket-name-{ticketIndex}"
+              class="block text-sm font-medium text-gray-300 mb-2"
+            >
+              Ticket Name *
+            </label>
+            <input
+              id="ticket-name-{ticketIndex}"
+              type="text"
+              bind:value={ticket.name}
+              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
+                `ticket${ticketIndex}Name`
+              ]
+                ? 'border-red-500'
+                : ''}"
+              placeholder="e.g., General Admission, VIP, Early Bird"
+            />
+            {#if errors[`ticket${ticketIndex}Name`]}
+              <p class="text-red-400 text-sm mt-1">
+                {errors[`ticket${ticketIndex}Name`]}
+              </p>
+            {/if}
+          </div>
+
+          <!-- Price -->
+          <div>
+            <label
+              for="ticket-price-{ticketIndex}"
+              class="block text-sm font-medium text-gray-300 mb-2"
+            >
+              Price {eventData.is_free_event ? "(Free)" : "($) *"}
+            </label>
+            <input
+              id="ticket-price-{ticketIndex}"
+              type="number"
+              bind:value={ticket.price}
+              min={eventData.is_free_event ? "0" : "0.01"}
+              step="0.01"
+              disabled={eventData.is_free_event}
+              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
+                `ticket${ticketIndex}Price`
+              ]
+                ? 'border-red-500'
+                : ''} {eventData.is_free_event
+                ? 'opacity-50 cursor-not-allowed'
+                : ''}"
+              placeholder={eventData.is_free_event ? "0.00" : "0.00"}
+            />
+            {#if errors[`ticket${ticketIndex}Price`]}
+              <p class="text-red-400 text-sm mt-1">
+                {errors[`ticket${ticketIndex}Price`]}
+              </p>
+            {/if}
+          </div>
+        </div>
+
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6"
+        >
+          <!-- Quantity -->
+          <div>
+            <label
+              for="ticket-quantity-{ticketIndex}"
+              class="block text-sm font-medium text-gray-300 mb-2"
+            >
+              Available Quantity *
+            </label>
+            <input
+              id="ticket-quantity-{ticketIndex}"
+              type="number"
+              bind:value={ticket.quantity}
+              min="1"
+              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors[
+                `ticket${ticketIndex}Quantity`
+              ]
+                ? 'border-red-500'
+                : ''}"
+              placeholder="100"
+            />
+            {#if errors[`ticket${ticketIndex}Quantity`]}
+              <p class="text-red-400 text-sm mt-1">
+                {errors[`ticket${ticketIndex}Quantity`]}
+              </p>
+            {/if}
+          </div>
+
+          <!-- Description -->
+          <div>
+            <label
+              for="ticket-description-{ticketIndex}"
+              class="block text-sm font-medium text-gray-300 mb-2"
+            >
+              Description
+            </label>
+            <input
+              id="ticket-description-{ticketIndex}"
+              type="text"
+              bind:value={ticket.description}
+              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+              placeholder="Brief description of this ticket type"
+            />
+          </div>
+        </div>
+
+        <!-- Benefits -->
+        <div>
+          <h4 class="block text-sm font-medium text-gray-300 mb-2">
+            Benefits/Features
+          </h4>
+          <div class="space-y-2">
+            {#each ticket.benefits as benefit, benefitIndex}
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  bind:value={ticket.benefits[benefitIndex]}
+                  class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"
+                  placeholder="e.g., Priority seating, Meet & greet"
+                />
+                <button
+                  on:click={() => removeBenefit(ticketIndex, benefitIndex)}
+                  class="px-3 py-2 text-red-400 hover:text-red-300"
+                >
+                  ×
+                </button>
+              </div>
+            {/each}
+            <button
+              on:click={() => addBenefit(ticketIndex)}
+              class="text-teal-400 hover:text-teal-300 text-sm"
+            >
+              + Add Benefit
+            </button>
+          </div>
+        </div>
+      </div>
+    {/each}
+
+    <!-- Add Ticket Type Button -->
+    <div class="text-center">
+      <button
+        on:click={addTicketType}
+        class="px-6 py-3 border-2 border-dashed border-gray-600 text-gray-400 rounded-lg hover:border-teal-400 hover:text-teal-400 transition-colors duration-200"
+      >
+        + Add Another Ticket Type
+      </button>
+    </div>
   </div>
 
   <!-- Navigation Buttons -->

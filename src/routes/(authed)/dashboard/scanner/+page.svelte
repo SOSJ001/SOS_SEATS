@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { supabase, validateAndCheckInTicket } from "$lib/supabase";
+  import {
+    supabase,
+    validateAndCheckInTicket,
+    checkInGuest,
+  } from "$lib/supabase";
   import { showToast } from "$lib/store";
   import EventSelector from "$lib/components/EventSelector.svelte";
   import QRScanner from "$lib/components/Qrscanner.svelte";
@@ -34,6 +38,13 @@
   // Manual input for testing
   let showManualInput = false;
   let manualWalletAddress = "";
+
+  // React to event changes when bound value updates
+  let __prevSelectedEvent = "";
+  $: if (selectedEvent !== __prevSelectedEvent) {
+    __prevSelectedEvent = selectedEvent;
+    if (selectedEvent) handleEventChange(selectedEvent);
+  }
 
   onMount(async () => {
     await loadEvents();
@@ -90,7 +101,18 @@
     currentScanResult = null;
   }
 
-  async function handleScanResult(walletAddress: string) {
+  function isUuid(value: string) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value
+    );
+  }
+
+  function isLikelySolanaAddress(value: string) {
+    // Base58, typically 32-44 chars, no 0,O,I,l
+    return /^[1-9A-HJ-NP-Za-km-z]{32,64}$/.test(value);
+  }
+
+  async function handleScanResult(scannedValue: string) {
     if (!selectedEvent) {
       showToast(
         "error",
@@ -101,12 +123,37 @@
     }
 
     try {
-      // Validate and check in the ticket
-      const result = await validateAndCheckInTicket(
-        walletAddress,
-        selectedEvent,
-        null
-      );
+      let result: any;
+      let route: "guest" | "wallet" | "invalid" = "invalid";
+
+      if (isUuid(scannedValue)) {
+        // Guest ID path
+        route = "guest";
+        const check = await checkInGuest(scannedValue);
+        if (check.success) {
+          // Minimal ticketInfo for guest path (we don't have full join here)
+          result = {
+            success: true,
+            message: check.message || "Guest checked in successfully",
+            ticketInfo: {
+              original_buyer_name: "Guest",
+              ticket_type_name: "Ticket",
+            },
+          };
+        } else {
+          result = {
+            success: false,
+            message: check.error || "Guest not found or already checked in",
+          };
+        }
+      } else if (isLikelySolanaAddress(scannedValue)) {
+        // Wallet path (Web3)
+        route = "wallet";
+        result = await validateAndCheckInTicket(scannedValue, selectedEvent);
+      } else {
+        route = "invalid";
+        result = { success: false, message: "Invalid code format" };
+      }
 
       if (result.success) {
         // Success - ticket checked in
@@ -133,7 +180,7 @@
             status: "success" as const,
             message: `${ticketInfo.ticket_type_name} - Checked In`,
             timestamp: currentScanResult.timestamp,
-            walletAddress: walletAddress,
+            walletAddress: route === "wallet" ? scannedValue : undefined,
           },
           ...scanHistory.slice(0, 9), // Keep only last 10 entries
         ];
@@ -162,7 +209,7 @@
             status: "error" as const,
             message: result.message,
             timestamp: currentScanResult.timestamp,
-            walletAddress: walletAddress,
+            walletAddress: route === "wallet" ? scannedValue : undefined,
           },
           ...scanHistory.slice(0, 9),
         ];
@@ -340,11 +387,7 @@
       <!-- Left Column - Scanner Controls -->
       <div class="lg:col-span-2 space-y-6">
         <!-- Event Selector -->
-        <EventSelector
-          bind:selectedEvent
-          {events}
-          onEventChange={handleEventChange}
-        />
+        <EventSelector bind:selectedEvent {events} />
 
         <!-- QR Scanner -->
         <div class="flex justify-center">

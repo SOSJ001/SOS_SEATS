@@ -26,7 +26,6 @@
     image?: File | string;
     imagePreview?: string;
     organizer?: string;
-    contact_email?: string;
     website?: string;
     social_media?: {
       facebook: string;
@@ -590,16 +589,6 @@
                 class="text-white font-medium text-xs sm:text-sm md:text-base break-words"
               >
                 {eventData.organizer || "Not set"}
-              </p>
-            </div>
-            <div>
-              <span class="text-gray-400 text-xs sm:text-sm"
-                >Contact Email:</span
-              >
-              <p
-                class="text-white font-medium text-xs sm:text-sm md:text-base break-words"
-              >
-                {eventData.contact_email || "Not set"}
               </p>
             </div>
             <div>

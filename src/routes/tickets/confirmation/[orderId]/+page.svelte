@@ -29,6 +29,7 @@
   let loading = true;
   let error: string | null = null;
   let ticketSummary: any = null;
+  let orderGuestIds: string[] = [];
 
   // Ticket preview state
   let eventDetails: any = null;
@@ -109,6 +110,7 @@
                 price
               ),
               guests (
+                id,
                 ticket_number
               )
             `
@@ -154,6 +156,7 @@
                 for (let i = 0; i < quantity; i++) {
                   orderItems.push({
                     id: `${item.id}-${i + 1}`,
+                    guest_id: item.guest_id || null,
                     ticket_types: {
                       name:
                         orderData[0]?.ticket_type_name || "General Admission",
@@ -177,48 +180,56 @@
 
               ticketTypes = { "General Admission": totalTickets };
 
-              // Create order items based on calculated quantity
-              orderItems = [];
-              const orderItemsIds = orderResult.order_items_ids || [];
-              const orderItemId = orderItemsIds[0] || `function-${orderId}`;
+              // Try to resolve actual order_items with guest_id for this order
+              const { data: simpleItemsForOrder } = await supabase
+                .from("order_items")
+                .select("id, guest_id, quantity, unit_price, ticket_type_id")
+                .eq("order_id", orderId);
 
-              for (let i = 0; i < totalTickets; i++) {
-                orderItems.push({
-                  id: `${orderItemId}-${i + 1}`,
-                  ticket_types: {
-                    name: orderResult.ticket_type_name || "General Admission",
-                    price: orderResult.ticket_type_price || unitPrice,
-                  },
-                  ticket_number: `TIX-${orderItemId}-${i + 1}`,
+              orderItems = [];
+              if (simpleItemsForOrder && simpleItemsForOrder.length > 0) {
+                simpleItemsForOrder.forEach((it: any) => {
+                  const qty = it.quantity || 1;
+                  for (let i = 0; i < qty; i++) {
+                    orderItems.push({
+                      id: `${it.id}-${i + 1}`,
+                      guest_id: it.guest_id || null,
+                      ticket_types: {
+                        name:
+                          orderResult.ticket_type_name || "General Admission",
+                        price:
+                          it.unit_price ||
+                          orderResult.ticket_type_price ||
+                          unitPrice,
+                      },
+                      ticket_number: `TIX-${it.id}-${i + 1}`,
+                    });
+                  }
                 });
+              } else {
+                // Fallback to synthetic rows without guest_id (last resort)
+                const orderItemsIds = orderResult.order_items_ids || [];
+                const orderItemId = orderItemsIds[0] || `function-${orderId}`;
+                for (let i = 0; i < totalTickets; i++) {
+                  orderItems.push({
+                    id: `${orderItemId}-${i + 1}`,
+                    guest_id: null,
+                    ticket_types: {
+                      name: orderResult.ticket_type_name || "General Admission",
+                      price: orderResult.ticket_type_price || unitPrice,
+                    },
+                    ticket_number: `TIX-${orderItemId}-${i + 1}`,
+                  });
+                }
               }
             }
           } else {
             // Fallback logic if function doesn't return data
             if (!itemsError && orderItemsData && orderItemsData.length > 0) {
-              console.log(
-                "🔍 [CONFIRMATION PAGE] Order items data:",
-                orderItemsData
-              );
-              console.log(
-                "🔍 [CONFIRMATION PAGE] Raw order data from database:",
-                orderData
-              );
-
               // Calculate total tickets from quantity field, not just order items count
-              totalTickets = orderItemsData.reduce((sum: number, item: any) => {
-                console.log(
-                  "🔍 [CONFIRMATION PAGE] Item quantity:",
-                  item.quantity,
-                  "for item:",
-                  item
-                );
-                return sum + (item.quantity || 1);
-              }, 0);
-
-              console.log(
-                "🔍 [CONFIRMATION PAGE] Total tickets calculated:",
-                totalTickets
+              totalTickets = orderItemsData.reduce(
+                (sum: number, item: any) => sum + (item.quantity || 1),
+                0
               );
 
               // Create order items based on quantity
@@ -228,6 +239,7 @@
                 for (let i = 0; i < quantity; i++) {
                   orderItems.push({
                     id: `${item.id}-${i + 1}`,
+                    guest_id: item.guests?.id || item.guest_id || null,
                     ticket_types: {
                       name: item.ticket_types?.name || "General Admission",
                       price: item.ticket_types?.price || item.unit_price || 0,
@@ -265,6 +277,7 @@
                 totalTickets = guestsData.length;
                 orderItems = guestsData.map((guest: any) => ({
                   id: guest.id,
+                  guest_id: guest.id,
                   ticket_types: {
                     name: guest.ticket_types?.name || "General Admission",
                     price: guest.ticket_types?.price || 0,
@@ -425,8 +438,19 @@
 
       loading = false;
 
-      // Generate ticket previews after order is loaded
+      // Prefetch guest ids for this order to drive QR payloads
       if (order && order.event_id) {
+        try {
+          const { data: guestIds } = await supabase.rpc("get_order_guest_ids", {
+            p_order_id: orderId,
+          });
+          if (Array.isArray(guestIds)) {
+            orderGuestIds = guestIds as string[];
+          }
+        } catch (e) {
+          // ignore
+        }
+        // Generate ticket previews after order is loaded
         await generateTicketPreviews();
       }
     } catch (err: any) {
@@ -514,8 +538,9 @@
           }
         }
 
-        // Generate QR code data (using ticket number as unique identifier)
-        const qrData = ticketNumber;
+        // Generate QR code data: prefer guest_id when available, then pre-fetched orderGuestIds, else fallback to ticket number
+        const qrData =
+          (item as any)?.guest_id || orderGuestIds[i] || ticketNumber;
 
         // Generate ticket preview
         const previewUrl = await generateTicketPreview({
