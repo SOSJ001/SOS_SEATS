@@ -106,17 +106,11 @@
     return total + ticket.price * (selectedTickets[ticket.id] || 0);
   }, 0);
 
-  // Calculate platform fee for mobile money payments
-  $: platformFee =
-    totalPrice > 0
-      ? ticketTypes.reduce((total, ticket) => {
-          const qty = selectedTickets[ticket.id] || 0;
-          return total + calculatePlatformFee(ticket.price) * qty;
-        }, 0)
-      : 0;
+  // Calculate platform fee for mobile money payments (disabled)
+  $: platformFee = 0;
 
-  // Calculate base total (ticket price + platform fee)
-  $: baseTotal = totalPrice + platformFee;
+  // Calculate base total (ticket price only; no platform fee)
+  $: baseTotal = totalPrice;
 
   // Calculate Monime's 1% processing fee
   $: monimeFee = baseTotal > 0 ? baseTotal * 0.01 : 0;
@@ -497,12 +491,9 @@
         }
       }
 
-      // Calculate platform fee
-      const platformFee = ticketDetails.reduce((total, ticket) => {
-        return total + calculatePlatformFee(ticket.price) * ticket.quantity;
-      }, 0);
-      // Calculate base total and Monime fee
-      const baseTotal = totalPrice + platformFee;
+      // Calculate base total and Monime fee (no platform fee)
+      const platformFee = 0;
+      const baseTotal = totalPrice;
       const monimeFee = baseTotal * 0.01;
       const totalWithFee = baseTotal + monimeFee;
 
@@ -615,12 +606,9 @@
         }
       }
 
-      // Calculate platform fee
-      const platformFee = ticketDetails.reduce((total, ticket) => {
-        return total + calculatePlatformFee(ticket.price) * ticket.quantity;
-      }, 0);
-      // Calculate base total and Monime fee
-      const baseTotal = totalPrice + platformFee;
+      // Calculate base total and Monime fee (no platform fee)
+      const platformFee = 0;
+      const baseTotal = totalPrice;
       const monimeFee = baseTotal * 0.01;
       const totalWithFee = baseTotal + monimeFee;
 

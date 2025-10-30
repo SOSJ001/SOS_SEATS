@@ -1,21 +1,17 @@
 // Orange Money payment handler using Monime API
 import { monimeService } from "./monime.js";
 
-// Platform fee configuration
-const PLATFORM_FEE_PERCENTAGE = 0.1; // 10% platform fee (adjust as needed)
-const PLATFORM_FEE_MIN = 2; // Minimum fee in SLE (e.g., 2 SLE)
-const PLATFORM_FEE_MAX = 50; // Maximum fee in SLE (optional cap)
+// Platform fee configuration (disabled)
+const PLATFORM_FEE_PERCENTAGE = 0; // disabled
+const PLATFORM_FEE_MIN = 0; // disabled
+const PLATFORM_FEE_MAX = 0; // disabled
 
 /**
  * Calculate platform service fee
  */
 export function calculatePlatformFee(ticketPrice: number): number {
-  const percentageFee = ticketPrice * PLATFORM_FEE_PERCENTAGE;
-  const fee = Math.max(
-    PLATFORM_FEE_MIN,
-    Math.min(percentageFee, PLATFORM_FEE_MAX || Infinity)
-  );
-  return Math.round(fee * 100) / 100; // Round to 2 decimal places
+  // Service fee removed for mobile money payments
+  return 0;
 }
 
 interface TicketPurchaseData {
@@ -53,15 +49,11 @@ export async function handleMobileMoneyPaymentWithCode(
       return { success: false, error: "Invalid amount" };
     }
 
-    // Calculate platform fees
+    // Calculate platform fees (disabled)
     let totalPlatformFee = 0;
-    purchaseData.ticketDetails.forEach((ticket) => {
-      const platformFee = calculatePlatformFee(ticket.price);
-      totalPlatformFee += platformFee * ticket.quantity;
-    });
 
-    // Calculate base total (ticket price + platform fee)
-    const baseTotal = purchaseData.totalAmount + totalPlatformFee;
+    // Calculate base total (ticket price only; no platform fee)
+    const baseTotal = purchaseData.totalAmount;
 
     // Add Monime's 1% processing fee to the customer's total
     // This ensures we receive the full amount after Monime deducts their fee
