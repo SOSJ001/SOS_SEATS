@@ -398,17 +398,6 @@
     })();
   });
 
-  function handleSend() {
-    // Implementation for sending transaction
-  }
-
-  function handleReceive() {
-    // Implementation for receiving transaction
-  }
-
-  function handleSwap() {
-    // Implementation for swapping tokens
-  }
 </script>
 
 <div class="min-h-screen bg-gray-900 text-white px-4 py-6">
@@ -435,9 +424,6 @@
       <!-- Current Balance (Web3) -->
       <WalletBalance
         balance={isLoadingTotal ? "--" : totalDisplay}
-        onSend={handleSend}
-        onReceive={handleReceive}
-        onSwap={handleSwap}
         isLoading={isLoadingTotal}
       />
 
