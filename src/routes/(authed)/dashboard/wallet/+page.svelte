@@ -695,22 +695,27 @@
     <!-- Modal Backdrop - click outside to close -->
     <button
       type="button"
-      class="fixed inset-0 bg-black/70 z-50 p-4 border-none cursor-default"
+      class="fixed inset-0 bg-black/70 z-50 p-2 sm:p-4 border-none cursor-default"
       on:click={closeWithdrawalModal}
       aria-label="Close modal"
     ></button>
     <!-- Modal Content -->
     <div
-      class="fixed inset-0 flex items-center justify-center z-50 p-4 pointer-events-none"
+      class="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 pointer-events-none overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="withdrawal-modal-title"
     >
       <div
-        class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full shadow-xl pointer-events-auto"
+        class="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 max-w-md w-full shadow-xl pointer-events-auto my-auto max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
       >
-        <div class="flex items-center justify-between mb-4">
-          <h3 id="withdrawal-modal-title" class="text-xl font-bold text-white">
+        <div
+          class="flex items-center justify-between mb-4 sticky top-0 bg-gray-800 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-0 pb-2 border-b border-gray-700"
+        >
+          <h3
+            id="withdrawal-modal-title"
+            class="text-lg sm:text-xl font-bold text-white"
+          >
             Withdraw Mobile Money
           </h3>
           <button
@@ -862,18 +867,18 @@
           </div>
 
           <!-- Action Buttons -->
-          <div class="flex gap-3 pt-2">
+          <div class="flex gap-2 sm:gap-3 pt-2">
             <button
               on:click={closeWithdrawalModal}
               disabled={isWithdrawing}
-              class="flex-1 px-4 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-600 text-white rounded-lg text-sm sm:text-base font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               on:click={handleWithdrawMobileMoney}
               disabled={isWithdrawing || !withdrawalPhoneNumber.trim()}
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-lg font-semibold hover:from-cyan-600 hover:to-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-lg text-sm sm:text-base font-semibold hover:from-cyan-600 hover:to-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {#if isWithdrawing}
                 <span class="flex items-center justify-center gap-2">
