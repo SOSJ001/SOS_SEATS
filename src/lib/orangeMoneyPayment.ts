@@ -14,6 +14,40 @@ export function calculatePlatformFee(ticketPrice: number): number {
   return 0;
 }
 
+/**
+ * Calculate platform withdrawal fee
+ */
+export function calculateWithdrawalFee(withdrawalAmount: number): {
+  platformFee: number;
+  netAmount: number;
+} {
+  // Withdrawal fee configuration
+  const WITHDRAWAL_FEE_PERCENTAGE = 0.05; // 5% platform fee
+  const WITHDRAWAL_FEE_MIN = 0; // Minimum fee (disabled)
+  const WITHDRAWAL_FEE_MAX = 0; // Maximum fee (disabled)
+
+  // Calculate platform fee
+  let platformFee = withdrawalAmount * WITHDRAWAL_FEE_PERCENTAGE;
+
+  // Apply min/max constraints if fee is enabled
+  if (WITHDRAWAL_FEE_PERCENTAGE > 0) {
+    if (WITHDRAWAL_FEE_MIN > 0 && platformFee < WITHDRAWAL_FEE_MIN) {
+      platformFee = WITHDRAWAL_FEE_MIN;
+    }
+    if (WITHDRAWAL_FEE_MAX > 0 && platformFee > WITHDRAWAL_FEE_MAX) {
+      platformFee = WITHDRAWAL_FEE_MAX;
+    }
+  }
+
+  // Calculate net amount (amount sent to user after platform fee)
+  const netAmount = withdrawalAmount - platformFee;
+
+  return {
+    platformFee,
+    netAmount: Math.max(0, netAmount), // Ensure non-negative
+  };
+}
+
 interface TicketPurchaseData {
   eventId: string;
   eventName?: string; // Optional event name for payment description

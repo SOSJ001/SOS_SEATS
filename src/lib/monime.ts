@@ -163,6 +163,88 @@ class MonimeService {
       throw new Error(result.error || "Unknown API error");
     }
   }
+
+  /**
+   * Create a Payout to mobile money wallet
+   */
+  async createPayout(
+    amount: { currency: string; value: number },
+    destination: {
+      providerCode: string; // "m17" for Orange Money, "m18" for Afrimoney
+      accountId: string; // Phone number with country code (e.g., "+23278000000")
+    },
+    source?: {
+      financialAccountId?: string;
+    },
+    metadata?: Record<string, any>,
+    reference?: string
+  ): Promise<{
+    id: string;
+    status: string;
+    amount: { currency: string; value: number };
+    source?: { financialAccountId?: string; transactionReference?: string };
+    destination: {
+      providerCode?: string;
+      accountId?: string;
+      transactionReference?: string;
+    };
+    fees?: Array<{
+      code: string;
+      amount: { currency: string; value: number };
+      metadata?: Record<string, any>;
+    }>;
+    failureDetail?: {
+      code: string;
+      message?: string;
+    };
+    createTime: string;
+    metadata?: Record<string, any>;
+  }> {
+    const response = await fetch("/api/monime/payout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount,
+        destination,
+        source,
+        metadata,
+        reference,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      const errorMessage = error.error || error.message || response.statusText;
+      const fullError = new Error(
+        `Monime API Error: ${response.status} - ${errorMessage}`
+      ) as any;
+
+      // Pass through infrastructure error flag from API
+      if (error.isInfrastructureError) {
+        fullError.isInfrastructureError = true;
+      }
+
+      throw fullError;
+    }
+
+    const result = await response.json();
+
+    if (result.success && result.data) {
+      return result.data;
+    } else {
+      const errorMessage = result.error || "Unknown API error";
+      const error = new Error(errorMessage) as any;
+
+      // Pass through infrastructure error flag from API
+      if (result.isInfrastructureError) {
+        error.isInfrastructureError = true;
+      }
+
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
