@@ -4,6 +4,7 @@
   export let showIcon: boolean = true;
   export let variant: "default" | "minimal" | "full" = "default";
   export let disableContent: boolean = false; // If true, shows content but disabled. If false, hides content completely.
+  export let compact: boolean = false; // If true, shows a compact overlay (better for buttons). Only works with disableContent=true.
 </script>
 
 {#if isUnderMaintenance && !disableContent}
@@ -88,26 +89,17 @@
   <!-- Show content but disabled, with maintenance overlay -->
   <div class="relative w-full">
     <!-- Disabled content -->
-    <div class="opacity-50 pointer-events-none">
+    <div class="{compact ? 'opacity-60' : 'opacity-50'} pointer-events-none">
       <slot />
     </div>
     <!-- Maintenance overlay -->
-    <div
-      class="absolute inset-0 flex items-center justify-center {variant === 'full'
-        ? 'rounded-xl border-2 border-yellow-500/50 bg-gray-800/90 p-4 sm:p-6 md:p-8'
-        : variant === 'minimal'
-          ? 'rounded-lg border border-yellow-500/30 bg-gray-800/80 p-3 sm:p-4'
-          : 'rounded-lg border border-yellow-500/40 bg-gray-800/90 p-4 sm:p-5 md:p-6'}"
-    >
-      <div
-        class="flex flex-col items-center justify-center text-center space-y-2 sm:space-y-3 md:space-y-4"
-      >
-        {#if showIcon}
-          <div
-            class="w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0"
-          >
+    {#if compact}
+      <!-- Compact overlay for buttons - shows icon badge -->
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-yellow-500/20 backdrop-blur-sm border border-yellow-500/40 shadow-lg">
+          {#if showIcon}
             <svg
-              class="w-5 h-5 sm:w-7 sm:h-7 md:w-8 md:h-8 text-yellow-400 animate-pulse"
+              class="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400 animate-pulse flex-shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -124,20 +116,61 @@
                 d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-          </div>
-        {/if}
-        <div class="space-y-1 sm:space-y-2 px-2 sm:px-0">
-          <p
-            class="text-xs sm:text-sm md:text-base text-yellow-400 font-semibold {variant ===
-            'minimal'
-              ? 'text-[10px] sm:text-xs'
-              : ''}"
-          >
+          {/if}
+          <span class="text-[10px] sm:text-xs font-semibold text-yellow-400 whitespace-nowrap">
             {message}
-          </p>
+          </span>
         </div>
       </div>
-    </div>
+    {:else}
+      <!-- Full overlay for larger content -->
+      <div
+        class="absolute inset-0 flex items-center justify-center {variant === 'full'
+          ? 'rounded-xl border-2 border-yellow-500/50 bg-gray-800/90 p-4 sm:p-6 md:p-8'
+          : variant === 'minimal'
+            ? 'rounded-lg border border-yellow-500/30 bg-gray-800/80 p-3 sm:p-4'
+            : 'rounded-lg border border-yellow-500/40 bg-gray-800/90 p-4 sm:p-5 md:p-6'}"
+      >
+        <div
+          class="flex flex-col items-center justify-center text-center space-y-2 sm:space-y-3 md:space-y-4"
+        >
+          {#if showIcon}
+            <div
+              class="w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0"
+            >
+              <svg
+                class="w-5 h-5 sm:w-7 sm:h-7 md:w-8 md:h-8 text-yellow-400 animate-pulse"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+            </div>
+          {/if}
+          <div class="space-y-1 sm:space-y-2 px-2 sm:px-0">
+            <p
+              class="text-xs sm:text-sm md:text-base text-yellow-400 font-semibold {variant ===
+              'minimal'
+                ? 'text-[10px] sm:text-xs'
+                : ''}"
+            >
+              {message}
+            </p>
+          </div>
+        </div>
+      </div>
+    {/if}
   </div>
 {:else}
   <!-- Normal content display -->

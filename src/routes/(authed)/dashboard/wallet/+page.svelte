@@ -7,6 +7,7 @@
   import { supabase, verifyWeb3Session, loadUserEvents } from "$lib/supabase";
   import { getBalance, getActiveWalletAddress } from "$lib/web3";
   import { sessionFromDb } from "$lib/store";
+  import MaintenanceWrapper from "$lib/components/MaintenanceWrapper.svelte";
 
   export const data = undefined;
 
@@ -482,18 +483,28 @@
             All completed mobile money orders
           </div>
           <div class="pt-1">
-            <button
-              on:click={handleWithdrawMobileMoney}
-              disabled={mobileMoneyTotal <= 0 || isLoadingMobileMoney}
-              class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors
-                {mobileMoneyTotal > 0 && !isLoadingMobileMoney
-                ? 'bg-gradient-to-r from-cyan-500 to-teal-500 text-white hover:from-cyan-600 hover:to-teal-600'
-                : 'bg-gray-700 text-gray-400 cursor-not-allowed'}"
+            <MaintenanceWrapper
+              isUnderMaintenance={true}
+              disableContent={true}
+              compact={true}
+              message="under maintenance"
+              variant="default"
+              showIcon={true}
             >
-              Withdraw
-            </button>
+              <button
+                on:click={handleWithdrawMobileMoney}
+                disabled={mobileMoneyTotal <= 0 || isLoadingMobileMoney}
+                class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors
+                  {mobileMoneyTotal > 0 && !isLoadingMobileMoney
+                  ? 'bg-gradient-to-r from-cyan-500 to-teal-500 text-white hover:from-cyan-600 hover:to-teal-600'
+                  : 'bg-gray-700 text-gray-400 cursor-not-allowed'}"
+              >
+                Withdraw
+              </button>
+            </MaintenanceWrapper>
           </div>
         </div>
+
         <div
           class="bg-gray-800 border border-gray-700 rounded-xl p-5 flex flex-col gap-3"
         >
@@ -537,7 +548,15 @@
       </div>
 
       <!-- Portfolio Overview -->
-      <PortfolioOverview />
+      <MaintenanceWrapper
+        isUnderMaintenance={true}
+        disableContent={true}
+        message="Portfolio overview is currently under maintenance. We're working on improving this feature."
+        variant="default"
+        showIcon={true}
+      >
+        <PortfolioOverview />
+      </MaintenanceWrapper>
 
       <!-- Recent Transactions -->
       <RecentTransactions
