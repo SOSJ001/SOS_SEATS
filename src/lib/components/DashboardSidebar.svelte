@@ -4,7 +4,7 @@
   import { fade, fly } from "svelte/transition";
   export let onClose = undefined; // Optional close handler for mobile
   export let userName = "User"; // User name for mobile display
-  export let walletBalance = "$1,234.56"; // Wallet balance for mobile display
+  // export let walletBalance = "$1,234.56"; // Wallet balance for mobile display
 
   $: activeUrl = $page.url.pathname;
 
@@ -163,7 +163,7 @@
       </div>
       <div class="flex-1">
         <p class="text-white font-medium text-sm">Hi, {userName}</p>
-        <p class="text-gray-400 text-xs">{walletBalance}</p>
+        <!-- <p class="text-gray-400 text-xs">{walletBalance}</p> -->
       </div>
     </div>
 
