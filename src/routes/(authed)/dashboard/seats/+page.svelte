@@ -3,6 +3,7 @@
   import BulkOperations from "$lib/components/BulkOperations.svelte";
   import SeatDetails from "$lib/components/SeatDetails.svelte";
   import EventSelector from "$lib/components/EventSelector.svelte";
+  import MaintenanceWrapper from "$lib/components/MaintenanceWrapper.svelte";
   import { onMount } from "svelte";
 
   export const data = undefined;
@@ -63,45 +64,52 @@
       Manage seating arrangements and ticket assignments
     </p>
   </div>
-
-  <!-- Event Selector -->
-  <div
-    class="mb-6 transition-all duration-1000 transform {showContent
-      ? 'translate-y-0 opacity-100'
-      : 'translate-y-8 opacity-0'}"
+  <MaintenanceWrapper
+    isUnderMaintenance={true}
+    message="Seat management is currently under maintenance. We're working on improving this feature."
+    variant="default"
+    showIcon={true}
   >
-    <h2 class="block text-sm font-medium text-gray-400 mb-2">Select Event</h2>
-    <EventSelector
-      bind:selectedEvent
-      on:eventChange={(e) => handleEventChange(e.detail.eventId)}
-    />
-  </div>
-
-  <!-- Main Content Grid -->
-  <div
-    class="grid grid-cols-1 lg:grid-cols-4 gap-6 transition-all duration-1000 transform {showContent
-      ? 'translate-y-0 opacity-100'
-      : 'translate-y-8 opacity-0'}"
-  >
-    <!-- Left Column - Bulk Operations and Seat Map -->
-    <div class="lg:col-span-3 space-y-6">
-      <!-- Bulk Operations -->
-      <BulkOperations
-        onSelectAll={handleSelectAll}
-        onAssignMultiple={handleAssignMultiple}
-        onChangePrice={handleChangePrice}
-        onDeleteSeats={handleDeleteSeats}
+    <!-- Event Selector -->
+    <div
+      class="mb-6 transition-all duration-1000 transform {showContent
+        ? 'translate-y-0 opacity-100'
+        : 'translate-y-8 opacity-0'}"
+    >
+      <!-- <h2 class="block text-sm font-medium text-gray-400 mb-2">Select Event</h2> -->
+      <EventSelector
+        bind:selectedEvent
+        on:eventChange={(e) => handleEventChange(e.detail.eventId)}
       />
-
-      <!-- Seat Map -->
-      <SeatMap {selectedSeat} onSeatClick={handleSeatClick} />
     </div>
 
-    <!-- Right Column - Seat Details -->
-    <div class="lg:col-span-1">
-      <SeatDetails {selectedSeat} />
+    <!-- Main Content Grid -->
+
+    <div
+      class="grid grid-cols-1 lg:grid-cols-4 gap-6 transition-all duration-1000 transform {showContent
+        ? 'translate-y-0 opacity-100'
+        : 'translate-y-8 opacity-0'}"
+    >
+      <!-- Left Column - Bulk Operations and Seat Map -->
+      <div class="lg:col-span-3 space-y-6">
+        <!-- Bulk Operations -->
+        <BulkOperations
+          onSelectAll={handleSelectAll}
+          onAssignMultiple={handleAssignMultiple}
+          onChangePrice={handleChangePrice}
+          onDeleteSeats={handleDeleteSeats}
+        />
+
+        <!-- Seat Map -->
+        <SeatMap {selectedSeat} onSeatClick={handleSeatClick} />
+      </div>
+
+      <!-- Right Column - Seat Details -->
+      <div class="lg:col-span-1">
+        <SeatDetails {selectedSeat} />
+      </div>
     </div>
-  </div>
+  </MaintenanceWrapper>
 
   <!-- Glowing particles background effect -->
   <div class="fixed inset-0 pointer-events-none overflow-hidden">

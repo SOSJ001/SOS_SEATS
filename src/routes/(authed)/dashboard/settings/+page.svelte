@@ -7,6 +7,7 @@
   import Web3Settings from "$lib/components/Web3Settings.svelte";
   import NotificationSettings from "$lib/components/NotificationSettings.svelte";
   import SecuritySettings from "$lib/components/SecuritySettings.svelte";
+  import MaintenanceWrapper from "$lib/components/MaintenanceWrapper.svelte";
 
   // Settings data
   let settings = {
@@ -89,61 +90,68 @@
   </div>
 
   <!-- Settings Sections -->
-  <div class="space-y-4 sm:space-y-6 max-w-4xl">
-    <!-- General Section -->
-    <div in:fade={{ duration: 400, delay: 100 }}>
-      <GeneralSettings {settings} onInputChange={handleInputChange} />
-    </div>
-
-    <!-- Profile Section -->
-    <div in:fade={{ duration: 400, delay: 200 }}>
-      <ProfileSettings {settings} onInputChange={handleInputChange} />
-    </div>
-
-    <!-- Web3 Settings Section -->
-    <div in:fade={{ duration: 400, delay: 300 }}>
-      <Web3Settings
-        {settings}
-        onInputChange={handleInputChange}
-        onDisconnectWallet={disconnectWallet}
-      />
-    </div>
-
-    <!-- Notifications Section -->
-    <div in:fade={{ duration: 400, delay: 400 }}>
-      <NotificationSettings {settings} onInputChange={handleInputChange} />
-    </div>
-
-    <!-- Security Section -->
-    <div in:fade={{ duration: 400, delay: 500 }}>
-      <SecuritySettings
-        onPasswordChange={handlePasswordChange}
-        on2FASetup={handle2FASetup}
-        onDeviceManagement={handleDeviceManagement}
-      />
-    </div>
-  </div>
-
-  <!-- Action Buttons - Mobile Responsive -->
-  <div
-    class="fixed bottom-4 sm:bottom-6 left-4 sm:left-auto sm:right-6 right-4 flex space-x-2 sm:space-x-3 z-50"
-    in:fly={{ y: 20, duration: 400, delay: 600 }}
+  <MaintenanceWrapper
+    isUnderMaintenance={true}
+    message="Settings is currently under maintenance. We're working on improving this feature."
+    variant="default"
+    showIcon={true}
   >
-    <button
-      on:click={cancelChanges}
-      disabled={!hasChanges}
-      class="flex-1 sm:flex-none bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:text-gray-500 text-white px-4 sm:px-6 py-3 rounded-lg transition-colors disabled:cursor-not-allowed text-sm sm:text-base"
+    <div class="space-y-4 sm:space-y-6 max-w-4xl">
+      <!-- General Section -->
+      <div in:fade={{ duration: 400, delay: 100 }}>
+        <GeneralSettings {settings} onInputChange={handleInputChange} />
+      </div>
+
+      <!-- Profile Section -->
+      <div in:fade={{ duration: 400, delay: 200 }}>
+        <ProfileSettings {settings} onInputChange={handleInputChange} />
+      </div>
+
+      <!-- Web3 Settings Section -->
+      <div in:fade={{ duration: 400, delay: 300 }}>
+        <Web3Settings
+          {settings}
+          onInputChange={handleInputChange}
+          onDisconnectWallet={disconnectWallet}
+        />
+      </div>
+
+      <!-- Notifications Section -->
+      <div in:fade={{ duration: 400, delay: 400 }}>
+        <NotificationSettings {settings} onInputChange={handleInputChange} />
+      </div>
+
+      <!-- Security Section -->
+      <div in:fade={{ duration: 400, delay: 500 }}>
+        <SecuritySettings
+          onPasswordChange={handlePasswordChange}
+          on2FASetup={handle2FASetup}
+          onDeviceManagement={handleDeviceManagement}
+        />
+      </div>
+    </div>
+
+    <!-- Action Buttons - Mobile Responsive -->
+    <div
+      class="fixed bottom-4 sm:bottom-6 left-4 sm:left-auto sm:right-6 right-4 flex space-x-2 sm:space-x-3 z-50"
+      in:fly={{ y: 20, duration: 400, delay: 600 }}
     >
-      Cancel
-    </button>
-    <button
-      on:click={saveChanges}
-      disabled={!hasChanges}
-      class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:text-gray-500 text-white px-4 sm:px-6 py-3 rounded-lg transition-colors disabled:cursor-not-allowed text-sm sm:text-base"
-    >
-      Save Changes
-    </button>
-  </div>
+      <button
+        on:click={cancelChanges}
+        disabled={!hasChanges}
+        class="flex-1 sm:flex-none bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:text-gray-500 text-white px-4 sm:px-6 py-3 rounded-lg transition-colors disabled:cursor-not-allowed text-sm sm:text-base"
+      >
+        Cancel
+      </button>
+      <button
+        on:click={saveChanges}
+        disabled={!hasChanges}
+        class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:text-gray-500 text-white px-4 sm:px-6 py-3 rounded-lg transition-colors disabled:cursor-not-allowed text-sm sm:text-base"
+      >
+        Save Changes
+      </button>
+    </div>
+  </MaintenanceWrapper>
 
   <!-- Bottom spacing for mobile to account for fixed buttons -->
   <div class="h-20 sm:h-0"></div>
