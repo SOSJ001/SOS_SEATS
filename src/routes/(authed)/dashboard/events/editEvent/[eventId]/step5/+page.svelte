@@ -192,10 +192,10 @@
 
   /** @param {number} amount */
   function formatCurrency(amount) {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount || 0);
+    return `NLe ${new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount || 0)}`;
   }
 
   /** @param {string} dateString */

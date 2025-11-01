@@ -15,7 +15,7 @@
     >
       <span class="text-2xl font-bold text-[#00F5FF] mb-2">Free</span>
       <span class="text-4xl font-extrabold text-white mb-4"
-        >$0<span class="text-lg font-normal">/month</span></span
+        >NLe 0<span class="text-lg font-normal">/month</span></span
       >
       <ul class="text-gray-300 mb-6 space-y-2">
         <li>Up to 5 Events</li>
@@ -33,7 +33,7 @@
     >
       <span class="text-2xl font-bold text-[#9D4EDD] mb-2">Pro</span>
       <span class="text-4xl font-extrabold text-white mb-4"
-        >$29<span class="text-lg font-normal">/month</span></span
+        >NLe 29<span class="text-lg font-normal">/month</span></span
       >
       <ul class="text-gray-300 mb-6 space-y-2">
         <li>Unlimited Events</li>

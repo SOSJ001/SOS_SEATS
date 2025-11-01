@@ -1433,7 +1433,7 @@ export async function createOrder(orderData) {
           buyer_name: orderData.buyer_name,
           order_number: orderData.order_number,
           total_amount: orderData.total_amount,
-          currency: orderData.currency || "USD",
+          currency: orderData.currency || "NLe",
           payment_method: orderData.payment_method,
           payment_status: orderData.payment_status || "pending",
           transaction_hash: orderData.transaction_hash,
@@ -2118,7 +2118,7 @@ export async function claimFreeTickets(
       buyer_name: userData.name || userData.display_name || "Anonymous",
       order_number: orderNumber,
       total_amount: totalAmount, // Always use calculated total from ticket details
-      currency: paymentInfo ? paymentInfo.currency || "USDC" : "USD", // Use payment currency or default to USDC for paid tickets
+      currency: paymentInfo ? paymentInfo.currency || "USDC" : "NLe", // Use payment currency or default to USDC for paid tickets
       payment_method: paymentInfo ? paymentInfo.paymentMethod : "free",
       payment_status: paymentInfo ? "completed" : "completed",
       transaction_hash: paymentInfo ? paymentInfo.transactionSignature : null,

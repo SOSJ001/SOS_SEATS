@@ -10,7 +10,7 @@
   export let paymentCodeId: string = "";
   export let ussdCode: string = "";
   export let amount: number = 0;
-  export let currency: string = "SLE";
+  export let currency: string = "NLe";
   export let paymentMethod: "orange_money" | "afrimoney" = "orange_money";
   export let purchaseData: any = null;
 

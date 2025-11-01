@@ -103,7 +103,7 @@
   function getRevenue(event) {
     // Use real-time statistics if available, otherwise fall back to ticket_types
     if (event.realTimeStats) {
-      return `$${event.realTimeStats.totalRevenue.toLocaleString()}`;
+      return `NLe ${event.realTimeStats.totalRevenue.toLocaleString()}`;
     }
 
     // Fallback to calculating from ticket_types
@@ -111,7 +111,7 @@
       event.ticket_types?.reduce((sum, ticket) => {
         return sum + (ticket.price || 0) * (ticket.sold_quantity || 0);
       }, 0) || 0;
-    return `$${totalRevenue.toLocaleString()}`;
+    return `NLe ${totalRevenue.toLocaleString()}`;
   }
 
   function getPrimaryAction(status) {

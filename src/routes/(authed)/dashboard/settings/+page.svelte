@@ -14,7 +14,7 @@
     general: {
       language: "English",
       timezone: "UTC-5 (Eastern Time)",
-      currency: "USD",
+      currency: "NLe",
     },
     profile: {
       username: "john.doe",

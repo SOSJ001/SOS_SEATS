@@ -522,7 +522,7 @@
           paymentCodeId: result.paymentCodeId,
           ussdCode: result.ussdCode,
           amount: totalWithFee,
-          currency: "SLE",
+          currency: "NLe",
           paymentMethod: "orange_money",
           purchaseData,
         };
@@ -637,7 +637,7 @@
           paymentCodeId: result.paymentCodeId,
           ussdCode: result.ussdCode,
           amount: totalWithFee,
-          currency: "SLE",
+          currency: "NLe",
           paymentMethod: "afrimoney",
           purchaseData,
         };
@@ -1149,7 +1149,7 @@
           <!-- Payment Summary -->
           <PaymentSummaryCard
             totalPrice={totalWithFee}
-            currency={event?.is_free_event ? "USD" : "SLE"}
+            currency="NLe"
             pricePerTicket={event?.is_free_event
               ? 0
               : totalPrice /

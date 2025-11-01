@@ -25,11 +25,11 @@
   function formatCurrency(amount) {
     const numAmount = parseFloat(amount) || 0;
     if (numAmount >= 1000000) {
-      return `$${(numAmount / 1000000).toFixed(2)}M`;
+      return `NLe ${(numAmount / 1000000).toFixed(2)}M`;
     } else if (numAmount >= 1000) {
-      return `$${(numAmount / 1000).toFixed(0)}k`;
+      return `NLe ${(numAmount / 1000).toFixed(0)}k`;
     } else {
-      return `$${numAmount.toFixed(2)}`;
+      return `NLe ${numAmount.toFixed(2)}`;
     }
   }
 

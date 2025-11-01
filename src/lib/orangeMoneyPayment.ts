@@ -19,14 +19,18 @@ export function calculatePlatformFee(ticketPrice: number): number {
  */
 export function calculateWithdrawalFee(withdrawalAmount: number): {
   platformFee: number;
+  monimeFee: number;
+  totalFees: number;
+  netAmountAfterPlatformFee: number;
   netAmount: number;
 } {
   // Withdrawal fee configuration
   const WITHDRAWAL_FEE_PERCENTAGE = 0.05; // 5% platform fee
+  const MONIME_FEE_PERCENTAGE = 0.01; // 1% Monime processing fee (calculated on amount after platform fee)
   const WITHDRAWAL_FEE_MIN = 0; // Minimum fee (disabled)
   const WITHDRAWAL_FEE_MAX = 0; // Maximum fee (disabled)
 
-  // Calculate platform fee
+  // Calculate platform fee (5% of withdrawal amount)
   let platformFee = withdrawalAmount * WITHDRAWAL_FEE_PERCENTAGE;
 
   // Apply min/max constraints if fee is enabled
@@ -39,12 +43,24 @@ export function calculateWithdrawalFee(withdrawalAmount: number): {
     }
   }
 
-  // Calculate net amount (amount sent to user after platform fee)
-  const netAmount = withdrawalAmount - platformFee;
+  // Calculate net amount after platform fee (x)
+  const netAmountAfterPlatformFee = Math.max(0, withdrawalAmount - platformFee);
+
+  // Calculate Monime processing fee (1% of amount after platform fee)
+  const monimeFee = netAmountAfterPlatformFee * MONIME_FEE_PERCENTAGE;
+
+  // Calculate total fees (platform fee + Monime fee)
+  const totalFees = platformFee + monimeFee;
+
+  // Calculate final net amount user will receive (after both fees)
+  const netAmount = Math.max(0, netAmountAfterPlatformFee - monimeFee);
 
   return {
     platformFee,
-    netAmount: Math.max(0, netAmount), // Ensure non-negative
+    monimeFee,
+    totalFees,
+    netAmountAfterPlatformFee,
+    netAmount,
   };
 }
 
@@ -113,7 +129,7 @@ export async function handleMobileMoneyPaymentWithCode(
     const paymentCode = await monimeService.createPaymentCode(
       paymentCodeName,
       {
-        currency: "SLE",
+        currency: "NLe",
         value: Math.round(totalAmountWithFee * 100), // Convert to cents
       },
       authorizedProviders,
@@ -184,7 +200,7 @@ export async function processOrangeMoneyCallback(
       buyerWallet: `mobile_money_${paymentMethod}`, // Use meaningful identifier for mobile money payments
       provider: "monime",
       sessionId: sessionId,
-      currency: "SLE", // Sierra Leone Leone for mobile money
+      currency: "NLe", // Sierra Leone Leone for mobile money
     };
 
     // Import the claimFreeTickets function and supabase client

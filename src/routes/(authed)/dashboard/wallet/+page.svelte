@@ -5,8 +5,12 @@
   import NetworkStatus from "$lib/components/NetworkStatus.svelte";
   import { onMount, onDestroy } from "svelte";
   import { supabase, verifyWeb3Session, loadUserEvents } from "$lib/supabase";
-  import { getBalance, getActiveWalletAddress } from "$lib/web3";
-  import { sessionFromDb } from "$lib/store";
+  import {
+    getBalance,
+    getActiveWalletAddress,
+    signMessageWithWallet,
+  } from "$lib/web3";
+  import { sessionFromDb, showToast } from "$lib/store";
   import MaintenanceWrapper from "$lib/components/MaintenanceWrapper.svelte";
   import { monimeService } from "$lib/monime";
   import { calculateWithdrawalFee } from "$lib/orangeMoneyPayment";
@@ -41,11 +45,11 @@
   // Calculated withdrawal fees (reactive)
   $: withdrawalFeeDetails = calculateWithdrawalFee(mobileMoneyTotal);
   $: withdrawalPlatformFee = withdrawalFeeDetails.platformFee;
-  $: withdrawalNetAfterPlatformFee = withdrawalFeeDetails.netAmount;
-  // Estimated Monime processing fee (1% of amount after platform fee)
-  $: estimatedMonimeFee = withdrawalNetAfterPlatformFee * 0.01;
-  // Final net amount user will receive (after platform fee and estimated Monime fee)
-  $: withdrawalNetAmount = withdrawalNetAfterPlatformFee - estimatedMonimeFee;
+  $: estimatedMonimeFee = withdrawalFeeDetails.monimeFee;
+  $: withdrawalTotalFees = withdrawalFeeDetails.totalFees;
+  $: withdrawalNetAfterPlatformFee =
+    withdrawalFeeDetails.netAmountAfterPlatformFee;
+  $: withdrawalNetAmount = withdrawalFeeDetails.netAmount;
 
   function openWithdrawalModal() {
     showWithdrawalModal = true;
@@ -64,7 +68,7 @@
     // Get user ID from session store
     const userId = $sessionFromDb;
     if (!userId) {
-      alert("Please log in to withdraw.");
+      showToast("error", "Login Required", "Please log in to withdraw.", 5000);
       return;
     }
 
@@ -77,14 +81,24 @@
       wallet = getActiveWalletAddress();
     }
     if (!wallet) {
-      alert("Connect wallet to withdraw.");
+      showToast(
+        "error",
+        "Wallet Not Connected",
+        "Please connect your wallet to withdraw.",
+        5000
+      );
       return;
     }
 
     // Validate phone number
     const phoneNumber = withdrawalPhoneNumber.trim();
     if (!phoneNumber) {
-      alert("Please enter your mobile money phone number.");
+      showToast(
+        "error",
+        "Phone Number Required",
+        "Please enter your mobile money phone number.",
+        5000
+      );
       return;
     }
 
@@ -97,7 +111,7 @@
 
     try {
       // Get currency from latest mobile money order for events created by this user
-      let currency = "SLE"; // Default to SLE for mobile money
+      let currency = "NLe"; // Default to NLe for mobile money
       const userEvents = await loadUserEvents(userId, "traditional");
       const eventIds = userEvents.map((e: any) => e.id);
 
@@ -117,26 +131,54 @@
       // Calculate withdrawal fees
       const feeDetails = calculateWithdrawalFee(mobileMoneyTotal);
       const platformFee = feeDetails.platformFee;
-      const netAmount = feeDetails.netAmount;
+      const monimeFee = feeDetails.monimeFee;
+      const netAmountAfterPlatformFee = feeDetails.netAmountAfterPlatformFee;
+      const finalNetAmount = feeDetails.netAmount; // Final amount user receives (after both fees)
 
       // Validate net amount is sufficient
-      if (netAmount <= 0) {
-        alert(
-          "Withdrawal amount is too small after fees. Please try a larger amount."
+      if (finalNetAmount <= 0) {
+        showToast(
+          "error",
+          "Insufficient Amount",
+          "Withdrawal amount is too small after fees. Please try a larger amount.",
+          6000
         );
         isWithdrawing = false;
         return;
       }
 
+      // Request wallet signature for withdrawal authorization
+      const withdrawalMessage = `Authorize withdrawal of ${currency} ${finalNetAmount.toFixed(2)} to ${formattedPhone} via ${withdrawalProvider}\n\nAmount: ${currency} ${mobileMoneyTotal.toFixed(2)}\nPlatform Fee: ${currency} ${platformFee.toFixed(2)}\nProcessing Fee: ${currency} ${estimatedMonimeFee.toFixed(2)}\nNet Amount: ${currency} ${finalNetAmount.toFixed(2)}\n\nTimestamp: ${new Date().toISOString()}\nWallet: ${wallet}`;
+
+      const signResult = await signMessageWithWallet(withdrawalMessage);
+
+      if (!signResult.success || !signResult.signature) {
+        showToast(
+          "error",
+          "Signature Failed",
+          signResult.error ||
+            "Failed to sign withdrawal authorization. Please try again.",
+          6000
+        );
+        isWithdrawing = false;
+        return;
+      }
+
+      // Convert signature to base64 for storage
+      const signatureBase64 = Array.from(signResult.signature)
+        .map((byte) => String.fromCharCode(byte))
+        .join("");
+      const signatureBase64Encoded = btoa(signatureBase64);
+
       // Map provider to Monime provider code
       const providerCode =
         withdrawalProvider === "orange_money" ? "m17" : "m18";
 
-      // Create payout via Monime API (send net amount after platform fee)
+      // Create payout via Monime API (send amount after platform fee - Monime will deduct their 1% fee)
       const payout = await monimeService.createPayout(
         {
           currency: currency,
-          value: netAmount, // Send net amount (after platform fee)
+          value: netAmountAfterPlatformFee, // Send amount after platform fee (Monime will deduct their 1% from this)
         },
         {
           providerCode: providerCode,
@@ -149,7 +191,9 @@
           withdrawal_type: "mobile_money",
           gross_amount: mobileMoneyTotal,
           platform_fee: platformFee,
-          net_amount: netAmount,
+          estimated_monime_fee: monimeFee,
+          net_amount_after_platform_fee: netAmountAfterPlatformFee,
+          final_net_amount: finalNetAmount,
         },
         `withdrawal_${Date.now()}_${wallet}`
       );
@@ -183,11 +227,20 @@
             gross_amount: mobileMoneyTotal,
             platform_fee: platformFee,
             monime_fees: monimeFees,
-            net_amount: netAmount,
+            estimated_monime_fee: monimeFee,
+            net_amount_after_platform_fee: netAmountAfterPlatformFee,
+            final_net_amount: finalNetAmount,
             fees_breakdown: {
               platform_fee: platformFee,
-              monime_fees: monimeFees,
-              total_fees: platformFee + monimeFees,
+              estimated_monime_fee: monimeFee,
+              actual_monime_fees: monimeFees,
+              total_fees: platformFee + (monimeFees || monimeFee),
+            },
+            wallet_signature: {
+              message: withdrawalMessage,
+              signature: signatureBase64Encoded,
+              public_key: signResult.publicKey,
+              signed_at: new Date().toISOString(),
             },
             monime_response: payout,
           },
@@ -196,23 +249,38 @@
 
       if (error) {
         console.error("Error creating withdrawal record:", error);
-        alert(
-          "Withdrawal initiated but failed to save record. Please contact support."
+        showToast(
+          "error",
+          "Record Save Failed",
+          "Withdrawal initiated but failed to save record. Please contact support.",
+          8000
         );
         return;
       }
 
       // Close modal and refresh
       closeWithdrawalModal();
+      const actualMonimeFee = monimeFees || monimeFee; // Use actual from Monime if available, otherwise use estimate
       const feesInfo =
-        platformFee > 0 || monimeFees > 0
-          ? ` (Fees: ${(platformFee + monimeFees).toFixed(2)})`
+        platformFee > 0 || actualMonimeFee > 0
+          ? ` (Platform Fee: ${platformFee.toFixed(2)}, Monime Fee: ${actualMonimeFee.toFixed(2)})`
           : "";
-      alert(
-        payout.status === "completed"
-          ? `Withdrawal successful! ${currency} ${netAmount.toFixed(2)} has been sent to ${formattedPhone}.${feesInfo}`
-          : `Withdrawal submitted! Status: ${payout.status}. You'll be notified when it completes. Amount to receive: ${currency} ${netAmount.toFixed(2)}${feesInfo}`
-      );
+
+      if (payout.status === "completed") {
+        showToast(
+          "success",
+          "Withdrawal Successful",
+          `${currency} ${finalNetAmount.toFixed(2)} has been sent to ${formattedPhone}.${feesInfo}`,
+          8000
+        );
+      } else {
+        showToast(
+          "info",
+          "Withdrawal Submitted",
+          `Status: ${payout.status}. You'll be notified when it completes. Amount to receive: ${currency} ${finalNetAmount.toFixed(2)}${feesInfo}`,
+          10000
+        );
+      }
 
       // Refresh balances and transactions
       await loadMobileMoneyTotal();
@@ -221,7 +289,7 @@
       console.error("Withdrawal error:", error);
       const errorMessage =
         error.message || "Failed to process withdrawal. Please try again.";
-      alert(errorMessage);
+      showToast("error", "Withdrawal Failed", errorMessage, 8000);
     } finally {
       isWithdrawing = false;
     }
@@ -239,6 +307,16 @@
         return;
       }
 
+      // Get wallet address for withdrawals
+      const session = await verifyWeb3Session();
+      let wallet =
+        session?.success && session.user?.wallet_address
+          ? session.user.wallet_address
+          : null;
+      if (!wallet) {
+        wallet = getActiveWalletAddress();
+      }
+
       // Load events created by this user
       const userEvents = await loadUserEvents(userId, "traditional");
       const eventIds = userEvents.map((e: any) => e.id);
@@ -249,7 +327,7 @@
         return;
       }
 
-      // Sum completed mobile money orders for events created by this user
+      // Step 1: Calculate total deposits from completed mobile money orders
       const { data: rows, error } = await supabase
         .from("orders")
         .select("total_amount,payment_status,payment_method")
@@ -258,25 +336,50 @@
         .in("payment_status", ["paid", "completed"]);
 
       if (error) {
-        console.error("Error loading mobile money total:", error);
+        console.error("Error loading mobile money orders:", error);
         mobileMoneyTotal = 0;
         isLoadingMobileMoney = false;
         return;
       }
 
-      if (!rows || rows.length === 0) {
-        mobileMoneyTotal = 0;
-        isLoadingMobileMoney = false;
-        return;
-      }
-
-      mobileMoneyTotal = rows.reduce((sum: number, r: any) => {
+      // Sum all deposits (orders = deposits)
+      const totalDeposits = (rows || []).reduce((sum: number, r: any) => {
         const amt =
           typeof r.total_amount === "string"
             ? parseFloat(r.total_amount)
             : r.total_amount || 0;
         return sum + (isFinite(amt) ? amt : 0);
       }, 0);
+
+      // Step 2: Calculate total withdrawals from wallet_transactions
+      // (withdrawals are stored as negative amounts, so we sum them to get total withdrawn)
+      let totalWithdrawals = 0;
+      if (wallet) {
+        const { data: withdrawals, error: withdrawalsError } = await supabase
+          .from("wallet_transactions")
+          .select("amount, source, type, status")
+          .eq("wallet_address", wallet)
+          .in("source", ["mobile_money", "orange_money", "afrimoney"])
+          .eq("type", "withdrawal")
+          .in("status", ["completed", "pending", "paid"]);
+
+        if (withdrawalsError) {
+          console.error("Error loading withdrawals:", withdrawalsError);
+        } else if (withdrawals && withdrawals.length > 0) {
+          // Sum withdrawals (they're already negative, so we need to make them positive to get total withdrawn)
+          totalWithdrawals = withdrawals.reduce((sum: number, t: any) => {
+            const amt =
+              typeof t.amount === "string"
+                ? parseFloat(t.amount)
+                : t.amount || 0;
+            // Withdrawals are negative, so we take absolute value to get total withdrawn
+            return sum + Math.abs(isFinite(amt) ? amt : 0);
+          }, 0);
+        }
+      }
+
+      // Step 3: Calculate balance = deposits - withdrawals
+      mobileMoneyTotal = Math.max(0, totalDeposits - totalWithdrawals);
     } catch (err) {
       console.error("Error in loadMobileMoneyTotal:", err);
       mobileMoneyTotal = 0;
@@ -416,20 +519,29 @@
         if (ordersError) {
           console.error("Error loading revenue orders:", ordersError);
         } else {
-          fromOrders = (orders || []).map((o: any) => ({
-            id: o.id,
-            type: o.payment_method,
-            description: `${o.payment_method === "orange_money" || o.payment_method === "afrimoney" ? "Mobile Money" : "Web3"}: ${o.events?.name || "Event"} #${o.order_number}`,
-            date: new Date(o.created_at).toLocaleString(),
-            amount:
-              `+ ${Number(o.total_amount || 0).toFixed(2)} ${o.currency || ""}`.trim(),
-            status: o.payment_status || "completed",
-            icon:
+          fromOrders = (orders || []).map((o: any) => {
+            // Normalize currency for display - use "NLe" for mobile money, keep original for Web3
+            const displayCurrency =
               o.payment_method === "orange_money" ||
               o.payment_method === "afrimoney"
-                ? "deposit"
-                : "ticket",
-          }));
+                ? "NLe"
+                : o.currency || "";
+
+            return {
+              id: o.id,
+              type: o.payment_method,
+              description: `${o.payment_method === "orange_money" || o.payment_method === "afrimoney" ? "Mobile Money" : "Web3"}: ${o.events?.name || "Event"} #${o.order_number}`,
+              date: new Date(o.created_at).toLocaleString(),
+              amount:
+                `+ ${Number(o.total_amount || 0).toFixed(2)} ${displayCurrency}`.trim(),
+              status: o.payment_status || "completed",
+              icon:
+                o.payment_method === "orange_money" ||
+                o.payment_method === "afrimoney"
+                  ? "deposit"
+                  : "ticket",
+            };
+          });
         }
       }
 
@@ -448,21 +560,31 @@
         if (ledgerError) {
           console.error("Error loading wallet transactions:", ledgerError);
         } else {
-          fromLedger = (ledger || []).map((t: any) => ({
-            id: t.id,
-            type: t.type,
-            description: `${t.type === "withdrawal" ? "Withdrawal" : t.type === "deposit" ? "Deposit" : t.type}: ${t.source}`,
-            date: new Date(t.created_at).toLocaleString(),
-            amount:
-              `${t.amount >= 0 ? "+ " : ""}${Number(t.amount || 0).toFixed(2)} ${t.currency || ""}`.trim(),
-            status: t.status || "pending",
-            icon:
-              t.type === "withdrawal"
-                ? "withdrawal"
-                : t.type === "deposit"
-                  ? "deposit"
-                  : "ticket",
-          }));
+          fromLedger = (ledger || []).map((t: any) => {
+            // Normalize currency for display - use "NLe" for mobile money transactions
+            const displayCurrency =
+              t.source === "mobile_money" ||
+              t.source === "orange_money" ||
+              t.source === "afrimoney"
+                ? "NLe"
+                : t.currency || "";
+
+            return {
+              id: t.id,
+              type: t.type,
+              description: `${t.type === "withdrawal" ? "Withdrawal" : t.type === "deposit" ? "Deposit" : t.type}: ${t.source}`,
+              date: new Date(t.created_at).toLocaleString(),
+              amount:
+                `${t.amount >= 0 ? "+ " : ""}${Number(t.amount || 0).toFixed(2)} ${displayCurrency}`.trim(),
+              status: t.status || "pending",
+              icon:
+                t.type === "withdrawal"
+                  ? "withdrawal"
+                  : t.type === "deposit"
+                    ? "deposit"
+                    : "ticket",
+            };
+          });
         }
       }
 
@@ -563,7 +685,7 @@
     <div class="lg:col-span-2 space-y-6 lg:space-y-8">
       <!-- Current Balance (Web3) -->
       <WalletBalance
-        balance={isLoadingTotal ? "--" : totalDisplay}
+        balance={isLoadingTotal ? "--" : `NLe ${totalDisplay}`}
         isLoading={isLoadingTotal}
       />
 
@@ -599,7 +721,7 @@
             </div>
           {:else}
             <div class="text-2xl font-bold text-white">
-              {mobileMoneyTotal.toLocaleString(undefined, {
+              NLe {mobileMoneyTotal.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
@@ -745,7 +867,7 @@
             <div>
               <div class="text-sm text-gray-400 mb-1">Withdrawal Amount</div>
               <div class="text-2xl font-bold text-white">
-                {mobileMoneyTotal.toLocaleString(undefined, {
+                NLe {mobileMoneyTotal.toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
@@ -759,7 +881,7 @@
                 >
                   <span>Platform Fee (5%):</span>
                   <span
-                    >-{withdrawalPlatformFee.toLocaleString(undefined, {
+                    >-NLe {withdrawalPlatformFee.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}</span
@@ -774,7 +896,7 @@
                 >
                   <span>Processing Fee (1%):</span>
                   <span
-                    >-{estimatedMonimeFee.toLocaleString(undefined, {
+                    >-NLe {estimatedMonimeFee.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}</span
@@ -789,7 +911,7 @@
                 >
                   <span>Total Fees:</span>
                   <span
-                    >-{(
+                    >-NLe {(
                       withdrawalPlatformFee + estimatedMonimeFee
                     ).toLocaleString(undefined, {
                       minimumFractionDigits: 2,
@@ -805,7 +927,7 @@
               >
                 <span class="font-medium">Amount You'll Receive:</span>
                 <span class="font-bold text-cyan-400"
-                  >{withdrawalNetAmount.toLocaleString(undefined, {
+                  >NLe {withdrawalNetAmount.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}</span

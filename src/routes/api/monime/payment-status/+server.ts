@@ -43,7 +43,7 @@ export const GET: RequestHandler = async ({ url }) => {
           id: sessionId,
           status: "completed",
           amount: 5, // Mock amount
-          currency: "SLE",
+          currency: "NLe",
           payment_method: paymentMethod,
           transaction_id: `mock_txn_${Date.now()}`,
           created_at: new Date().toISOString(),

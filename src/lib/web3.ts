@@ -66,13 +66,13 @@ export async function getBalance(publickey: string) {
 // Get an active wallet address from any injected provider if available
 export function getActiveWalletAddress(): string | null {
   try {
-    const w: any = (typeof window !== 'undefined') ? (window as any) : null;
+    const w: any = typeof window !== "undefined" ? (window as any) : null;
     if (!w) return null;
     const providers = [w.solana, w.solflare, w.backpack];
     for (const p of providers) {
       if (p && (p.isConnected || p.publicKey)) {
         const pk = p.publicKey?.toBase58 ? p.publicKey.toBase58() : p.publicKey;
-        if (pk && typeof pk === 'string') return pk;
+        if (pk && typeof pk === "string") return pk;
       }
     }
     return null;
@@ -174,6 +174,78 @@ export async function purchaseTicketsWithSolana(
   } catch (error) {
     console.error("Error creating Solana transaction:", error);
     throw error;
+  }
+}
+
+// Sign a message using connected wallet
+export async function signMessageWithWallet(
+  message: string | Uint8Array
+): Promise<{
+  success: boolean;
+  signature?: Uint8Array;
+  publicKey?: string;
+  error?: string;
+}> {
+  try {
+    // Get the connected wallet using helper function
+    let wallet = getConnectedWallet();
+
+    // If no wallet is connected, try to find any available wallet
+    if (!wallet) {
+      wallet = getAvailableWallet();
+    }
+
+    if (!wallet) {
+      return {
+        success: false,
+        error:
+          "No wallet extension found. Please install Phantom, Solflare, or Backpack.",
+      };
+    }
+
+    // Check if wallet is connected
+    if (!wallet.isConnected && !wallet.publicKey) {
+      return {
+        success: false,
+        error: "Wallet is not connected. Please connect your wallet first.",
+      };
+    }
+
+    // Convert message to Uint8Array if it's a string
+    const messageBytes =
+      typeof message === "string" ? new TextEncoder().encode(message) : message;
+
+    // Sign the message
+    // Most Solana wallets use signMessage method
+    let signedMessage;
+    if (wallet.signMessage) {
+      signedMessage = await wallet.signMessage(messageBytes);
+    } else if (wallet.sign && wallet.publicKey) {
+      // Fallback for wallets that use sign method
+      signedMessage = await wallet.sign(messageBytes, wallet.publicKey);
+    } else {
+      return {
+        success: false,
+        error: "Wallet does not support message signing.",
+      };
+    }
+
+    // Get public key
+    const publicKey = wallet.publicKey?.toBase58
+      ? wallet.publicKey.toBase58()
+      : wallet.publicKey?.toString() || "";
+
+    return {
+      success: true,
+      signature: signedMessage.signature || signedMessage,
+      publicKey,
+    };
+  } catch (error: any) {
+    console.error("Error signing message:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to sign message",
+    };
   }
 }
 

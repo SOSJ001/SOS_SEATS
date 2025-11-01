@@ -8,7 +8,7 @@
   let loading = true;
   let sessionId = urlParams.get("mock_session_id") || "";
   let amount = parseFloat(urlParams.get("amount") || "0") || 0;
-  let currency = urlParams.get("currency") || "SLE";
+  let currency = urlParams.get("currency") || "NLe";
   let paymentMethod = urlParams.get("payment_method") || "orange_money";
 
   // Computed values based on payment method

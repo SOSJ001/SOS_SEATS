@@ -29,7 +29,13 @@ export async function load({ url, cookies }) {
         `
         *,
         ticket_types (*),
-        guests (*)
+        guests (
+          *,
+          ticket_types (
+            id,
+            name
+          )
+        )
       `
       )
       .eq("id", eventId)
@@ -142,18 +148,35 @@ export async function load({ url, cookies }) {
         })) ||
         [],
       guests:
-        eventWithImage.guests?.map((guest) => ({
-          id: guest.id,
-          name: guest.name,
-          ticketType: guest.ticket_type,
-          status: guest.status,
-          avatar:
-            "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face",
-          statusColor:
-            guest.status === "checked_in"
-              ? "text-green-400"
-              : "text-yellow-400",
-        })) || [],
+        eventWithImage.guests?.map((guest) => {
+          // Get ticket type name from nested relationship or fallback to lookup
+          let ticketTypeName = "Standard";
+          if (guest.ticket_types?.name) {
+            ticketTypeName = guest.ticket_types.name;
+          } else if (guest.ticket_type_id && eventWithImage.ticket_types) {
+            const ticketType = eventWithImage.ticket_types.find(
+              (tt) => tt.id === guest.ticket_type_id
+            );
+            if (ticketType?.name) {
+              ticketTypeName = ticketType.name;
+            }
+          }
+          
+          return {
+            id: guest.id,
+            name: guest.first_name && guest.last_name
+              ? `${guest.first_name} ${guest.last_name}`
+              : guest.first_name || guest.last_name || "Guest",
+            ticketType: ticketTypeName,
+            status: guest.status,
+            avatar:
+              "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face",
+            statusColor:
+              guest.status === "checked_in" || guest.status === "checked-in"
+                ? "text-green-400"
+                : "text-yellow-400",
+          };
+        }) || [],
     };
 
     return {
