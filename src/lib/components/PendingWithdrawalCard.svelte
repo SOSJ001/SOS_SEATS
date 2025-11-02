@@ -1,51 +1,28 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
 
-  export let withdrawal: {
-    id: string;
-    amount: number;
-    currency: string;
-    wallet_address: string;
-    created_at: string;
-    expires_at: string;
-    required_signatures: number;
-    collected_signatures: Array<{
-      wallet: string;
-      signature: string;
-      public_key: string;
-      signed_at: string;
-    }>;
-    metadata: any;
-    pending_token: string;
-  };
+  export let withdrawal: any;
 
-  $: signatureCount = withdrawal.collected_signatures?.length || 0;
-  $: progressPercentage = withdrawal.required_signatures > 0
-    ? (signatureCount / withdrawal.required_signatures) * 100
-    : 0;
-  $: remainingSignatures = withdrawal.required_signatures - signatureCount;
-  $: isExpired = withdrawal.expires_at ? new Date(withdrawal.expires_at) < new Date() : false;
-  $: timeRemaining = getTimeRemaining(withdrawal.expires_at);
-
-  function getTimeRemaining(expiresAt: string | null): string {
-    if (!expiresAt) return "No expiry";
-    const now = new Date();
-    const expiry = new Date(expiresAt);
-    const diff = expiry.getTime() - now.getTime();
-
-    if (diff <= 0) return "Expired";
-    if (diff < 60 * 1000) return `${Math.floor(diff / 1000)}s remaining`;
-    if (diff < 60 * 60 * 1000)
-      return `${Math.floor(diff / (60 * 1000))}m remaining`;
-    if (diff < 24 * 60 * 60 * 1000)
-      return `${Math.floor(diff / (60 * 60 * 1000))}h remaining`;
-    return `${Math.floor(diff / (24 * 60 * 60 * 1000))}d remaining`;
+  function formatAddress(address: string): string {
+    if (!address) return "";
+    return `${address.slice(0, 8)}...${address.slice(-6)}`;
   }
 
-  function formatWalletAddress(address: string): string {
-    if (!address) return "";
-    if (address.length <= 12) return address;
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  function formatCurrency(amount: number, currency: string): string {
+    return `${currency} ${Math.abs(amount).toFixed(2)}`;
+  }
+
+  function getCollectedSignaturesCount(): number {
+    if (!withdrawal.collected_signatures || !Array.isArray(withdrawal.collected_signatures)) {
+      return 0;
+    }
+    return withdrawal.collected_signatures.length;
+  }
+
+  function getSignatureProgress(): number {
+    const collected = getCollectedSignaturesCount();
+    const required = withdrawal.required_signatures || 1;
+    return Math.min((collected / required) * 100, 100);
   }
 
   function handleViewDetails() {
@@ -53,176 +30,88 @@
       goto(`/dashboard/wallet/pending-withdrawal/${withdrawal.pending_token}`);
     }
   }
+
+  function getTimeRemaining(): string {
+    if (!withdrawal.expires_at) return "No expiry";
+    const expires = new Date(withdrawal.expires_at);
+    const now = new Date();
+    const diff = expires.getTime() - now.getTime();
+    
+    if (diff <= 0) return "Expired";
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m remaining`;
+    }
+    return `${minutes}m remaining`;
+  }
+
+  const metadata = withdrawal.metadata || {};
+  const phoneNumber = metadata.phone_number || "N/A";
+  const provider = metadata.provider || "orange_money";
+  const finalAmount = metadata.final_net_amount || Math.abs(withdrawal.amount);
+  const currency = withdrawal.currency || "NLe";
+  const progress = getSignatureProgress();
+  const collectedCount = getCollectedSignaturesCount();
+  const requiredCount = withdrawal.required_signatures || 1;
+  const remainingCount = Math.max(0, requiredCount - collectedCount);
 </script>
 
-<div
-  class="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 hover:border-purple-500/50 transition-all"
->
-  <!-- Header -->
-  <div class="flex items-start justify-between mb-4">
-    <div class="flex items-start gap-3 flex-1 min-w-0">
-      <!-- Icon -->
-      <div
-        class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0"
-      >
-        <svg
-          class="w-5 h-5 sm:w-6 sm:h-6 text-purple-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-          />
-        </svg>
-      </div>
-
-      <!-- Title and Amount -->
-      <div class="flex-1 min-w-0">
-        <h3 class="text-white font-semibold text-sm sm:text-base mb-1">
-          Multi-Signature Withdrawal
-        </h3>
-        <div class="text-lg sm:text-xl font-bold text-cyan-400">
-          {Math.abs(withdrawal.amount).toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}{" "}
-          {withdrawal.currency || "NLe"}
-        </div>
-        <div class="text-xs text-gray-400 mt-1">
-          {new Date(withdrawal.created_at).toLocaleString()}
-        </div>
-      </div>
+<div class="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-5 hover:border-purple-500 transition-colors">
+  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
+    <div class="flex-1">
+      <h3 class="text-sm sm:text-base font-semibold text-white mb-1 sm:mb-2">Pending Withdrawal</h3>
+      <p class="text-gray-400 text-xs sm:text-sm font-mono mb-1">{formatCurrency(finalAmount, currency)}</p>
+      <p class="text-gray-400 text-xs sm:text-sm">To: {phoneNumber}</p>
+      <p class="text-gray-400 text-xs sm:text-sm capitalize">Provider: {provider.replace("_", " ")}</p>
     </div>
-
-    <!-- Status Badge -->
-    <div class="flex flex-col items-end gap-2">
-      {#if isExpired}
-        <span
-          class="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full font-medium"
-        >
-          EXPIRED
-        </span>
-      {:else if signatureCount >= withdrawal.required_signatures}
-        <span
-          class="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full font-medium"
-        >
-          READY
-        </span>
-      {:else}
-        <span
-          class="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full font-medium"
-        >
-          PENDING
-        </span>
-      {/if}
-      {#if withdrawal.expires_at && !isExpired}
-        <span class="text-xs text-gray-500">{timeRemaining}</span>
-      {/if}
+    <div class="text-right">
+      <span class="inline-block px-2 py-1 bg-yellow-900/30 border border-yellow-700 text-yellow-300 text-xs sm:text-sm rounded">
+        Pending Approval
+      </span>
     </div>
   </div>
 
   <!-- Signature Progress -->
-  <div class="mb-4">
-    <div class="flex items-center justify-between text-sm mb-2">
-      <span class="text-gray-300">Signatures</span>
-      <span class="text-gray-400"
-        >{signatureCount} / {withdrawal.required_signatures}</span
-      >
+  <div class="mb-3 sm:mb-4">
+    <div class="flex items-center justify-between text-xs sm:text-sm mb-1.5 sm:mb-2">
+      <span class="text-gray-400">Signatures</span>
+      <span class="text-white font-semibold">{collectedCount} / {requiredCount}</span>
     </div>
-
-    <!-- Progress Bar -->
-    <div class="w-full bg-gray-700 rounded-full h-2 mb-3">
+    <div class="w-full bg-gray-700 rounded-full h-2 sm:h-2.5">
       <div
-        class="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-        style="width: {progressPercentage}%"
+        class="bg-gradient-to-r from-purple-600 to-purple-700 h-2 sm:h-2.5 rounded-full transition-all duration-300"
+        style="width: {progress}%"
       ></div>
     </div>
-
-    <!-- Signers List -->
-    {#if withdrawal.collected_signatures && withdrawal.collected_signatures.length > 0}
-      <div class="space-y-1">
-        <div class="text-xs text-gray-400 mb-1">Signed by:</div>
-        {#each withdrawal.collected_signatures as signature (signature.wallet)}
-          <div
-            class="flex items-center gap-2 text-xs text-gray-300 bg-gray-700/50 rounded px-2 py-1"
-          >
-            <svg
-              class="w-3 h-3 text-green-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span class="font-mono">{formatWalletAddress(signature.wallet)}</span>
-            <span class="text-gray-500 ml-auto text-[10px]">
-              {new Date(signature.signed_at).toLocaleTimeString()}
-            </span>
-          </div>
-        {/each}
-      </div>
+    {#if remainingCount > 0}
+      <p class="text-gray-400 text-xs mt-1.5 sm:mt-2">Waiting for {remainingCount} more signature{remainingCount !== 1 ? 's' : ''}</p>
     {:else}
-      <div class="text-xs text-gray-500 text-center py-2">
-        No signatures collected yet
-      </div>
+      <p class="text-green-400 text-xs mt-1.5 sm:mt-2">Ready to execute</p>
     {/if}
   </div>
 
-  <!-- Phone Number Info (if available) -->
-  {#if withdrawal.metadata?.phone_number}
-    <div class="mb-4 p-3 bg-gray-700/50 rounded-lg">
-      <div class="text-xs text-gray-400 mb-1">Destination</div>
-      <div class="text-sm text-white font-medium">
-        {withdrawal.metadata.phone_number}
-      </div>
-      {#if withdrawal.metadata.provider}
-        <div class="text-xs text-gray-500 mt-1">
-          {withdrawal.metadata.provider === "orange_money"
-            ? "Orange Money"
-            : withdrawal.metadata.provider === "afrimoney"
-              ? "Afrimoney"
-              : withdrawal.metadata.provider}
-        </div>
-      {/if}
-    </div>
-  {/if}
-
-  <!-- Action Button -->
-  <div class="pt-3 border-t border-gray-700">
-    <button
-      on:click={handleViewDetails}
-      class="w-full px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-    >
-      <span>View Details</span>
-      <svg
-        class="w-4 h-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M9 5l7 7-7 7"
-        />
+  <!-- Time Remaining -->
+  <div class="mb-3 sm:mb-4">
+    <div class="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
+      <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
       </svg>
-    </button>
+      <span>{getTimeRemaining()}</span>
+    </div>
   </div>
 
-  {#if remainingSignatures > 0 && !isExpired}
-    <div class="mt-2 text-center text-xs text-gray-400">
-      {remainingSignatures} more signature{remainingSignatures > 1 ? "s" : ""} needed
-    </div>
-  {/if}
+  <!-- Action Button -->
+  <button
+    on:click={handleViewDetails}
+    class="w-full px-4 py-2 sm:py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2"
+  >
+    <span>View Details</span>
+    <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+    </svg>
+  </button>
 </div>
 

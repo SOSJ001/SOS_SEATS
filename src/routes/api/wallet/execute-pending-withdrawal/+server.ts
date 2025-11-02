@@ -1,18 +1,22 @@
 import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
+import type { RequestHandler } from "@sveltejs/kit";
 import { supabase } from "$lib/supabase";
 import { monimeService } from "$lib/monime";
+
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { withdrawal_id } = await request.json();
 
     if (!withdrawal_id) {
-      return json({ success: false, message: "Withdrawal ID required" }, { status: 400 });
+      return json(
+        { success: false, message: "Withdrawal ID is required." },
+        { status: 400 }
+      );
     }
 
-    // Load pending withdrawal
-    const { data: withdrawal, error: withdrawalError } = await supabase
+    // Fetch the pending withdrawal
+    const { data: withdrawal, error: fetchError } = await supabase
       .from("wallet_transactions")
       .select("*")
       .eq("id", withdrawal_id)
@@ -20,44 +24,18 @@ export const POST: RequestHandler = async ({ request }) => {
       .eq("multisig_enabled", true)
       .single();
 
-    if (withdrawalError || !withdrawal) {
+    if (fetchError || !withdrawal) {
       return json(
-        { success: false, message: "Pending withdrawal not found or already processed" },
+        { success: false, message: "Pending withdrawal not found or not eligible for execution." },
         { status: 404 }
       );
     }
 
-    // Check if expired
-    if (withdrawal.expires_at && new Date(withdrawal.expires_at) < new Date()) {
-      // Update status to cancelled
-      await supabase
-        .from("wallet_transactions")
-        .update({ status: "cancelled" })
-        .eq("id", withdrawal_id);
-
+    // Verify if signature threshold is met
+    if (withdrawal.collected_signatures.length < withdrawal.required_signatures) {
       return json(
-        { success: false, message: "Withdrawal has expired" },
-        { status: 410 }
-      );
-    }
-
-    // Verify threshold is met
-    const signatureCount = Array.isArray(withdrawal.collected_signatures)
-      ? withdrawal.collected_signatures.length
-      : 0;
-
-    if (signatureCount < withdrawal.required_signatures) {
-      return json(
-        { success: false, message: `Threshold not met. Need ${withdrawal.required_signatures} signatures, have ${signatureCount}` },
-        { status: 400 }
-      );
-    }
-
-    // Check if already executed
-    if (withdrawal.status !== "pending_approval") {
-      return json(
-        { success: false, message: "Withdrawal already processed" },
-        { status: 400 }
+        { success: false, message: "Signature threshold not met yet." },
+        { status: 403 }
       );
     }
 
@@ -78,7 +56,7 @@ export const POST: RequestHandler = async ({ request }) => {
     // Map provider to Monime provider code
     const providerCode = provider === "orange_money" ? "m17" : "m18";
 
-    // Execute withdrawal via Monime API
+    // Execute payout via Monime API
     const payout = await monimeService.createPayout(
       {
         currency: currency,
@@ -119,6 +97,7 @@ export const POST: RequestHandler = async ({ request }) => {
         actual_monime_fees: monimeFees,
         executed_at: new Date().toISOString(),
         execution_method: "multisig_auto",
+        monime_response: payout,
       },
     };
 
@@ -128,28 +107,20 @@ export const POST: RequestHandler = async ({ request }) => {
       .eq("id", withdrawal_id);
 
     if (updateError) {
-      console.error("Error updating withdrawal:", updateError);
+      console.error("Error updating withdrawal status after payout:", updateError);
       return json(
-        { success: false, message: "Failed to update withdrawal record" },
+        { success: false, message: "Withdrawal executed but failed to update record. Contact support." },
         { status: 500 }
       );
     }
 
-    return json({
-      success: true,
-      message: `Withdrawal ${payout.status === "completed" ? "completed" : "submitted"}. ${currency} ${metadata.final_net_amount?.toFixed(2) || netAmountAfterPlatformFee.toFixed(2)} sent to ${phoneNumber}.`,
-      payout: {
-        id: payout.id,
-        status: payout.status,
-      },
-    });
+    return json(
+      { success: true, message: "Withdrawal executed successfully.", payout_status: payout.status }
+    );
   } catch (error: any) {
     console.error("Error executing pending withdrawal:", error);
     return json(
-      {
-        success: false,
-        message: error.message || "Failed to execute withdrawal. Please try again.",
-      },
+      { success: false, message: error.message || "Failed to execute withdrawal." },
       { status: 500 }
     );
   }

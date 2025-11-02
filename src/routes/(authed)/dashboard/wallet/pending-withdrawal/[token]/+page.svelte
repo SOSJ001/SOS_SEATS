@@ -1,79 +1,154 @@
 <script lang="ts">
   import { page } from "$app/stores";
-  import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { supabase, verifyWeb3Session } from "$lib/supabase";
   import { getActiveWalletAddress, signMessageWithWallet } from "$lib/web3";
   import { showToast } from "$lib/store";
-  import type { PageData } from "./$types";
+  import { goto } from "$app/navigation";
 
-  export let data: PageData;
+  export let data: any;
 
+  let withdrawal = data.withdrawal;
+  let authorizedSigners = data.authorizedSigners || [];
   let isLoading = false;
   let isSigning = false;
+  let isCancelling = false;
+  let hasSigned = false;
   let currentWallet: string | null = null;
-  let hasAlreadySigned = false;
-  let canSign = false;
+  let collectedSignatures = withdrawal?.collected_signatures || [];
+  let requiredSignatures = withdrawal?.required_signatures || 1;
+  let remainingSignatures = Math.max(0, requiredSignatures - collectedSignatures.length);
+  
+  // Check if current wallet is the primary wallet (can cancel)
+  function isPrimaryWallet(): boolean {
+    if (!currentWallet || !withdrawal) return false;
+    return currentWallet === withdrawal.wallet_address;
+  }
 
-  // Withdrawal data
-  $: withdrawal = data.withdrawal;
-  $: authorizedSigners = data.authorizedSigners || [];
-  $: signatureCount = withdrawal.collected_signatures?.length || 0;
-  $: remainingSignatures = withdrawal.required_signatures - signatureCount;
-  $: isExpired = withdrawal.expires_at
-    ? new Date(withdrawal.expires_at) < new Date()
-    : false;
-  $: timeRemaining = getTimeRemaining(withdrawal.expires_at);
+  // Check if current wallet has already signed
+  function checkHasSigned() {
+    if (!currentWallet || !collectedSignatures) return false;
+    return collectedSignatures.some((sig: any) => sig.wallet === currentWallet);
+  }
 
-  onMount(async () => {
-    await checkWalletConnection();
-  });
-
-  async function checkWalletConnection() {
+  // Get current wallet address
+  async function getCurrentWallet(): Promise<string | null> {
     try {
       const session = await verifyWeb3Session();
-      currentWallet =
+      let wallet =
         session?.success && session.user?.wallet_address
           ? session.user.wallet_address
-          : getActiveWalletAddress();
-
-      if (currentWallet) {
-        // Check if wallet is authorized
-        canSign = authorizedSigners.includes(currentWallet);
-
-        // Check if already signed
-        hasAlreadySigned = withdrawal.collected_signatures?.some(
-          (sig: any) => sig.wallet === currentWallet
-        );
+          : null;
+      if (!wallet) {
+        wallet = getActiveWalletAddress();
       }
+      return wallet;
     } catch (err) {
-      console.error("Error checking wallet:", err);
+      console.error("Error getting wallet:", err);
+      return null;
     }
   }
 
-  function getTimeRemaining(expiresAt: string | null): string {
-    if (!expiresAt) return "No expiry";
-    const now = new Date();
-    const expiry = new Date(expiresAt);
-    const diff = expiry.getTime() - now.getTime();
-
-    if (diff <= 0) return "Expired";
-    if (diff < 60 * 1000) return `${Math.floor(diff / 1000)}s remaining`;
-    if (diff < 60 * 60 * 1000)
-      return `${Math.floor(diff / (60 * 1000))}m remaining`;
-    if (diff < 24 * 60 * 60 * 1000)
-      return `${Math.floor(diff / (60 * 60 * 1000))}h remaining`;
-    return `${Math.floor(diff / (24 * 60 * 60 * 1000))}d remaining`;
+  // Check if wallet is authorized signer
+  function isAuthorizedSigner(wallet: string): boolean {
+    if (!wallet || !withdrawal) return false;
+    
+    // Primary wallet is always authorized
+    if (wallet === withdrawal.wallet_address) return true;
+    
+    // Check if wallet is in authorized signers list
+    return authorizedSigners.some((s: any) => s.signer_wallet_address === wallet);
   }
 
-  function formatWalletAddress(address: string): string {
-    if (!address) return "";
-    if (address.length <= 12) return address;
-    return `${address.slice(0, 8)}...${address.slice(-6)}`;
+  onMount(async () => {
+    currentWallet = await getCurrentWallet();
+    hasSigned = checkHasSigned();
+    
+    // Retry wallet detection if not initially detected
+    if (!currentWallet) {
+      setTimeout(async () => {
+        currentWallet = await getCurrentWallet();
+        if (currentWallet) {
+          hasSigned = checkHasSigned();
+        }
+      }, 1000);
+    }
+    
+    // Reload withdrawal to get latest signature status
+    await reloadWithdrawal();
+  });
+
+  async function reloadWithdrawal() {
+    if (!withdrawal?.pending_token) return;
+
+    try {
+      // First check status without filtering by status, to catch cancelled/processed withdrawals
+      const { data: statusCheck, error: statusError } = await supabase
+        .from("wallet_transactions")
+        .select("status")
+        .eq("pending_token", withdrawal.pending_token)
+        .maybeSingle();
+
+      if (!statusError && statusCheck) {
+        if (statusCheck.status !== "pending_approval") {
+          // Withdrawal is no longer pending - redirect to wallet page
+          const statusMessage = 
+            statusCheck.status === "cancelled" 
+              ? "This withdrawal has been cancelled." 
+              : statusCheck.status === "completed" || statusCheck.status === "pending"
+              ? "This withdrawal has already been processed."
+              : `This withdrawal status is: ${statusCheck.status}`;
+          
+          showToast("info", "Withdrawal Status Changed", statusMessage, 6000);
+          setTimeout(() => goto("/dashboard/wallet"), 3000);
+          return;
+        }
+      }
+
+      // If still pending, reload full details
+      const { data: updated, error } = await supabase
+        .from("wallet_transactions")
+        .select("*")
+        .eq("pending_token", withdrawal.pending_token)
+        .eq("status", "pending_approval")
+        .maybeSingle();
+
+      if (!error && updated) {
+        withdrawal = updated;
+        collectedSignatures = updated.collected_signatures || [];
+        requiredSignatures = updated.required_signatures || 1;
+        remainingSignatures = Math.max(0, requiredSignatures - collectedSignatures.length);
+        hasSigned = checkHasSigned();
+        
+        // Ensure wallet is still detected after reload
+        if (!currentWallet) {
+          currentWallet = await getCurrentWallet();
+          if (currentWallet) {
+            hasSigned = checkHasSigned();
+          }
+        }
+      } else if (error?.code === 'PGRST116') {
+        // No rows found - withdrawal might have been cancelled or processed
+        showToast("info", "Withdrawal Status", "This withdrawal is no longer pending or has been cancelled.", 6000);
+        setTimeout(() => goto("/dashboard/wallet"), 3000);
+      }
+    } catch (err) {
+      console.error("Error reloading withdrawal:", err);
+    }
   }
 
-  async function signWithdrawal() {
-    if (!currentWallet || !canSign || hasAlreadySigned || isExpired) {
+  async function signPendingWithdrawal() {
+    if (!currentWallet || !withdrawal) return;
+
+    // Check if already signed
+    if (hasSigned) {
+      showToast("info", "Already Signed", "You have already signed this withdrawal.");
+      return;
+    }
+
+    // Check if authorized
+    if (!isAuthorizedSigner(currentWallet)) {
+      showToast("error", "Not Authorized", "Your wallet is not authorized to sign this withdrawal.");
       return;
     }
 
@@ -81,69 +156,82 @@
       isSigning = true;
 
       // Create signature message
-      const signatureMessage = `Approve withdrawal: ${withdrawal.metadata?.phone_number || "N/A"} - ${Math.abs(withdrawal.amount)} ${withdrawal.currency || "NLe"}`;
+      const metadata = withdrawal.metadata || {};
+      const phoneNumber = metadata.phone_number || "N/A";
+      const finalAmount = metadata.final_net_amount || Math.abs(withdrawal.amount);
+      const currency = withdrawal.currency || "NLe";
+      
+      const signatureMessage = `Sign withdrawal of ${currency} ${finalAmount.toFixed(2)} to ${phoneNumber}\n\nWithdrawal ID: ${withdrawal.id}\nToken: ${withdrawal.pending_token}\nTimestamp: ${new Date().toISOString()}\nWallet: ${currentWallet}`;
 
       // Sign message with wallet
       const signResult = await signMessageWithWallet(signatureMessage);
 
-      if (!signResult || !signResult.signature) {
-        showToast("error", "Signature Failed", "Failed to sign withdrawal request.");
+      if (!signResult.success || !signResult.signature) {
+        showToast(
+          "error",
+          "Signature Failed",
+          signResult.error || "Failed to sign withdrawal. Please try again.",
+          6000
+        );
+        isSigning = false;
         return;
       }
 
-      // Add signature to withdrawal
-      const { data: result, error: sigError } = await supabase.rpc(
-        "add_withdrawal_signature",
-        {
-          p_withdrawal_id: withdrawal.id,
-          p_wallet_address: currentWallet,
-          p_signature: signResult.signature,
-          p_public_key: signResult.publicKey || currentWallet,
-        }
-      );
+      // Convert signature to base64 for storage
+      const signatureBase64 = Array.from(signResult.signature)
+        .map((byte) => String.fromCharCode(byte))
+        .join("");
+      const signatureBase64Encoded = btoa(signatureBase64);
 
-      if (sigError) {
-        console.error("Error adding signature:", sigError);
-        showToast("error", "Error", sigError.message || "Failed to add signature.");
+      // Add signature via RPC
+      const { data: result, error: rpcError } = await supabase.rpc("add_withdrawal_signature", {
+        p_withdrawal_id: withdrawal.id,
+        p_signer_wallet_address: currentWallet,
+        p_signature: signatureBase64Encoded,
+        p_public_key: signResult.publicKey || currentWallet,
+      });
+
+      if (rpcError) {
+        console.error("Error adding signature:", rpcError);
+        showToast("error", "Error", rpcError.message || "Failed to add signature.");
+        isSigning = false;
         return;
       }
 
       if (result && result.length > 0) {
         const response = result[0];
-          if (response.success) {
-            if (response.threshold_met) {
-              // Threshold met - execute withdrawal
-              await executePendingWithdrawal();
-            } else {
+        if (response.success) {
+          if (response.threshold_met) {
+            // Threshold met - execute withdrawal
+            showToast("success", "Threshold Met", "All required signatures collected. Executing withdrawal...", 6000);
+            await executePendingWithdrawal();
+          } else {
             showToast(
               "success",
               "Signature Added",
-              response.message ||
-                `Waiting for ${remainingSignatures - 1} more signature(s).`,
-              3000
+              response.message || `Waiting for ${response.collected_count || remainingSignatures - 1} more signature(s).`,
+              6000
             );
-            // Reload to show updated signature count
-            setTimeout(() => {
-              window.location.reload();
-            }, 1500);
+            hasSigned = true;
+            await reloadWithdrawal();
           }
         } else {
           showToast("error", "Error", response.message || "Failed to add signature.");
         }
+      } else {
+        showToast("error", "Error", "Failed to add signature.");
       }
     } catch (err: any) {
-      console.error("Error signing withdrawal:", err);
-      showToast(
-        "error",
-        "Error",
-        err.message || "Failed to sign withdrawal request."
-      );
+      console.error("Error in signPendingWithdrawal:", err);
+      showToast("error", "Error", err.message || "Failed to sign withdrawal.");
     } finally {
       isSigning = false;
     }
   }
 
   async function executePendingWithdrawal() {
+    if (!withdrawal?.id) return;
+
     try {
       isLoading = true;
 
@@ -160,329 +248,296 @@
 
       const result = await response.json();
 
-      if (result.success) {
-        showToast(
-          "success",
-          "Withdrawal Executed!",
-          result.message ||
-            "All signatures collected. Withdrawal has been executed successfully.",
-          8000
-        );
-        // Reload page after a moment to see updated status
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-      } else {
-        showToast(
-          "error",
-          "Execution Failed",
-          result.message || "Failed to execute withdrawal. Please contact support.",
-          8000
-        );
+      if (!response.ok || !result.success) {
+        showToast("error", "Error", result.message || "Failed to execute withdrawal.");
+        return;
       }
-    } catch (err: any) {
-      console.error("Error executing withdrawal:", err);
+
       showToast(
-        "error",
-        "Error",
-        err.message || "Failed to execute withdrawal. Please try again."
+        "success",
+        "Withdrawal Executed",
+        result.message || "Withdrawal has been executed successfully.",
+        8000
       );
+
+      // Redirect to wallet page after a moment
+      setTimeout(() => {
+        goto("/dashboard/wallet");
+      }, 2000);
+    } catch (err: any) {
+      console.error("Error in executePendingWithdrawal:", err);
+      showToast("error", "Error", err.message || "Failed to execute withdrawal.");
     } finally {
       isLoading = false;
     }
   }
 
-  function goBack() {
-    goto("/dashboard/wallet");
+  async function cancelPendingWithdrawal() {
+    if (!withdrawal?.id || !currentWallet) return;
+
+    // Only primary wallet can cancel
+    if (!isPrimaryWallet()) {
+      showToast("error", "Not Authorized", "Only the primary wallet can cancel this withdrawal.");
+      return;
+    }
+
+    // Confirm cancellation
+    if (!confirm("Are you sure you want to cancel this withdrawal? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      isCancelling = true;
+
+      // Call API to cancel pending withdrawal
+      const response = await fetch(`/api/wallet/cancel-pending-withdrawal`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          withdrawal_id: withdrawal.id,
+          wallet_address: currentWallet,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        showToast("error", "Error", result.message || "Failed to cancel withdrawal.");
+        isCancelling = false;
+        return;
+      }
+
+      showToast(
+        "success",
+        "Withdrawal Cancelled",
+        result.message || "Withdrawal has been cancelled successfully.",
+        6000
+      );
+
+      // Redirect to wallet page after a moment
+      setTimeout(() => {
+        goto("/dashboard/wallet");
+      }, 2000);
+    } catch (err: any) {
+      console.error("Error in cancelPendingWithdrawal:", err);
+      showToast("error", "Error", err.message || "Failed to cancel withdrawal.");
+    } finally {
+      isCancelling = false;
+    }
   }
+
+  function formatAddress(address: string): string {
+    if (!address) return "";
+    return `${address.slice(0, 8)}...${address.slice(-6)}`;
+  }
+
+  function formatCurrency(amount: number, currency: string): string {
+    return `${currency} ${Math.abs(amount).toFixed(2)}`;
+  }
+
+  function getSignatureProgress(): number {
+    const collected = collectedSignatures.length;
+    const required = requiredSignatures;
+    return Math.min((collected / required) * 100, 100);
+  }
+
+  const metadata = withdrawal?.metadata || {};
+  const phoneNumber = metadata.phone_number || "N/A";
+  const provider = metadata.provider || "orange_money";
+  const finalAmount = metadata.final_net_amount || Math.abs(withdrawal?.amount || 0);
+  const currency = withdrawal?.currency || "NLe";
+  const progress = getSignatureProgress();
+  
+  // Reactive check to ensure cancel button shows when wallet is detected
+  $: showCancelButton = currentWallet && withdrawal && currentWallet === withdrawal.wallet_address;
 </script>
 
 <svelte:head>
   <title>Pending Withdrawal - SOS SEATS</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-900 text-white px-4 py-6">
-  <!-- Header -->
-  <div class="mb-6">
-    <button
-      on:click={goBack}
-      class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
-    >
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M15 19l-7-7 7-7"
-        />
-      </svg>
-      <span class="text-sm">Back to Wallet</span>
-    </button>
-    <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">
-      Pending Withdrawal
-    </h1>
-    <p class="text-gray-400 text-sm md:text-base">
-      Multi-signature withdrawal awaiting approvals
-    </p>
-  </div>
+<div class="min-h-screen bg-gray-900 text-white px-4 py-6 sm:py-8">
+  <div class="max-w-3xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 sm:mb-8">
+      <button
+        on:click={() => goto("/dashboard/wallet")}
+        class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4 text-sm sm:text-base"
+      >
+        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        Back to Wallet
+      </button>
+      <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">Pending Withdrawal</h1>
+      <p class="text-gray-400 text-sm sm:text-base">Approve this withdrawal by signing with your wallet.</p>
+    </div>
 
-  <!-- Main Content -->
-  <div class="max-w-2xl mx-auto space-y-6">
-    <!-- Withdrawal Details Card -->
-    <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-      <div class="mb-6">
-        <div class="text-sm text-gray-400 mb-1">Withdrawal Amount</div>
-        <div class="text-3xl font-bold text-cyan-400">
-          {Math.abs(withdrawal.amount).toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}{" "}
-          {withdrawal.currency || "NLe"}
-        </div>
+    {#if isLoading}
+      <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 text-center">
+        <svg class="animate-spin h-12 w-12 text-purple-400 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p class="text-white text-sm sm:text-base">Processing...</p>
       </div>
-
-      {#if withdrawal.metadata?.phone_number}
-        <div class="mb-6 p-4 bg-gray-700/50 rounded-lg">
-          <div class="text-xs text-gray-400 mb-1">Destination</div>
-          <div class="text-lg font-semibold text-white">
-            {withdrawal.metadata.phone_number}
+    {:else if withdrawal}
+      <!-- Withdrawal Details -->
+      <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 sm:p-6 mb-6">
+        <h2 class="text-lg sm:text-xl font-bold text-white mb-4 sm:mb-6">Withdrawal Details</h2>
+        
+        <div class="space-y-3 sm:space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <span class="text-gray-400 text-sm sm:text-base">Amount</span>
+            <span class="text-white text-base sm:text-lg font-semibold">{formatCurrency(finalAmount, currency)}</span>
           </div>
-          {#if withdrawal.metadata.provider}
-            <div class="text-sm text-gray-400 mt-1">
-              {withdrawal.metadata.provider === "orange_money"
-                ? "Orange Money"
-                : withdrawal.metadata.provider === "afrimoney"
-                  ? "Afrimoney"
-                  : withdrawal.metadata.provider}
-            </div>
-          {/if}
-        </div>
-      {/if}
-
-      <!-- Status -->
-      <div class="flex items-center justify-between mb-6 pb-6 border-b border-gray-700">
-        <div>
-          <div class="text-xs text-gray-400 mb-1">Status</div>
-          <div class="flex items-center gap-2">
-            {#if isExpired}
-              <span
-                class="px-3 py-1 bg-red-500/20 text-red-400 text-sm rounded-full font-medium"
-              >
-                EXPIRED
-              </span>
-            {:else if signatureCount >= withdrawal.required_signatures}
-              <span
-                class="px-3 py-1 bg-green-500/20 text-green-400 text-sm rounded-full font-medium"
-              >
-                READY TO EXECUTE
-              </span>
-            {:else}
-              <span
-                class="px-3 py-1 bg-yellow-500/20 text-yellow-400 text-sm rounded-full font-medium"
-              >
-                PENDING APPROVAL
-              </span>
-            {/if}
+          
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <span class="text-gray-400 text-sm sm:text-base">Phone Number</span>
+            <span class="text-white text-sm sm:text-base font-mono">{phoneNumber}</span>
+          </div>
+          
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <span class="text-gray-400 text-sm sm:text-base">Provider</span>
+            <span class="text-white text-sm sm:text-base capitalize">{provider.replace("_", " ")}</span>
+          </div>
+          
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <span class="text-gray-400 text-sm sm:text-base">Primary Wallet</span>
+            <span class="text-white text-xs sm:text-sm font-mono">{formatAddress(withdrawal.wallet_address)}</span>
           </div>
         </div>
-        {#if withdrawal.expires_at && !isExpired}
-          <div class="text-right">
-            <div class="text-xs text-gray-400 mb-1">Time Remaining</div>
-            <div class="text-sm font-medium text-gray-300">{timeRemaining}</div>
-          </div>
-        {/if}
       </div>
 
       <!-- Signature Progress -->
-      <div class="mb-6">
-        <div class="flex items-center justify-between mb-3">
-          <div class="text-sm font-medium text-gray-300">
-            Signatures Collected
+      <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 sm:p-6 mb-6">
+        <h2 class="text-lg sm:text-xl font-bold text-white mb-4 sm:mb-6">Signature Progress</h2>
+        
+        <div class="mb-4 sm:mb-6">
+          <div class="flex items-center justify-between text-sm sm:text-base mb-2 sm:mb-3">
+            <span class="text-gray-400">Signatures Collected</span>
+            <span class="text-white font-semibold">{collectedSignatures.length} / {requiredSignatures}</span>
           </div>
-          <div class="text-sm text-gray-400">
-            {signatureCount} / {withdrawal.required_signatures}
+          <div class="w-full bg-gray-700 rounded-full h-3 sm:h-4">
+            <div
+              class="bg-gradient-to-r from-purple-600 to-purple-700 h-3 sm:h-4 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+              style="width: {progress}%"
+            >
+              <span class="text-white text-xs font-semibold">{Math.round(progress)}%</span>
+            </div>
           </div>
+          {#if remainingSignatures > 0}
+            <p class="text-gray-400 text-xs sm:text-sm mt-2 sm:mt-3">Waiting for {remainingSignatures} more signature{remainingSignatures !== 1 ? 's' : ''}</p>
+          {:else}
+            <p class="text-green-400 text-xs sm:text-sm mt-2 sm:mt-3">All signatures collected! Withdrawal will execute automatically.</p>
+          {/if}
         </div>
 
-        <!-- Progress Bar -->
-        <div class="w-full bg-gray-700 rounded-full h-3 mb-4">
-          <div
-            class="bg-gradient-to-r from-purple-500 to-purple-600 h-3 rounded-full transition-all duration-300"
-            style="width: {(signatureCount / withdrawal.required_signatures) * 100}%"
-          ></div>
-        </div>
-
-        {#if remainingSignatures > 0 && !isExpired}
-          <div class="text-center text-sm text-gray-400 mb-4">
-            {remainingSignatures} more signature{remainingSignatures > 1
-              ? "s"
-              : ""} needed
+        <!-- Collected Signatures -->
+        {#if collectedSignatures.length > 0}
+          <div class="mt-4 sm:mt-6">
+            <h3 class="text-sm sm:text-base font-semibold text-white mb-3 sm:mb-4">Collected Signatures</h3>
+            <div class="space-y-2 sm:space-y-3">
+              {#each collectedSignatures as sig (sig.wallet)}
+                <div class="bg-gray-700/50 rounded-lg p-3 sm:p-4 flex items-center justify-between">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-white text-xs sm:text-sm font-mono truncate">{formatAddress(sig.wallet)}</p>
+                    {#if sig.signed_at}
+                      <p class="text-gray-400 text-xs mt-1">Signed: {new Date(sig.signed_at).toLocaleString()}</p>
+                    {/if}
+                  </div>
+                  <span class="text-green-400 text-xs sm:text-sm font-semibold flex-shrink-0 ml-2">✓ Signed</span>
+                </div>
+              {/each}
+            </div>
           </div>
         {/if}
       </div>
 
-      <!-- Collected Signatures -->
-      {#if withdrawal.collected_signatures && withdrawal.collected_signatures.length > 0}
-        <div class="mb-6">
-          <div class="text-sm font-medium text-gray-300 mb-3">
-            Signed By
-          </div>
-          <div class="space-y-2">
-            {#each withdrawal.collected_signatures as signature (signature.wallet)}
-              <div
-                class="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg"
-              >
-                <div class="flex items-center gap-3">
-                  <svg
-                    class="w-5 h-5 text-green-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <div>
-                    <div class="text-white font-mono text-sm">
-                      {formatWalletAddress(signature.wallet)}
-                    </div>
-                    <div class="text-xs text-gray-400">
-                      {new Date(signature.signed_at).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-                {#if signature.wallet === currentWallet}
-                  <span
-                    class="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded"
-                  >
-                    Your Signature
-                  </span>
-                {/if}
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/if}
+      <!-- Actions Section -->
+      <div class="space-y-4 pb-4 sm:pb-0">
+        <!-- Cancel Button (Only for Primary Wallet) -->
+        {#if showCancelButton}
+          <button
+            on:click={cancelPendingWithdrawal}
+            disabled={isCancelling || isLoading}
+            class="w-full px-4 py-3 sm:py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm sm:text-base font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {#if isCancelling}
+              <svg class="animate-spin h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Cancelling...
+            {:else}
+              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+              Cancel Withdrawal
+            {/if}
+          </button>
+        {/if}
 
-      <!-- Sign Action -->
-      {#if !isExpired && remainingSignatures > 0}
-        <div class="pt-6 border-t border-gray-700">
-          {#if !currentWallet}
-            <div
-              class="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-center"
-            >
-              <p class="text-yellow-400 text-sm mb-2">
-                Connect your wallet to sign this withdrawal
-              </p>
-              <p class="text-yellow-300/70 text-xs">
-                Only authorized signer wallets can approve this withdrawal
-              </p>
+        <!-- Sign Button -->
+        {#if currentWallet}
+          {#if !isAuthorizedSigner(currentWallet)}
+            <div class="bg-yellow-900/20 border border-yellow-700 rounded-xl p-4 sm:p-5">
+              <p class="text-yellow-400 text-sm sm:text-base">Your wallet is not authorized to sign this withdrawal.</p>
             </div>
-          {:else if !canSign}
-            <div
-              class="p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-center"
-            >
-              <p class="text-red-400 text-sm">
-                Your wallet is not authorized to sign this withdrawal
-              </p>
+          {:else if hasSigned}
+            <div class="bg-green-900/20 border border-green-700 rounded-xl p-4 sm:p-5">
+              <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 sm:w-8 sm:h-8 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div>
+                  <p class="text-green-400 text-sm sm:text-base font-semibold">You have already signed this withdrawal.</p>
+                  <p class="text-green-300 text-xs sm:text-sm mt-1">Waiting for other authorized signers to add their signatures.</p>
+                </div>
+              </div>
             </div>
-          {:else if hasAlreadySigned}
-            <div
-              class="p-4 bg-blue-500/20 border border-blue-500/30 rounded-lg text-center"
+            <button
+              on:click={reloadWithdrawal}
+              class="w-full px-4 py-3 sm:py-3.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm sm:text-base font-semibold transition-colors flex items-center justify-center gap-2"
             >
-              <p class="text-blue-400 text-sm">
-                ✓ You have already signed this withdrawal
-              </p>
-            </div>
+              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              Refresh Status
+            </button>
           {:else}
             <button
-              on:click={signWithdrawal}
-              disabled={isSigning}
-              class="w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              on:click={signPendingWithdrawal}
+              disabled={isSigning || isLoading}
+              class="w-full px-4 py-3 sm:py-3.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg text-sm sm:text-base font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {#if isSigning}
-                <svg
-                  class="animate-spin h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  ></circle>
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
+                <svg class="animate-spin h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 Signing...
               {:else}
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                  />
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                 </svg>
-                Sign Withdrawal with {formatWalletAddress(currentWallet)}
+                Sign Withdrawal
               {/if}
             </button>
           {/if}
-        </div>
-      {/if}
-    </div>
-
-    <!-- Info Card -->
-    <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-      <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-        <svg
-          class="w-5 h-5 text-blue-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        How Multi-Signature Withdrawals Work
-      </h3>
-      <div class="space-y-2 text-sm text-gray-400">
-        <p>
-          • This withdrawal requires {withdrawal.required_signatures} signature{withdrawal.required_signatures > 1 ? "s" : ""} to be executed
-        </p>
-        <p>• Only authorized signer wallets can approve the withdrawal</p>
-        <p>
-          • Once the required number of signatures is collected, the withdrawal
-          will execute automatically
-        </p>
-        {#if withdrawal.expires_at}
-          <p>
-            • This withdrawal will expire if not completed within 24 hours of
-            creation
-          </p>
+        {:else}
+          <div class="bg-yellow-900/20 border border-yellow-700 rounded-xl p-4 sm:p-5">
+            <p class="text-yellow-400 text-sm sm:text-base">Please connect your wallet to sign this withdrawal.</p>
+          </div>
         {/if}
       </div>
-    </div>
+    {:else}
+      <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 text-center">
+        <p class="text-gray-400 text-sm sm:text-base">Withdrawal not found or already processed.</p>
+      </div>
+    {/if}
   </div>
 </div>
 

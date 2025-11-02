@@ -8,7 +8,20 @@ import { env } from "$env/dynamic/public";
 const supabaseUrl = env.PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Validate environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("Supabase environment variables are missing:", {
+    url: !!supabaseUrl,
+    key: !!supabaseAnonKey,
+  });
+  // Create a dummy client to prevent crashes, but it will fail on actual requests
+  // This allows the app to load but will show errors when trying to use Supabase
+}
+
+export const supabase = createClient(
+  supabaseUrl || "https://placeholder.supabase.co",
+  supabaseAnonKey || "placeholder-key"
+);
 
 // Export the anonymous key for use in non-authenticated operations
 export const ANONYMOUS_KEY = supabaseAnonKey;

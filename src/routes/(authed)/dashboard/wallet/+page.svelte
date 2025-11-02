@@ -38,12 +38,11 @@
   let isLoadingTransactions = true;
   let isLoadingSolBalance = true;
   let isWithdrawing = false;
-  let pendingWithdrawals: any[] = [];
-  let isLoadingPendingWithdrawals = true;
-
   // Wallet address state
   let currentWalletAddress: string | null = null;
-
+  // Pending withdrawals state
+  let pendingWithdrawals: any[] = [];
+  let isLoadingPendingWithdrawals = true;
   // Withdrawal modal state
   let showWithdrawalModal = false;
   let withdrawalPhoneNumber = "";
@@ -256,6 +255,7 @@
                   public_key: signResult.publicKey,
                   signed_at: new Date().toISOString(),
                 },
+                user_id: userId,
               },
             },
           ])
@@ -625,53 +625,6 @@
     }
   }
 
-  async function loadPendingWithdrawals() {
-    isLoadingPendingWithdrawals = true;
-    try {
-      const session = await verifyWeb3Session();
-      let wallet =
-        session?.success && session.user?.wallet_address
-          ? session.user.wallet_address
-          : null;
-      if (!wallet) {
-        wallet = getActiveWalletAddress();
-      }
-
-      if (!wallet) {
-        pendingWithdrawals = [];
-        isLoadingPendingWithdrawals = false;
-        return;
-      }
-
-      // Load pending withdrawals for this wallet
-      const { data: pending, error } = await supabase
-        .from("wallet_transactions")
-        .select("*")
-        .eq("wallet_address", wallet)
-        .eq("type", "withdrawal")
-        .eq("status", "pending_approval")
-        .eq("multisig_enabled", true)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error loading pending withdrawals:", error);
-        pendingWithdrawals = [];
-      } else {
-        // Filter out expired withdrawals
-        const now = new Date();
-        pendingWithdrawals = (pending || []).filter((w: any) => {
-          if (!w.expires_at) return true;
-          return new Date(w.expires_at) > now;
-        });
-      }
-    } catch (err) {
-      console.error("Error in loadPendingWithdrawals:", err);
-      pendingWithdrawals = [];
-    } finally {
-      isLoadingPendingWithdrawals = false;
-    }
-  }
-
   async function loadRecentTransactions() {
     isLoadingTransactions = true;
     try {
@@ -794,6 +747,181 @@
     }
   }
 
+  async function loadPendingWithdrawals() {
+    isLoadingPendingWithdrawals = true;
+    try {
+      const session = await verifyWeb3Session();
+      let wallet =
+        session?.success && session.user?.wallet_address
+          ? session.user.wallet_address
+          : null;
+      if (!wallet) {
+        wallet = getActiveWalletAddress();
+      }
+
+      if (!wallet) {
+        pendingWithdrawals = [];
+        isLoadingPendingWithdrawals = false;
+        return;
+      }
+
+      // Load pending withdrawals for this wallet
+      const { data: pending, error } = await supabase
+        .from("wallet_transactions")
+        .select("*")
+        .eq("wallet_address", wallet)
+        .eq("type", "withdrawal")
+        .eq("status", "pending_approval")
+        .eq("multisig_enabled", true)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading pending withdrawals:", error);
+        pendingWithdrawals = [];
+      } else {
+        // Filter out expired withdrawals
+        const now = new Date();
+        pendingWithdrawals = (pending || []).filter((w: any) => {
+          if (!w.expires_at) return true;
+          return new Date(w.expires_at) > now;
+        });
+      }
+
+      // Ensure notifications exist for pending withdrawals that need signers
+      await ensurePendingWithdrawalNotifications(wallet);
+    } catch (err) {
+      console.error("Error in loadPendingWithdrawals:", err);
+      pendingWithdrawals = [];
+    } finally {
+      isLoadingPendingWithdrawals = false;
+    }
+  }
+
+  // Ensure notifications exist for pending withdrawals that need signers
+  async function ensurePendingWithdrawalNotifications(currentWallet: string) {
+    try {
+
+      // Find all pending withdrawals where this wallet is a potential signer
+      // Use the security definer function to bypass RLS
+      const { data: signerConfigs, error: signerError } = await supabase.rpc(
+        "get_multisig_signers_by_signer_wallet",
+        {
+          p_signer_wallet_address: currentWallet,
+        }
+      );
+
+      if (signerError) {
+        console.error("Error fetching signer configs:", signerError);
+        return;
+      }
+
+      if (!signerConfigs || signerConfigs.length === 0) {
+        return;
+      }
+      const primaryWallets = (signerConfigs || []).map(
+        (c: any) => c.primary_wallet_address
+      );
+
+      // Find pending withdrawals for these primary wallets
+      const { data: pendingWithdrawals, error: withdrawalError } =
+        await supabase
+          .from("wallet_transactions")
+          .select("*")
+          .in("wallet_address", primaryWallets)
+          .eq("type", "withdrawal")
+          .eq("status", "pending_approval")
+          .eq("multisig_enabled", true);
+
+      if (withdrawalError) {
+        console.error("Error fetching pending withdrawals:", withdrawalError);
+        return;
+      }
+
+      if (!pendingWithdrawals || pendingWithdrawals.length === 0) {
+        return;
+      }
+
+      let notificationsCreated = 0;
+
+      // Check each pending withdrawal and create notifications if needed
+      for (const withdrawal of pendingWithdrawals) {
+        // Check if withdrawal is expired
+        if (
+          withdrawal.expires_at &&
+          new Date(withdrawal.expires_at) < new Date()
+        ) {
+          continue;
+        }
+
+        // Check if this wallet has already signed
+        const collectedSignatures = withdrawal.collected_signatures || [];
+        const hasSigned = collectedSignatures.some(
+          (sig: any) => sig.wallet === currentWallet
+        );
+
+        if (hasSigned) {
+          continue;
+        }
+
+        // Check if notification already exists (regardless of read status)
+        const { data: existingNotifications, error: notifCheckError } =
+          await supabase
+            .from("notifications")
+            .select("id")
+            .eq("user_wallet_address", currentWallet)
+            .eq(
+              "action_url",
+              `/dashboard/wallet/pending-withdrawal/${withdrawal.pending_token}`
+            )
+            .limit(1);
+
+        if (notifCheckError) {
+          console.error(
+            "Error checking existing notifications:",
+            notifCheckError
+          );
+          continue;
+        }
+
+        if (existingNotifications && existingNotifications.length > 0) {
+          continue;
+        }
+
+        // Create notification for this pending withdrawal
+        const metadata = withdrawal.metadata || {};
+        const finalAmount =
+          metadata.final_net_amount || Math.abs(withdrawal.amount);
+        const currency = withdrawal.currency || "NLe";
+        const phoneNumber = metadata.phone_number || "N/A";
+
+        const { data: notificationData, error: insertError } = await supabase.rpc(
+          "create_notification",
+          {
+            p_user_wallet_address: currentWallet,
+            p_title: "Withdrawal Signature Required",
+            p_message: `A withdrawal of ${currency} ${finalAmount.toFixed(2)} to ${phoneNumber} needs your signature.`,
+            p_type: "warning",
+            p_action_url: `/dashboard/wallet/pending-withdrawal/${withdrawal.pending_token}`,
+            p_is_read: false,
+          }
+        );
+
+        if (insertError) {
+          console.error("Error creating notification:", insertError);
+        } else {
+          notificationsCreated++;
+        }
+      }
+
+      if (notificationsCreated > 0) {
+        // Trigger a refresh of notifications in the UI (they auto-refresh every 30s, but this helps)
+        // We could dispatch an event here if needed, but the auto-refresh should catch it
+      }
+    } catch (err) {
+      console.error("Error ensuring pending withdrawal notifications:", err);
+    }
+  }
+
   // Handle Escape key to close modal
   function handleEscapeKey(e: KeyboardEvent) {
     if (e.key === "Escape" && showWithdrawalModal) {
@@ -816,8 +944,29 @@
 
     // Load balances and wallet address
     (async () => {
-      // Get wallet address first
-      currentWalletAddress = await getCurrentWallet();
+      // Get wallet address first - retry a few times if not found immediately
+      let attempts = 0;
+      const maxAttempts = 3;
+      while (attempts < maxAttempts && !currentWalletAddress) {
+        currentWalletAddress = await getCurrentWallet();
+        if (!currentWalletAddress && attempts < maxAttempts - 1) {
+          // Wait a bit before retrying (wallet extension might need time to load)
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * (attempts + 1))
+          );
+        }
+        attempts++;
+      }
+
+      // Get wallet address first for notification checking
+      const session = await verifyWeb3Session();
+      let walletForNotifications =
+        session?.success && session.user?.wallet_address
+          ? session.user.wallet_address
+          : null;
+      if (!walletForNotifications) {
+        walletForNotifications = getActiveWalletAddress();
+      }
 
       await Promise.all([
         loadMobileMoneyTotal(),
@@ -825,6 +974,11 @@
         loadRecentTransactions(),
         loadPendingWithdrawals(),
       ]);
+
+      // Ensure notifications exist for pending withdrawals (for signers)
+      if (walletForNotifications) {
+        await ensurePendingWithdrawalNotifications(walletForNotifications);
+      }
       // Load SOL balance from chain
       isLoadingSolBalance = true;
       try {
@@ -991,8 +1145,24 @@
         <MultisigSettings walletAddress={currentWalletAddress} />
       {:else if !isLoadingTotal && !isLoadingMobileMoney}
         <!-- Wait for wallet to be detected -->
-        <div class="bg-gray-800 rounded-lg p-6 text-center">
+        <div class="bg-gray-800 rounded-lg p-6 text-center space-y-3">
           <p class="text-gray-400 text-sm">Detecting wallet...</p>
+          <button
+            on:click={async () => {
+              currentWalletAddress = await getCurrentWallet();
+              if (!currentWalletAddress) {
+                showToast(
+                  "error",
+                  "Wallet Not Found",
+                  "Please connect your wallet extension.",
+                  5000
+                );
+              }
+            }}
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition-colors"
+          >
+            Retry Detection
+          </button>
         </div>
       {/if}
 
