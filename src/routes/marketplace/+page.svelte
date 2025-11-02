@@ -1,44 +1,86 @@
 <script lang="ts">
+  // =====================================================
+  // IMPORTS
+  // =====================================================
   import EventCard from "$lib/components/EventCard.svelte";
   import SearchFilters from "$lib/components/SearchFilters.svelte";
-  import { Tabs, TabItem } from "flowbite-svelte";
   import { onMount } from "svelte";
   import { loadPublicEvents } from "$lib/supabase.js";
 
+  // =====================================================
+  // STATE VARIABLES
+  // =====================================================
+
   // Search and filter functionality
-  let searchQuery = "";
-  let selectedCategory = "All Events";
-  let showFilters = false;
-  let pageLoaded = false;
-  let cardsVisible = false;
-  let heroSearchQuery = "";
+  let searchQuery = ""; // Current search query for filtering events
+  let selectedCategory = "All Events"; // Currently selected category filter
+  let showFilters = false; // Toggle for showing/hiding filter options
+  let pageLoaded = false; // Animation state for page load
+  let cardsVisible = false; // Animation state for event cards
+  let heroSearchQuery = ""; // Search query from hero section (currently disabled)
+  let activeTab: "upcoming" | "resales" = "upcoming"; // Active tab for All Events section
 
-  // Event data
-  let allEvents = [];
-  let featuredEvents = [];
-  let upcomingEvents = [];
-  let resaleEvents = [];
-  let loading = true;
+  // Event data collections
+  let allEvents: any[] = []; // All events loaded from database
+  let featuredEvents: any[] = []; // Featured events (first 4 events)
+  let upcomingEvents: any[] = []; // Upcoming events (first 6 events)
+  let resaleEvents: any[] = []; // Resale events (events after the first 6)
+  let loading = true; // Loading state for event data
 
-  // Filter events based on search and category
-  $: filteredEvents = allEvents.filter((event: any) => {
-    const matchesSearch =
-      event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.venue.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "All Events" || event.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // =====================================================
+  // REACTIVE STATEMENTS - EVENT FILTERING
+  // =====================================================
 
-  $: filteredFeaturedEvents = featuredEvents.filter((event: any) => {
-    const matchesSearch =
-      event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.venue.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "All Events" || event.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Filter all events based on search query and selected category
+  // Updates automatically when searchQuery or selectedCategory changes
+  $: filteredEvents = (() => {
+    const query = (searchQuery || "").toLowerCase().trim();
+    const category = selectedCategory || "All Events";
 
+    return allEvents.filter((event: any) => {
+      // Check if event matches search query (name or venue)
+      const eventName = (event.name || "").toLowerCase();
+      const eventVenue = (event.venue || "").toLowerCase();
+      const matchesSearch =
+        query === "" || eventName.includes(query) || eventVenue.includes(query);
+
+      // Check if event matches selected category
+      const matchesCategory =
+        category === "All Events" || event.category === category;
+
+      // Return events that match both search and category
+      return matchesSearch && matchesCategory;
+    });
+  })();
+
+  // Filter featured events based on search query and selected category
+  // Updates automatically when searchQuery, selectedCategory, or featuredEvents changes
+  $: filteredFeaturedEvents = (() => {
+    const query = (searchQuery || "").toLowerCase().trim();
+    const category = selectedCategory || "All Events";
+
+    return featuredEvents.filter((event: any) => {
+      // Check if event matches search query (name or venue)
+      const eventName = (event.name || "").toLowerCase();
+      const eventVenue = (event.venue || "").toLowerCase();
+      const matchesSearch =
+        query === "" || eventName.includes(query) || eventVenue.includes(query);
+
+      // Check if event matches selected category
+      const matchesCategory =
+        category === "All Events" || event.category === category;
+
+      // Return events that match both search and category
+      return matchesSearch && matchesCategory;
+    });
+  })();
+
+  // =====================================================
+  // FUNCTIONS
+  // =====================================================
+
+  // Handle search from hero section
+  // Sets the main search query and scrolls to the main content area
   function handleHeroSearch() {
     searchQuery = heroSearchQuery;
     // Scroll to the main content
@@ -47,22 +89,29 @@
       ?.scrollIntoView({ behavior: "smooth" });
   }
 
+  // =====================================================
+  // LIFECYCLE - ON MOUNT
+  // =====================================================
+
+  // Load events when component mounts
   onMount(async () => {
     try {
       // Load public events from database
       const events = await loadPublicEvents();
 
-      // Ensure all events have the is_free_event property
-      allEvents = (events || []).map((event) => {
+      // Process events: Ensure all events have the is_free_event property
+      // Checks various formats for free events (0, "Free", "NLe 0", etc.)
+      allEvents = (events || []).map((event: any) => {
+        const price = event.price;
         const isFree =
           event.is_free_event ||
-          event.price === 0 ||
-          event.price === "Free" ||
-          event.price === "0" ||
-          event.price === "NLe 0" ||
-          (typeof event.price === "string" &&
-            (event.price.toLowerCase().includes("free") ||
-              event.price.toLowerCase().includes("nle 0")));
+          price === 0 ||
+          price === "Free" ||
+          price === "0" ||
+          price === "NLe 0" ||
+          (typeof price === "string" &&
+            (price.toLowerCase().includes("free") ||
+              price.toLowerCase().includes("nle 0")));
 
         return {
           ...event,
@@ -70,21 +119,23 @@
         };
       });
 
-      // Set featured events (first 4)
+      // Categorize events into different collections
+      // Set featured events (first 4 events)
       featuredEvents = allEvents.slice(0, 4);
 
-      // Set upcoming events (first 6)
+      // Set upcoming events (first 6 events)
       upcomingEvents = allEvents.slice(0, 6);
 
-      // Set resale events (remaining events)
+      // Set resale events (remaining events after first 6)
       resaleEvents = allEvents.slice(6);
 
       loading = false;
     } catch (error) {
+      console.error("Error loading events:", error);
       loading = false;
     }
 
-    // Trigger page load animation
+    // Trigger page load animation after a short delay
     setTimeout(() => {
       pageLoaded = true;
     }, 100);
@@ -96,17 +147,25 @@
   });
 </script>
 
+<!-- =====================================================
+     MARKETPLACE PAGE
+     Main page for browsing and discovering events
+     ===================================================== -->
 <div class="min-h-screen bg-gray-900 text-white">
-  <!-- Hero Section -->
+  <!-- =====================================================
+       HERO SECTION
+       Full-height hero banner with background image and main heading
+       ===================================================== -->
   <div class="relative h-[70vh] min-h-[600px] overflow-hidden">
-    <!-- Background Image -->
+    <!-- Background Image with Overlays -->
     <div class="absolute inset-0">
+      <!-- Hero Background Image -->
       <img
         src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
         alt="Event background"
         class="w-full h-full object-cover"
       />
-      <!-- Dark overlay -->
+      <!-- Dark overlay for better contrast -->
       <div class="absolute inset-0 bg-black/60"></div>
       <!-- Gradient overlay for better text readability -->
       <div
@@ -114,10 +173,10 @@
       ></div>
     </div>
 
-    <!-- Hero Content -->
+    <!-- Hero Content - Centered text and branding -->
     <div class="relative z-10 flex items-center justify-center h-full">
       <div class="text-center max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Main Heading -->
+        <!-- Main Heading: Large animated title -->
         <h1
           class="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 transition-all duration-1000 ease-out {pageLoaded
             ? 'opacity-100 translate-y-0'
@@ -126,7 +185,7 @@
           Discover Your Next Event
         </h1>
 
-        <!-- Sub-heading -->
+        <!-- Sub-heading: Descriptive text about the platform -->
         <p
           class="text-xl md:text-2xl text-gray-200 mb-12 max-w-3xl mx-auto leading-relaxed transition-all duration-1000 ease-out delay-200 {pageLoaded
             ? 'opacity-100 translate-y-0'
@@ -136,7 +195,8 @@
           workshops and conferences, all powered by blockchain.
         </p>
 
-        <!-- Search Bar -->
+        <!-- Search Bar (Currently Disabled/Commented Out) -->
+        <!-- Hero search bar with backdrop blur effect -->
         <!-- <div
           class="max-w-2xl mx-auto transition-all duration-1000 ease-out delay-400 {pageLoaded
             ? 'opacity-100 translate-y-0'
@@ -176,7 +236,7 @@
       </div>
     </div>
 
-    <!-- Scroll indicator -->
+    <!-- Scroll Indicator: Animated arrow indicating scrollable content below -->
     <div
       class="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce"
     >
@@ -196,29 +256,37 @@
     </div>
   </div>
 
-  <!-- Main Content -->
+  <!-- =====================================================
+       MAIN CONTENT AREA
+       Container for search filters, featured events, and all events
+       ===================================================== -->
   <div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Search and Filters Section -->
+    <!-- Search and Filters Section: Search bar and category filters -->
     <div
       class="bg-gray-800 rounded-xl p-6 mb-8 shadow-lg transition-all duration-1000 ease-out delay-600 {pageLoaded
         ? 'opacity-100 translate-y-0'
         : 'opacity-0 translate-y-8'}"
     >
-      <SearchFilters bind:searchQuery bind:selectedCategory bind:showFilters />
+      <SearchFilters bind:searchQuery bind:selectedCategory />
     </div>
 
-    <!-- Featured Events Section -->
+    <!-- =====================================================
+         FEATURED EVENTS SECTION
+         Displays the first 4 events as featured/promoted events
+         ===================================================== -->
     <div
       class="mb-12 transition-all duration-1000 ease-out delay-800 {pageLoaded
         ? 'opacity-100 translate-y-0'
         : 'opacity-0 translate-y-8'}"
     >
+      <!-- Section Title -->
       <h2
         class="text-3xl md:text-4xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent"
       >
         Featured Events
       </h2>
 
+      <!-- Loading State: Skeleton loaders for featured events -->
       {#if loading}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {#each Array(4) as _, index}
@@ -234,9 +302,11 @@
             </div>
           {/each}
         </div>
+        <!-- Featured Events Grid: Responsive 4-column grid for desktop, 2 for tablet, 1 for mobile -->
       {:else if filteredFeaturedEvents.length > 0}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {#each filteredFeaturedEvents as event, index}
+            <!-- Event Card with staggered animation delay -->
             <div
               class="transition-all duration-700 ease-out {cardsVisible
                 ? 'opacity-100 translate-y-0 scale-100'
@@ -250,6 +320,7 @@
             </div>
           {/each}
         </div>
+        <!-- Empty State: Message when no featured events are available -->
       {:else}
         <div class="text-center py-12">
           <p class="text-gray-400 text-lg">
@@ -259,122 +330,158 @@
       {/if}
     </div>
 
-    <!-- All Events Section -->
+    <!-- =====================================================
+         ALL EVENTS SECTION
+         Tabbed section displaying all events with filtering
+         ===================================================== -->
     <div
       class="transition-all duration-1000 ease-out delay-1000 {pageLoaded
         ? 'opacity-100 translate-y-0'
         : 'opacity-0 translate-y-8'}"
     >
-      <h2
-        class="text-3xl md:text-4xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent"
+      <!-- Section Title and Filter Pills: "All Events" text with pill-shaped filter buttons -->
+      <div
+        class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mb-8"
       >
-        All Events
-      </h2>
+        <!-- Section Title: Plain text on the left -->
+        <h2 class="text-3xl md:text-4xl font-bold text-white">All Events</h2>
 
-      <Tabs
-        activeClasses="bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105"
-        inactiveClasses="bg-gray-700 text-gray-300 hover:bg-gray-600 hover:shadow-md transform hover:scale-105"
-        contentClass="bg-transparent pt-6"
-        class="mb-8"
-      >
-        <TabItem
-          open
-          title="Upcoming"
-          class="px-6 py-3 rounded-lg transition-all duration-300 ease-out font-semibold"
-        >
-          {#if loading}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {#each Array(6) as _, index}
-                <div class="bg-gray-800 rounded-xl p-6 animate-pulse">
-                  <div class="bg-gray-700 h-48 rounded-lg mb-4"></div>
-                  <div class="bg-gray-700 h-4 rounded mb-2"></div>
-                  <div class="bg-gray-700 h-3 rounded mb-4"></div>
-                  <div class="bg-gray-700 h-3 rounded mb-6"></div>
-                  <div class="flex justify-between items-center">
-                    <div class="bg-gray-700 h-6 w-16 rounded"></div>
-                    <div class="bg-gray-700 h-10 w-24 rounded"></div>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          {:else if filteredEvents.length > 0}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {#each filteredEvents as event, index}
-                <div
-                  class="transition-all duration-700 ease-out {cardsVisible
-                    ? 'opacity-100 translate-y-0 scale-100'
-                    : 'opacity-0 translate-y-8 scale-95'}"
-                  style="transition-delay: {index * 100}ms;"
-                >
-                  <EventCard
-                    {event}
-                    buttonText={event.is_free_event
-                      ? "Get Free Ticket"
-                      : "View Details"}
-                  />
-                </div>
-              {/each}
-            </div>
-          {:else}
-            <div class="text-center py-12">
-              <p class="text-gray-400 text-lg">
-                No events found matching your criteria.
-              </p>
-            </div>
-          {/if}
-        </TabItem>
+        <!-- Filter Pills: Two pill-shaped buttons next to the title -->
+        <div class="flex items-center gap-3">
+          <!-- Upcoming Button: Purple pill when active -->
+          <button
+            on:click={() => (activeTab = "upcoming")}
+            class="px-6 py-3 rounded-full font-semibold text-white transition-all duration-300 ease-out {activeTab ===
+            'upcoming'
+              ? 'bg-purple-600 shadow-lg transform scale-105'
+              : 'bg-gray-700 hover:bg-gray-600'}"
+          >
+            Upcoming
+          </button>
 
-        <TabItem
-          title="Resales"
-          class="px-6 py-3 rounded-lg transition-all duration-300 ease-out font-semibold"
-        >
-          {#if loading}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {#each Array(3) as _, index}
-                <div class="bg-gray-800 rounded-xl p-6 animate-pulse">
-                  <div class="bg-gray-700 h-48 rounded-lg mb-4"></div>
-                  <div class="bg-gray-700 h-4 rounded mb-2"></div>
-                  <div class="bg-gray-700 h-3 rounded mb-4"></div>
-                  <div class="bg-gray-700 h-3 rounded mb-6"></div>
-                  <div class="flex justify-between items-center">
-                    <div class="bg-gray-700 h-6 w-16 rounded"></div>
-                    <div class="bg-gray-700 h-10 w-24 rounded"></div>
-                  </div>
+          <!-- Resales Button: Red/pink pill when active -->
+          <button
+            on:click={() => (activeTab = "resales")}
+            class="px-6 py-3 rounded-full font-semibold text-white transition-all duration-300 ease-out {activeTab ===
+            'resales'
+              ? 'bg-red-500 shadow-lg transform scale-105'
+              : 'bg-gray-700 hover:bg-gray-600'}"
+          >
+            Resales
+          </button>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           UPCOMING CONTENT
+           Displays all filtered events in a grid layout
+           ===================================================== -->
+      {#if activeTab === "upcoming"}
+        <!-- Loading State: Skeleton loaders for upcoming events -->
+        {#if loading}
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {#each Array(6) as _, index}
+              <div class="bg-gray-800 rounded-xl p-6 animate-pulse">
+                <div class="bg-gray-700 h-48 rounded-lg mb-4"></div>
+                <div class="bg-gray-700 h-4 rounded mb-2"></div>
+                <div class="bg-gray-700 h-3 rounded mb-4"></div>
+                <div class="bg-gray-700 h-3 rounded mb-6"></div>
+                <div class="flex justify-between items-center">
+                  <div class="bg-gray-700 h-6 w-16 rounded"></div>
+                  <div class="bg-gray-700 h-10 w-24 rounded"></div>
                 </div>
-              {/each}
-            </div>
-          {:else if resaleEvents.length > 0}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {#each resaleEvents as event, index}
-                <div
-                  class="transition-all duration-700 ease-out {cardsVisible
-                    ? 'opacity-100 translate-y-0 scale-100'
-                    : 'opacity-0 translate-y-8 scale-95'}"
-                  style="transition-delay: {index * 100}ms;"
-                >
-                  <EventCard
-                    {event}
-                    buttonText={event.is_free_event
-                      ? "Get Free Ticket"
-                      : "View Details"}
-                  />
+              </div>
+            {/each}
+          </div>
+          <!-- Events Grid: Responsive 4-column grid showing filtered events -->
+        {:else if filteredEvents.length > 0}
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-6">
+            {#each filteredEvents as event, index}
+              <!-- Event Card with staggered animation delay -->
+              <div
+                class="transition-all duration-700 ease-out {cardsVisible
+                  ? 'opacity-100 translate-y-0 scale-100'
+                  : 'opacity-0 translate-y-8 scale-95'}"
+                style="transition-delay: {index * 100}ms;"
+              >
+                <EventCard
+                  {event}
+                  buttonText={event.is_free_event
+                    ? "Get Free Ticket"
+                    : "View Details"}
+                />
+              </div>
+            {/each}
+          </div>
+          <!-- Empty State: Message when no events match the search/filter criteria -->
+        {:else}
+          <div class="text-center py-12">
+            <p class="text-gray-400 text-lg">
+              No events found matching your criteria.
+            </p>
+          </div>
+        {/if}
+      {/if}
+
+      <!-- =====================================================
+           RESALES CONTENT
+           Displays resale events (events after the first 6)
+           ===================================================== -->
+      {#if activeTab === "resales"}
+        <!-- Loading State: Skeleton loaders for resale events -->
+        {#if loading}
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {#each Array(3) as _, index}
+              <div class="bg-gray-800 rounded-xl p-6 animate-pulse">
+                <div class="bg-gray-700 h-48 rounded-lg mb-4"></div>
+                <div class="bg-gray-700 h-4 rounded mb-2"></div>
+                <div class="bg-gray-700 h-3 rounded mb-4"></div>
+                <div class="bg-gray-700 h-3 rounded mb-6"></div>
+                <div class="flex justify-between items-center">
+                  <div class="bg-gray-700 h-6 w-16 rounded"></div>
+                  <div class="bg-gray-700 h-10 w-24 rounded"></div>
                 </div>
-              {/each}
-            </div>
-          {:else}
-            <div class="text-center py-12">
-              <p class="text-gray-400 text-lg">
-                No resale events available at the moment.
-              </p>
-            </div>
-          {/if}
-        </TabItem>
-      </Tabs>
+              </div>
+            {/each}
+          </div>
+          <!-- Resale Events Grid: Responsive 3-column grid for resale events -->
+        {:else if resaleEvents.length > 0}
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {#each resaleEvents as event, index}
+              <!-- Event Card with staggered animation delay -->
+              <div
+                class="transition-all duration-700 ease-out {cardsVisible
+                  ? 'opacity-100 translate-y-0 scale-100'
+                  : 'opacity-0 translate-y-8 scale-95'}"
+                style="transition-delay: {index * 100}ms;"
+              >
+                <EventCard
+                  {event}
+                  buttonText={event.is_free_event
+                    ? "Get Free Ticket"
+                    : "View Details"}
+                />
+              </div>
+            {/each}
+          </div>
+          <!-- Empty State: Message when no resale events are available -->
+        {:else}
+          <div class="text-center py-12">
+            <p class="text-gray-400 text-lg">
+              No resale events available at the moment.
+            </p>
+          </div>
+        {/if}
+      {/if}
     </div>
   </div>
 </div>
 
 <style>
+  /* =====================================================
+     CUSTOM ANIMATIONS AND TRANSITIONS
+     ===================================================== */
+
   /* Custom animations for smooth transitions */
   :global(.transition-all) {
     transition-property: all;
@@ -388,17 +495,24 @@
     transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
   }
 
-  /* Enhanced tab animations */
+  /* =====================================================
+     ENHANCED TAB ANIMATIONS
+     Custom styles for Flowbite tabs with hover effects
+     ===================================================== */
+
+  /* Tab container transitions */
   :global(.flowbite-tabs) {
     transition: all 0.3s ease-out;
   }
 
+  /* Individual tab item styling */
   :global(.flowbite-tab-item) {
     transition: all 0.3s ease-out;
     position: relative;
     overflow: hidden;
   }
 
+  /* Shimmer effect on tab hover */
   :global(.flowbite-tab-item::before) {
     content: "";
     position: absolute;
@@ -415,13 +529,18 @@
     transition: left 0.5s ease-out;
   }
 
+  /* Animate shimmer effect on hover */
   :global(.flowbite-tab-item:hover::before) {
     left: 100%;
   }
 
-  /* Hero section enhancements */
-  .hero-search-input {
+  /* =====================================================
+     HERO SECTION ENHANCEMENTS
+     Backdrop blur effects for hero search input
+     (Currently unused - reserved for future hero search feature)
+     ===================================================== */
+  /* .hero-search-input {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-  }
+  } */
 </style>

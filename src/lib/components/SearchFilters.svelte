@@ -1,29 +1,41 @@
 <script>
+  import { slide } from "svelte/transition";
+
   export let searchQuery = "";
   export let selectedCategory = "All Events";
-  export let showFilters = false;
 
   const categories = [
     "All Events",
-    "Music",
-    "Sports",
+    "Music & Concerts",
+    "Sports & Fitness",
+    "Business & Professional",
+    "Technology",
     "Arts & Culture",
-    "Tech",
-    "Conferences",
     "Food & Drink",
+    "Education",
+    "Health & Wellness",
+    "Entertainment",
+    "Other",
   ];
+
+  let categoriesExpanded = false; // State for accordion on mobile
 
   function handleCategorySelect(category) {
     selectedCategory = category;
+    // Auto-close accordion on mobile after selection
+    categoriesExpanded = false;
   }
 </script>
 
 <div class="max-w-4xl mx-auto">
-  <div class="flex flex-col sm:flex-row gap-4 mb-6">
-    <div class="flex-1 relative group">
+  <div class="mb-6">
+    <div class="relative group">
       <input
         type="text"
         bind:value={searchQuery}
+        on:input={(e) => {
+          searchQuery = e.currentTarget.value;
+        }}
         placeholder="Search for events..."
         class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-out group-hover:border-gray-500 group-hover:bg-gray-650"
       />
@@ -41,12 +53,37 @@
         ></path>
       </svg>
     </div>
+  </div>
+
+  <!-- Category Filters -->
+  <!-- Mobile: Accordion Dropdown -->
+  <div class="md:hidden mb-8">
     <button
-      on:click={() => (showFilters = !showFilters)}
-      class="px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 border border-gray-600 rounded-lg flex items-center gap-2 transition-all duration-300 ease-out transform hover:scale-105 hover:shadow-lg font-medium"
+      on:click={() => (categoriesExpanded = !categoriesExpanded)}
+      class="w-full flex items-center justify-between px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 transition-all duration-300 ease-out"
     >
+      <div class="flex items-center gap-2">
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+          />
+        </svg>
+        <span class="font-semibold">
+          {selectedCategory === "All Events" ? "Category: All Events" : `Category: ${selectedCategory}`}
+        </span>
+      </div>
       <svg
-        class="h-5 w-5 transition-transform duration-300 group-hover:rotate-180"
+        class="w-5 h-5 transition-transform duration-300 {categoriesExpanded
+          ? 'rotate-180'
+          : ''}"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -55,15 +92,54 @@
           stroke-linecap="round"
           stroke-linejoin="round"
           stroke-width="2"
-          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-        ></path>
+          d="M19 9l-7 7-7-7"
+        />
       </svg>
-      Filters
     </button>
+
+    {#if categoriesExpanded}
+      <div
+        class="mt-3 bg-gray-800 border border-gray-600 rounded-lg overflow-hidden"
+        transition:slide={{ axis: "y", duration: 300 }}
+      >
+        <div class="max-h-64 overflow-y-auto">
+          {#each categories as category, index}
+            <button
+              on:click={() => handleCategorySelect(category)}
+              class="w-full text-left px-4 py-3 border-b border-gray-700 last:border-b-0 transition-colors duration-200 {selectedCategory ===
+              category
+                ? 'bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white font-semibold'
+                : 'text-gray-300 hover:bg-gray-700 hover:text-white'}"
+            >
+              <div class="flex items-center gap-2">
+                {#if selectedCategory === category}
+                  <svg
+                    class="w-5 h-5 text-blue-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                {:else}
+                  <div class="w-5"></div>
+                {/if}
+                <span>{category}</span>
+              </div>
+            </button>
+          {/each}
+        </div>
+      </div>
+    {/if}
   </div>
 
-  <!-- Category Filters -->
-  <div class="flex flex-wrap gap-3 mb-8">
+  <!-- Desktop: Full Category Buttons -->
+  <div class="hidden md:flex flex-wrap gap-3 mb-8">
     {#each categories as category, index}
       <button
         on:click={() => handleCategorySelect(category)}

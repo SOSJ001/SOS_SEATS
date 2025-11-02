@@ -122,7 +122,7 @@
       <div class="flex items-center justify-between">
         <!-- Price Badge: Displays event price or "Free" for free events -->
         <span
-          class="px-2.5 py-1 bg-black/70 backdrop-blur-sm text-white text-xs sm:text-sm font-bold rounded-full"
+          class="px-3 py-1.5 bg-gradient-to-r from-amber-500/90 to-orange-500/90 backdrop-blur-sm text-white text-sm sm:text-base font-bold rounded-full border border-white/30 shadow-lg"
         >
           {event.is_free_event ? "Free" : event.price}
         </span>
