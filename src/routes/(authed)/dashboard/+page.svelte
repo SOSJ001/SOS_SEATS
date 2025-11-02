@@ -126,6 +126,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>Dashboard - SOS SEATS</title>
+</svelte:head>
+
 <div class="space-y-8">
   <!-- Dashboard Overview -->
   <DashboardOverview metrics={displayMetrics} />

@@ -19,6 +19,10 @@
   export const data = undefined;
 </script>
 
+<svelte:head>
+  <title>SOS SEATS - Event Ticketing Platform</title>
+</svelte:head>
+
 <div class="bg-gray-800 items-center text-white overflow-hidden">
   <div class="w-full">
     <section id="home">
