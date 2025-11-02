@@ -15,7 +15,6 @@
   export let showBuyButton = true;
   export let buttonText = "Buy Now";
 
-  let paymentOptions = false;
   let isHovered = false;
 
   $: if (event) {
@@ -129,15 +128,10 @@
 
         {#if !event.is_free_event && showBuyButton}
           <!-- Paid Event Button: Shows "Buy Now" or "View Details" depending on buttonText prop -->
-          <!-- If buttonText is "View Details", navigates to event details page -->
-          <!-- Otherwise, opens payment options modal -->
+          <!-- Both navigate to event details page where users can purchase tickets -->
           <button
             on:click={() => {
-              if (buttonText === "View Details") {
-                goto(`/marketplace/eventDetails/${event.id}`);
-              } else {
-                paymentOptions = true;
-              }
+              goto(`/marketplace/eventDetails/${event.id}`);
             }}
             class="relative overflow-hidden px-4 py-2 sm:px-5 sm:py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg text-sm sm:text-base font-semibold transition-all duration-300 ease-out transform hover:scale-105 hover:shadow-lg hover:from-blue-600 hover:to-purple-700 group/btn"
           >
