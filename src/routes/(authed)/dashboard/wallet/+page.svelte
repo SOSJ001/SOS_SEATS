@@ -14,6 +14,8 @@
   import MaintenanceWrapper from "$lib/components/MaintenanceWrapper.svelte";
   import { monimeService } from "$lib/monime";
   import { calculateWithdrawalFee } from "$lib/orangeMoneyPayment";
+  import MultisigSettings from "$lib/components/MultisigSettings.svelte";
+  import PendingWithdrawalCard from "$lib/components/PendingWithdrawalCard.svelte";
 
   export const data = undefined;
 
@@ -36,11 +38,34 @@
   let isLoadingTransactions = true;
   let isLoadingSolBalance = true;
   let isWithdrawing = false;
+  let pendingWithdrawals: any[] = [];
+  let isLoadingPendingWithdrawals = true;
+
+  // Wallet address state
+  let currentWalletAddress: string | null = null;
 
   // Withdrawal modal state
   let showWithdrawalModal = false;
   let withdrawalPhoneNumber = "";
   let withdrawalProvider: "orange_money" | "afrimoney" = "orange_money";
+
+  // Get current wallet address
+  async function getCurrentWallet(): Promise<string | null> {
+    try {
+      const session = await verifyWeb3Session();
+      let wallet =
+        session?.success && session.user?.wallet_address
+          ? session.user.wallet_address
+          : null;
+      if (!wallet) {
+        wallet = getActiveWalletAddress();
+      }
+      return wallet;
+    } catch (err) {
+      console.error("Error getting wallet:", err);
+      return null;
+    }
+  }
 
   // Calculated withdrawal fees (reactive)
   $: withdrawalFeeDetails = calculateWithdrawalFee(mobileMoneyTotal);
@@ -170,6 +195,127 @@
         .join("");
       const signatureBase64Encoded = btoa(signatureBase64);
 
+      // Check if multisig is enabled for this wallet
+      const { data: multisigConfig } = await supabase.rpc(
+        "get_multisig_config",
+        {
+          p_wallet_address: wallet,
+        }
+      );
+
+      const isMultisigEnabled =
+        multisigConfig &&
+        multisigConfig.length > 0 &&
+        multisigConfig[0].is_enabled === true;
+
+      if (isMultisigEnabled) {
+        // MULTISIG FLOW: Create pending withdrawal
+        const pendingToken = `wd_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        // Create pending withdrawal record
+        const { data: pendingWithdrawal, error: pendingError } = await supabase
+          .from("wallet_transactions")
+          .insert([
+            {
+              wallet_address: wallet,
+              type: "withdrawal",
+              source: "mobile_money",
+              amount: -Number(mobileMoneyTotal || 0),
+              currency: currency,
+              status: "pending_approval",
+              multisig_enabled: true,
+              required_signatures: multisigConfig[0].required_signatures,
+              collected_signatures: [
+                {
+                  wallet: wallet,
+                  signature: signatureBase64Encoded,
+                  public_key: signResult.publicKey || wallet,
+                  signed_at: new Date().toISOString(),
+                },
+              ],
+              pending_token: pendingToken,
+              expires_at: expiresAt.toISOString(),
+              metadata: {
+                note: "Multi-signature withdrawal pending approval",
+                provider: withdrawalProvider,
+                phone_number: formattedPhone,
+                gross_amount: mobileMoneyTotal,
+                platform_fee: platformFee,
+                estimated_monime_fee: monimeFee,
+                net_amount_after_platform_fee: netAmountAfterPlatformFee,
+                final_net_amount: finalNetAmount,
+                fees_breakdown: {
+                  platform_fee: platformFee,
+                  estimated_monime_fee: monimeFee,
+                  total_fees: platformFee + monimeFee,
+                },
+                wallet_signature: {
+                  message: withdrawalMessage,
+                  signature: signatureBase64Encoded,
+                  public_key: signResult.publicKey,
+                  signed_at: new Date().toISOString(),
+                },
+              },
+            },
+          ])
+          .select()
+          .single();
+
+        if (pendingError) {
+          console.error("Error creating pending withdrawal:", pendingError);
+          showToast(
+            "error",
+            "Error",
+            "Failed to create pending withdrawal. Please try again.",
+            6000
+          );
+          isWithdrawing = false;
+          return;
+        }
+
+        // Send notifications to all authorized signers
+        const signers = multisigConfig[0].signers || [];
+        const notificationPromises = [];
+
+        for (const signer of signers) {
+          if (signer.is_active && signer.signer_wallet_address !== wallet) {
+            notificationPromises.push(
+              supabase.from("notifications").insert([
+                {
+                  user_wallet_address: signer.signer_wallet_address,
+                  title: "Withdrawal Signature Required",
+                  message: `A withdrawal of ${currency} ${finalNetAmount.toFixed(2)} to ${formattedPhone} needs your signature.`,
+                  type: "warning",
+                  action_url: `/dashboard/wallet/pending-withdrawal/${pendingToken}`,
+                  is_read: false,
+                },
+              ])
+            );
+          }
+        }
+
+        // Send all notifications
+        await Promise.all(notificationPromises);
+
+        // Close modal and show success message
+        closeWithdrawalModal();
+        showToast(
+          "info",
+          "Withdrawal Pending",
+          `Waiting for ${multisigConfig[0].required_signatures - 1} more signature(s). Notifications sent to authorized signers.`,
+          8000
+        );
+
+        // Refresh balances and transactions
+        await loadMobileMoneyTotal();
+        await loadRecentTransactions();
+        await loadPendingWithdrawals();
+        isWithdrawing = false;
+        return;
+      }
+
+      // STANDARD FLOW: Execute withdrawal immediately
       // Map provider to Monime provider code
       const providerCode =
         withdrawalProvider === "orange_money" ? "m17" : "m18";
@@ -285,6 +431,7 @@
       // Refresh balances and transactions
       await loadMobileMoneyTotal();
       await loadRecentTransactions();
+      await loadPendingWithdrawals();
     } catch (error: any) {
       console.error("Withdrawal error:", error);
       const errorMessage =
@@ -478,6 +625,53 @@
     }
   }
 
+  async function loadPendingWithdrawals() {
+    isLoadingPendingWithdrawals = true;
+    try {
+      const session = await verifyWeb3Session();
+      let wallet =
+        session?.success && session.user?.wallet_address
+          ? session.user.wallet_address
+          : null;
+      if (!wallet) {
+        wallet = getActiveWalletAddress();
+      }
+
+      if (!wallet) {
+        pendingWithdrawals = [];
+        isLoadingPendingWithdrawals = false;
+        return;
+      }
+
+      // Load pending withdrawals for this wallet
+      const { data: pending, error } = await supabase
+        .from("wallet_transactions")
+        .select("*")
+        .eq("wallet_address", wallet)
+        .eq("type", "withdrawal")
+        .eq("status", "pending_approval")
+        .eq("multisig_enabled", true)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading pending withdrawals:", error);
+        pendingWithdrawals = [];
+      } else {
+        // Filter out expired withdrawals
+        const now = new Date();
+        pendingWithdrawals = (pending || []).filter((w: any) => {
+          if (!w.expires_at) return true;
+          return new Date(w.expires_at) > now;
+        });
+      }
+    } catch (err) {
+      console.error("Error in loadPendingWithdrawals:", err);
+      pendingWithdrawals = [];
+    } finally {
+      isLoadingPendingWithdrawals = false;
+    }
+  }
+
   async function loadRecentTransactions() {
     isLoadingTransactions = true;
     try {
@@ -620,12 +814,16 @@
     // Add Escape key listener for modal
     window.addEventListener("keydown", handleEscapeKey);
 
-    // Load balances
+    // Load balances and wallet address
     (async () => {
+      // Get wallet address first
+      currentWalletAddress = await getCurrentWallet();
+
       await Promise.all([
         loadMobileMoneyTotal(),
         loadOrderTotals(),
         loadRecentTransactions(),
+        loadPendingWithdrawals(),
       ]);
       // Load SOL balance from chain
       isLoadingSolBalance = true;
@@ -787,6 +985,30 @@
           </div>
         </div>
       </div>
+
+      <!-- Multi-Signature Settings -->
+      {#if currentWalletAddress}
+        <MultisigSettings walletAddress={currentWalletAddress} />
+      {:else if !isLoadingTotal && !isLoadingMobileMoney}
+        <!-- Wait for wallet to be detected -->
+        <div class="bg-gray-800 rounded-lg p-6 text-center">
+          <p class="text-gray-400 text-sm">Detecting wallet...</p>
+        </div>
+      {/if}
+
+      <!-- Pending Withdrawals -->
+      {#if pendingWithdrawals.length > 0}
+        <div class="space-y-4">
+          <h2 class="text-lg sm:text-xl font-bold text-white">
+            Pending Withdrawals
+          </h2>
+          <div class="space-y-3">
+            {#each pendingWithdrawals as withdrawal (withdrawal.id)}
+              <PendingWithdrawalCard {withdrawal} />
+            {/each}
+          </div>
+        </div>
+      {/if}
 
       <!-- Portfolio Overview -->
       <MaintenanceWrapper
