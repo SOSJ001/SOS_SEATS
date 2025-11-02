@@ -40,15 +40,15 @@
 
     // Filter by tab (only if not "all")
     if (activeTab !== "all") {
-      if (activeTab === "checked-in") {
+    if (activeTab === "checked-in") {
         // Only show guests with checked-in status (handle both formats)
         filtered = filtered.filter((guest: any) => {
           const status = guest.status;
           return status === "checked_in" || status === "checked-in";
         });
-      } else if (activeTab === "pending") {
+    } else if (activeTab === "pending") {
         // Only show guests with pending status
-        filtered = filtered.filter((guest: any) => guest.status === "pending");
+      filtered = filtered.filter((guest: any) => guest.status === "pending");
       } else if (activeTab === "confirmed") {
         // Only show guests with confirmed status
         filtered = filtered.filter(
@@ -661,10 +661,10 @@
                         <stop
                           offset="100%"
                           style="stop-color:rgb(20, 184, 166);stop-opacity:1"
-                        />
+                />
                       </linearGradient>
                     </defs>
-                  </svg>
+              </svg>
                   <!-- Center Text -->
                   <div
                     class="absolute inset-0 flex items-center justify-center"
@@ -832,12 +832,12 @@
                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                   />
                 {:else}
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
                 {/if}
               </svg>
               {hasSales ? "Edit Event (Disabled)" : "Edit Event"}
@@ -963,12 +963,12 @@
                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                   />
                 {:else}
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
                 {/if}
               </svg>
               {hasSales ? "Cancel Event (Disabled)" : "Cancel Event"}
@@ -1064,27 +1064,27 @@
                 {:else}
                   <div
                     class="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 bg-gray-200 rounded-lg flex items-center justify-center"
-                  >
-                    <svg
-                      class="w-16 h-16 text-gray-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                  </div>
+            >
+              <svg
+                class="w-16 h-16 text-gray-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
                 {/if}
               </div>
 
               <p class="text-gray-300 text-xs sm:text-sm mb-4 px-2">
                 Scan this QR code to view the event page
-              </p>
+            </p>
 
-              <button
+            <button
                 on:click={() => {
                   if (qrCodeUrl && typeof window !== "undefined") {
                     const link = document.createElement("a");
@@ -1097,22 +1097,22 @@
                 }}
                 disabled={!qrCodeUrl}
                 class="w-full bg-teal-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-teal-600 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center text-sm sm:text-base"
-              >
-                <svg
+            >
+              <svg
                   class="w-4 h-4 sm:w-5 sm:h-5 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                Download QR Code
-              </button>
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Download QR Code
+            </button>
             {:else}
               <div
                 class="w-32 h-32 bg-gray-700 rounded-lg mx-auto mb-4 flex items-center justify-center"
@@ -1243,9 +1243,9 @@
           <div
             class="hidden md:block max-h-[600px] overflow-y-auto overflow-x-auto"
           >
-            <table class="w-full">
+        <table class="w-full">
               <thead class="sticky top-0 bg-gray-800 z-10">
-                <tr class="border-b border-gray-700">
+            <tr class="border-b border-gray-700">
                   <th
                     class="text-left py-3 px-4 text-xs sm:text-sm text-gray-400 font-medium uppercase tracking-wider bg-gray-800"
                   >
@@ -1261,18 +1261,18 @@
                   >
                     Status
                   </th>
-                </tr>
-              </thead>
-              <tbody>
+            </tr>
+          </thead>
+          <tbody>
                 {#each filteredGuests as guest}
-                  <tr
+              <tr
                     class="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors duration-200"
-                  >
+              >
                     <td class="py-4 px-4">
-                      <div class="flex items-center">
-                        <img
-                          src={guest.avatar}
-                          alt={guest.name}
+                  <div class="flex items-center">
+                    <img
+                      src={guest.avatar}
+                      alt={guest.name}
                           class="w-10 h-10 rounded-full mr-3 object-cover"
                           on:error={(e) => {
                             if (e.currentTarget instanceof HTMLImageElement) {
@@ -1290,13 +1290,13 @@
                             </div>
                           {/if}
                         </div>
-                      </div>
-                    </td>
+                  </div>
+                </td>
                     <td class="py-4 px-4">
                       <span class="text-gray-300 text-sm"
                         >{guest.ticketType || "Standard"}</span
-                      >
-                    </td>
+                  >
+                </td>
                     <td class="py-4 px-4">
                       <span
                         class="px-2.5 py-1 rounded-full text-xs font-medium {guest.status ===
@@ -1318,11 +1318,11 @@
                               : guest.status || "Unknown"}
                       </span>
                     </td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
 
           <!-- Guest Cards - Mobile -->
           <div class="md:hidden max-h-[600px] overflow-y-auto space-y-3">
