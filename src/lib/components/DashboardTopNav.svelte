@@ -339,21 +339,33 @@
               <div class="p-4 text-center text-gray-400 text-sm">No notifications</div>
             {:else}
               {#each notifications as notification}
-                <button
-                  on:click={() => handleNotificationClick(notification)}
-                  class="w-full text-left p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-700 transition-colors duration-200 {notification.is_read ? '' : 'bg-gray-800/50'}"
-                >
-                  <div class="flex items-start gap-2">
-                    <div class="flex-1">
-                      <p class="text-white text-sm font-semibold mb-1">{notification.title}</p>
-                      <p class="text-gray-300 text-sm">{notification.message}</p>
-                      <p class="text-gray-500 text-xs mt-1">{notification.time}</p>
+                {#if notification.is_read}
+                  <div
+                    class="w-full text-left p-4 border-b border-gray-700 last:border-b-0 transition-colors duration-200 opacity-75 cursor-default"
+                  >
+                    <div class="flex items-start gap-2">
+                      <div class="flex-1">
+                        <p class="text-gray-400 text-sm font-semibold mb-1">{notification.title}</p>
+                        <p class="text-gray-500 text-sm">{notification.message}</p>
+                        <p class="text-gray-600 text-xs mt-1">{notification.time}</p>
+                      </div>
                     </div>
-                    {#if !notification.is_read}
-                      <div class="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                    {/if}
                   </div>
-                </button>
+                {:else}
+                  <button
+                    on:click={() => handleNotificationClick(notification)}
+                    class="w-full text-left p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-700 transition-colors duration-200 bg-gray-800/50 cursor-pointer"
+                  >
+                    <div class="flex items-start gap-2">
+                      <div class="flex-1">
+                        <p class="text-white text-sm font-semibold mb-1">{notification.title}</p>
+                        <p class="text-gray-300 text-sm">{notification.message}</p>
+                        <p class="text-gray-500 text-xs mt-1">{notification.time}</p>
+                      </div>
+                      <div class="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                    </div>
+                  </button>
+                {/if}
               {/each}
             {/if}
           </div>

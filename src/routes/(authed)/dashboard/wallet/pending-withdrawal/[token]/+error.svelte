@@ -45,7 +45,9 @@
           <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">
             Withdrawal {errorMessage.includes("cancelled") ? "Cancelled" : "Processed"}
           </h1>
-          <p class="text-gray-400 text-sm sm:text-base">{errorMessage}</p>
+          <p class="text-gray-400 text-sm sm:text-base">
+            {errorMessage.includes("cancelled") ? "This withdrawal has been cancelled." : errorMessage}
+          </p>
         </div>
       {:else if status === 400}
         <!-- Expired -->
