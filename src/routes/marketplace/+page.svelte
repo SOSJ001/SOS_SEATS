@@ -147,6 +147,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>Marketplace - SOS SEATS</title>
+</svelte:head>
+
 <!-- =====================================================
      MARKETPLACE PAGE
      Main page for browsing and discovering events
