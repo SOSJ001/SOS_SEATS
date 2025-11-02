@@ -25,7 +25,7 @@
             type="button"
             class="text-gray-400 hover:text-cyan-400 transition-colors duration-300 p-1"
             aria-label="Facebook"
-            on:click={() => window.open('https://facebook.com', '_blank')}
+            on:click={() => window.open("https://facebook.com", "_blank")}
           >
             <svg
               class="w-5 h-5 sm:w-6 sm:h-6"
@@ -41,7 +41,7 @@
             type="button"
             class="text-gray-400 hover:text-cyan-400 transition-colors duration-300 p-1"
             aria-label="Twitter"
-            on:click={() => window.open('https://twitter.com', '_blank')}
+            on:click={() => window.open("https://twitter.com", "_blank")}
           >
             <svg
               class="w-5 h-5 sm:w-6 sm:h-6"
@@ -57,7 +57,7 @@
             type="button"
             class="text-gray-400 hover:text-cyan-400 transition-colors duration-300 p-1"
             aria-label="LinkedIn"
-            on:click={() => window.open('https://linkedin.com', '_blank')}
+            on:click={() => window.open("https://linkedin.com", "_blank")}
           >
             <svg
               class="w-5 h-5 sm:w-6 sm:h-6"
@@ -73,7 +73,7 @@
             type="button"
             class="text-gray-400 hover:text-cyan-400 transition-colors duration-300 p-1"
             aria-label="Instagram"
-            on:click={() => window.open('https://instagram.com', '_blank')}
+            on:click={() => window.open("https://instagram.com", "_blank")}
           >
             <svg
               class="w-5 h-5 sm:w-6 sm:h-6"
@@ -161,7 +161,7 @@
             <button
               type="button"
               class="text-gray-300 hover:text-cyan-400 transition-colors duration-300 text-sm sm:text-base text-left"
-              on:click={() => window.open('/help', '_blank')}
+              on:click={() => window.open("/help", "_blank")}
             >
               Help Center
             </button>
@@ -170,7 +170,7 @@
             <button
               type="button"
               class="text-gray-300 hover:text-cyan-400 transition-colors duration-300 text-sm sm:text-base text-left"
-              on:click={() => window.open('/contact', '_blank')}
+              on:click={() => window.open("/contact", "_blank")}
             >
               Contact Us
             </button>
@@ -179,7 +179,7 @@
             <button
               type="button"
               class="text-gray-300 hover:text-cyan-400 transition-colors duration-300 text-sm sm:text-base text-left"
-              on:click={() => window.open('/faq', '_blank')}
+              on:click={() => window.open("/faq", "_blank")}
             >
               FAQ
             </button>
@@ -188,7 +188,7 @@
             <button
               type="button"
               class="text-gray-300 hover:text-cyan-400 transition-colors duration-300 text-sm sm:text-base text-left"
-              on:click={() => window.open('/docs', '_blank')}
+              on:click={() => window.open("/docs", "_blank")}
             >
               Documentation
             </button>
@@ -197,7 +197,7 @@
             <button
               type="button"
               class="text-gray-300 hover:text-cyan-400 transition-colors duration-300 text-sm sm:text-base text-left"
-              on:click={() => window.open('/status', '_blank')}
+              on:click={() => window.open("/status", "_blank")}
             >
               Status Page
             </button>
@@ -218,7 +218,7 @@
             <button
               type="button"
               class="text-gray-300 hover:text-cyan-400 transition-colors duration-300 text-sm sm:text-base text-left"
-              on:click={() => window.open('/privacy', '_blank')}
+              on:click={() => window.open("/privacy", "_blank")}
             >
               Privacy Policy
             </button>
@@ -227,7 +227,7 @@
             <button
               type="button"
               class="text-gray-300 hover:text-cyan-400 transition-colors duration-300 text-sm sm:text-base text-left"
-              on:click={() => window.open('/terms', '_blank')}
+              on:click={() => window.open("/terms", "_blank")}
             >
               Terms of Service
             </button>
@@ -236,7 +236,7 @@
             <button
               type="button"
               class="text-gray-300 hover:text-cyan-400 transition-colors duration-300 text-sm sm:text-base text-left"
-              on:click={() => window.open('/cookies', '_blank')}
+              on:click={() => window.open("/cookies", "_blank")}
             >
               Cookie Policy
             </button>
@@ -245,7 +245,7 @@
             <button
               type="button"
               class="text-gray-300 hover:text-cyan-400 transition-colors duration-300 text-sm sm:text-base text-left"
-              on:click={() => window.open('/gdpr', '_blank')}
+              on:click={() => window.open("/gdpr", "_blank")}
             >
               GDPR
             </button>
@@ -254,7 +254,7 @@
             <button
               type="button"
               class="text-gray-300 hover:text-cyan-400 transition-colors duration-300 text-sm sm:text-base text-left"
-              on:click={() => window.open('/accessibility', '_blank')}
+              on:click={() => window.open("/accessibility", "_blank")}
             >
               Accessibility
             </button>
@@ -265,37 +265,8 @@
 
     <!-- Bottom Section -->
     <div class="border-t border-gray-700 mt-8 sm:mt-12 pt-6 sm:pt-8">
-      <div
-        class="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-6 lg:space-y-0"
-      >
-        <div class="text-gray-400 text-xs sm:text-sm">
-          © 2025 SOS SEATS. All rights reserved.
-        </div>
-
-        <!-- Newsletter Signup -->
-        <div class="w-full lg:w-auto">
-          <div
-            class="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4"
-          >
-            <span
-              class="text-gray-300 text-xs sm:text-sm text-center sm:text-left"
-              >Stay updated with our newsletter</span
-            >
-            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                class="px-3 sm:px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg sm:rounded-l-lg sm:rounded-r-none text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 text-sm"
-              />
-              <button
-                disabled
-                class="px-3 sm:px-4 py-2 bg-gradient-to-r from-cyan-400 to-purple-500 text-white rounded-lg sm:rounded-l-none sm:rounded-r-lg hover:from-purple-500 hover:to-cyan-400 transition-all duration-300 font-semibold text-sm"
-              >
-                Subscribe
-              </button>
-            </div>
-          </div>
-        </div>
+      <div class="text-gray-400 text-xs sm:text-sm text-center">
+        © 2025 SOS SEATS. All rights reserved.
       </div>
     </div>
   </div>
