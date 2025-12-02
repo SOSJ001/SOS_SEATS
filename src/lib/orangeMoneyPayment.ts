@@ -129,7 +129,7 @@ export async function handleMobileMoneyPaymentWithCode(
     const paymentCode = await monimeService.createPaymentCode(
       paymentCodeName,
       {
-        currency: "NLe",
+        currency: "SLE", // ISO currency code for Sierra Leonean Leone
         value: Math.round(totalAmountWithFee * 100), // Convert to cents
       },
       authorizedProviders,
@@ -200,7 +200,7 @@ export async function processOrangeMoneyCallback(
       buyerWallet: `mobile_money_${paymentMethod}`, // Use meaningful identifier for mobile money payments
       provider: "monime",
       sessionId: sessionId,
-      currency: "NLe", // Sierra Leone Leone for mobile money
+      currency: "SLE", // ISO currency code for Sierra Leonean Leone
     };
 
     // Import the claimFreeTickets function and supabase client

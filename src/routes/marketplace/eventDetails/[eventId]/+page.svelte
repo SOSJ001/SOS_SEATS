@@ -251,6 +251,14 @@
   }
 
   async function handlePayWithSolana() {
+    // Web3 payments temporarily disabled
+    showToast(
+      "warning",
+      "Under Maintenance",
+      "Web3 payments are currently under maintenance. Please use Orange Money or Afrimoney instead."
+    );
+    return;
+
     // Validate wallet connection
     if (!connectedWalletAddress) {
       showToast(
@@ -339,6 +347,14 @@
   }
 
   async function processPayment() {
+    // Web3 payments temporarily disabled
+    showToast(
+      "warning",
+      "Under Maintenance",
+      "Web3 payments are currently under maintenance. Please use Orange Money or Afrimoney instead."
+    );
+    return;
+
     if (!connectedWalletAddress) {
       showToast(
         "error",
