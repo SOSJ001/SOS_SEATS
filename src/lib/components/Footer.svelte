@@ -265,6 +265,19 @@
 
     <!-- Bottom Section -->
     <div class="border-t border-gray-700 mt-8 sm:mt-12 pt-6 sm:pt-8">
+      <!-- Platform Disclaimer -->
+      <div class="text-gray-500 text-[10px] sm:text-xs text-center max-w-4xl mx-auto mb-4 sm:mb-6 leading-relaxed">
+        <p class="mb-2">
+          <strong class="text-gray-400">Disclaimer:</strong> SOS SEATS is an independent platform that facilitates connections between event organizers and attendees. 
+          We are not the organizer, host, or promoter of any events listed on this platform. All transactions are conducted directly between buyers and event organizers.
+        </p>
+        <p>
+          SOS SEATS does not guarantee the accuracy of event listings, the occurrence of events, or the quality of services provided by event organizers. 
+          By using this platform, you acknowledge that SOS SEATS is not liable for any disputes, refunds, cancellations, or issues arising from your transactions with event organizers. 
+          All sales are subject to the terms and refund policies of the respective event organizers.
+        </p>
+      </div>
+      
       <div class="text-gray-400 text-xs sm:text-sm text-center">
         © 2025 SOS SEATS. All rights reserved.
       </div>
