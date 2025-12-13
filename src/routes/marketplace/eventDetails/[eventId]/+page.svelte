@@ -35,6 +35,10 @@
   import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
   import GuestCheckoutModal from "$lib/components/GuestCheckoutModal.svelte";
 
+  // Mobile money logos (static assets)
+  const orangeMoneyLogo = "/orangeMoney.png";
+  const afriMoneyLogo = "/afriMoney.png";
+
   // Get event ID from URL params and load event data
   $: eventId = $page.params.eventId;
   let event: any = null;
@@ -1128,36 +1132,22 @@
                     Max {event?.seating_options?.max_seats_per_order || 10} per ticket
                     type
                   </div>
-                  <!-- Available Quantity Display -->
-                  <div
-                    class="text-xs mt-1 {ticket.available_quantity <= 0
-                      ? 'text-red-400'
-                      : ticket.available_quantity < 10
-                        ? 'text-yellow-400'
-                        : 'text-gray-400'}"
-                  >
-                    {ticket.available_quantity <= 0
-                      ? "Sold Out"
-                      : ticket.available_quantity < 10
-                        ? `Only ${ticket.available_quantity} left!`
-                        : `${ticket.available_quantity} available`}
-                  </div>
                 </div>
               </div>
 
-              <div class="flex items-center gap-4">
+              <div class="flex justify-center">
                 <QuantitySelector
                   quantity={selectedTickets[ticket.id] || 0}
                   availableQuantity={ticket.available_quantity}
                   onQuantityChange={(newQuantity) =>
                     handleQuantityChange(ticket.id, newQuantity)}
                 />
-                <GradientButton
+                <!-- <GradientButton
                   text={ticket.price === 0 ? "Select Quantity" : "Add to Cart"}
                   onClick={() => handleAddToCart(ticket.id)}
                   class_="flex-1"
                   disabled={ticket.available_quantity <= 0}
-                />
+                /> -->
               </div>
             </TicketSelectionCard>
           {/each}
@@ -1177,72 +1167,42 @@
             {monimeFee}
             showFeeBreakdown={platformFee > 0 || monimeFee > 0}
           >
-            <!-- Max seats per order info -->
-            <div
-              class="mb-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg"
-            >
-              <div class="flex items-center gap-2 text-blue-300 text-sm">
-                <svg
-                  class="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
-                </svg>
-                <span
-                  >Maximum {event?.seating_options?.max_seats_per_order || 10} tickets
-                  per ticket type</span
-                >
-              </div>
-            </div>
-
-            <!-- Wallet Connection Status -->
-            <div
-              class="mb-4 p-3 bg-gray-800/50 border border-gray-600/30 rounded-lg"
-            >
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
+            <!-- Compact Info Section -->
+            <div class="mb-4 space-y-2">
+              <!-- Max tickets & Wallet status in one row -->
+              <div
+                class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 text-xs sm:text-sm text-gray-400"
+              >
+                <div class="flex items-center gap-1.5">
                   <svg
-                    class="h-4 w-4 {connectedWalletAddress
-                      ? 'text-green-400'
-                      : 'text-yellow-400'}"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
+                    class="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
                     <path
-                      fill-rule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clip-rule="evenodd"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     ></path>
                   </svg>
-                  <span class="text-sm text-gray-300">
-                    {connectedWalletAddress
-                      ? "Wallet Connected"
-                      : "No Wallet Connected"}
+                  <span
+                    >Max {event?.seating_options?.max_seats_per_order || 10} per
+                    type</span
+                  >
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <div
+                    class="h-2 w-2 rounded-full flex-shrink-0 {connectedWalletAddress
+                      ? 'bg-green-400'
+                      : 'bg-yellow-400'}"
+                  ></div>
+                  <span>
+                    {connectedWalletAddress ? "Wallet Connected" : "No Wallet"}
                   </span>
                 </div>
-                {#if connectedWalletAddress}
-                  <div class="text-xs text-blue-400 font-mono">
-                    {connectedWalletAddress.slice(
-                      0,
-                      6
-                    )}...{connectedWalletAddress.slice(-4)}
-                  </div>
-                {/if}
               </div>
-              {#if !connectedWalletAddress}
-                <div class="text-xs text-yellow-400 mt-1">
-                  {event?.is_free_event
-                    ? "Wallet connection required to claim free tickets"
-                    : "Connect your wallet to purchase tickets with SOL"}
-                </div>
-              {/if}
             </div>
 
             {#if event.is_free_event}
@@ -1255,6 +1215,11 @@
                 class_="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                 disabled={claimingTickets || !connectedWalletAddress}
               />
+              {#if !connectedWalletAddress}
+                <p class="text-xs text-yellow-400 mt-2 text-center">
+                  Wallet connection required to claim free tickets
+                </p>
+              {/if}
             {:else}
               <!-- Paid Event: Show different buttons based on wallet connection -->
               {#if connectedWalletAddress}
@@ -1269,11 +1234,11 @@
                   disabled={totalPrice === 0 || processingPayment}
                 />
                 <div
-                  class="mt-2 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg"
+                  class="mt-3 p-2.5 bg-blue-900/20 border border-blue-500/30 rounded-lg"
                 >
-                  <div class="flex items-center gap-2 mb-1">
+                  <div class="flex items-center gap-1.5 mb-1">
                     <svg
-                      class="w-4 h-4 text-blue-400"
+                      class="w-3.5 h-3.5 text-blue-400"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -1283,7 +1248,7 @@
                         clip-rule="evenodd"
                       ></path>
                     </svg>
-                    <span class="text-xs font-semibold text-blue-400"
+                    <span class="text-xs font-medium text-blue-400"
                       >Web3 Benefits</span
                     >
                   </div>
@@ -1293,73 +1258,140 @@
                 </div>
               {:else}
                 <!-- Non-Web3 User: Show Mobile Money Payment Options -->
-
-                <!-- Commented out Guest Checkout -->
-                <!-- <GradientButton
-                  text="💳 Guest Checkout"
-                  onClick={handleGuestCheckout}
-                  icon="credit-card"
-                  class_="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
-                  disabled={totalPrice === 0}
-                /> -->
-
-                <!-- Orange Money Payment Option -->
-                <GradientButton
-                  text={processingOrangeMoney
-                    ? "Processing..."
-                    : "🍊 Pay with Orange Money"}
-                  onClick={handlePayWithOrangeMoney}
-                  icon={processingOrangeMoney ? "loading" : "mobile"}
-                  class_="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
-                  disabled={totalPrice === 0 || processingOrangeMoney}
-                />
-
-                <!-- Afrimoney Payment Option -->
-                <GradientButton
-                  text={processingAfrimoney
-                    ? "Processing..."
-                    : "💚 Pay with Afrimoney"}
-                  onClick={handlePayWithAfrimoney}
-                  icon={processingAfrimoney ? "loading" : "mobile"}
-                  class_="w-full mt-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                  disabled={totalPrice === 0 || processingAfrimoney}
-                />
-                <!-- Orange Money Info -->
-                <div
-                  class="mt-2 p-3 bg-orange-900/20 border border-orange-500/30 rounded-lg"
-                >
-                  <div class="flex items-center gap-2 mb-1">
-                    <svg
-                      class="w-4 h-4 text-orange-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
+                <div class="space-y-3">
+                  <!-- Orange Money Payment Option -->
+                  <button
+                    on:click={handlePayWithOrangeMoney}
+                    disabled={totalPrice === 0 || processingOrangeMoney}
+                    class="relative overflow-hidden w-full px-4 sm:px-6 py-3 sm:py-4 bg-white hover:bg-gray-50 border-2 border-orange-500/30 hover:border-orange-500 rounded-lg font-semibold transition-all duration-300 ease-out transform hover:scale-[1.02] hover:shadow-xl hover:shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:scale-100 group/btn flex items-center justify-center"
+                  >
+                    <!-- Button shine effect -->
+                    <div
+                      class="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"
+                    ></div>
+                    <span
+                      class="relative z-10 flex items-center justify-center"
                     >
-                      <path
-                        fill-rule="evenodd"
-                        d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-                        clip-rule="evenodd"
-                      ></path>
-                    </svg>
-                    <span class="text-xs font-semibold text-orange-400"
-                      >Orange Money Benefits</span
+                      {#if processingOrangeMoney}
+                        <svg
+                          class="animate-spin h-5 w-5 sm:h-6 sm:w-6 text-orange-500"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                          ></circle>
+                          <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      {:else}
+                        <img
+                          src={orangeMoneyLogo}
+                          alt="Orange Money"
+                          class="h-6 sm:h-8 w-auto object-contain"
+                        />
+                      {/if}
+                    </span>
+                  </button>
+
+                  <!-- Afrimoney Payment Option -->
+                  <button
+                    on:click={handlePayWithAfrimoney}
+                    disabled={totalPrice === 0 || processingAfrimoney}
+                    class="relative overflow-hidden w-full px-4 sm:px-6 py-3 sm:py-4 bg-white hover:bg-gray-50 border-2 border-purple-500/30 hover:border-purple-500 rounded-lg font-semibold transition-all duration-300 ease-out transform hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:scale-100 group/btn flex items-center justify-center"
+                  >
+                    <!-- Button shine effect -->
+                    <div
+                      class="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"
+                    ></div>
+                    <span
+                      class="relative z-10 flex items-center justify-center"
                     >
+                      {#if processingAfrimoney}
+                        <svg
+                          class="animate-spin h-5 w-5 sm:h-6 sm:w-6 text-purple-500"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                          ></circle>
+                          <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      {:else}
+                        <img
+                          src={afriMoneyLogo}
+                          alt="Afrimoney"
+                          class="h-6 sm:h-8 w-auto object-contain"
+                        />
+                      {/if}
+                    </span>
+                  </button>
+
+                  <!-- Shared Mobile Money Benefits -->
+                  <div
+                    class="mt-2 p-2 sm:p-2.5 bg-blue-900/20 border border-blue-500/30 rounded-lg"
+                  >
+                    <div class="flex items-start gap-1.5">
+                      <svg
+                        class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400 mt-0.5 flex-shrink-0"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fill-rule="evenodd"
+                          d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                          clip-rule="evenodd"
+                        ></path>
+                      </svg>
+                      <div class="flex-1 min-w-0">
+                        <p
+                          class="text-xs sm:text-sm font-medium text-blue-400 mb-1"
+                        >
+                          Mobile Money Benefits
+                        </p>
+                        <p
+                          class="text-xs sm:text-sm text-blue-300 leading-relaxed"
+                        >
+                          Secure mobile payments • No wallet required • Instant
+                          confirmation
+                        </p>
+                        <p
+                          class="text-xs sm:text-sm text-blue-200 mt-1 font-medium"
+                        >
+                          ⚠️ Limited to 1 ticket per order
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <p class="text-xs text-orange-300">
-                    Secure mobile payments • No wallet required • Instant
-                    confirmation
-                  </p>
-                  <p class="text-xs text-orange-200 mt-1 font-medium">
-                    ⚠️ Limited to 1 ticket per order
-                  </p>
                 </div>
 
-                <!-- Afrimoney Info -->
+                <!-- Web3 Benefits Callout -->
                 <div
-                  class="mt-2 p-3 bg-green-900/20 border border-green-500/30 rounded-lg"
+                  class="mt-3 p-2.5 bg-purple-900/20 border border-purple-500/30 rounded-lg"
                 >
-                  <div class="flex items-center gap-2 mb-1">
+                  <div class="flex items-start gap-1.5">
                     <svg
-                      class="w-4 h-4 text-green-400"
+                      class="w-3.5 h-3.5 text-purple-400 mt-0.5 flex-shrink-0"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -1369,41 +1401,15 @@
                         clip-rule="evenodd"
                       ></path>
                     </svg>
-                    <span class="text-xs font-semibold text-green-400"
-                      >Afrimoney Benefits</span
-                    >
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs font-medium text-purple-400 mb-0.5">
+                        Want Web3 benefits?
+                      </p>
+                      <p class="text-xs text-purple-300">
+                        Connect wallet for lower fees & transferable tickets
+                      </p>
+                    </div>
                   </div>
-                  <p class="text-xs text-green-300">
-                    Secure mobile payments • No wallet required • Instant
-                    confirmation
-                  </p>
-                  <p class="text-xs text-green-200 mt-1 font-medium">
-                    ⚠️ Limited to 1 ticket per order
-                  </p>
-                </div>
-
-                <div
-                  class="mt-2 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg"
-                >
-                  <div class="flex items-center gap-2 mb-1">
-                    <svg
-                      class="w-4 h-4 text-purple-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-                        clip-rule="evenodd"
-                      ></path>
-                    </svg>
-                    <span class="text-xs font-semibold text-purple-400"
-                      >Want Web3 benefits?</span
-                    >
-                  </div>
-                  <p class="text-xs text-purple-300">
-                    Connect wallet for lower fees & transferable tickets
-                  </p>
                 </div>
               {/if}
             {/if}
