@@ -12,7 +12,7 @@
   "devDependencies": {
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@rollup/plugin-inject": "^5.0.5",
-    "@supabase/mcp-server-supabase": "^0.4.5",
+    "@supabase/mcp-server-supabase": "^0.5.9",
     "@sveltejs/adapter-auto": "^2.0.0",
     "@sveltejs/kit": "^1.20.4",
     "autoprefixer": "^10.4.14",
