@@ -1,28 +1,66 @@
+<!--
+  Event Details Page
+  ===================
+  
+  This page displays detailed information about a specific event and allows users to:
+  - View event information (date, location, description, etc.)
+  - Select ticket types and quantities
+  - Purchase tickets using multiple payment methods:
+    * Solana/Web3 payments (currently disabled for maintenance)
+    * Orange Money (mobile money)
+    * Afrimoney (mobile money)
+  - Claim free tickets (for free events)
+  
+  The page handles:
+  - Event data loading from Supabase
+  - Ticket quantity validation (max per order, available quantity, event capacity)
+  - Payment processing for different methods
+  - Wallet connection state management
+  - Guest checkout flow
+  
+  Route: /marketplace/eventDetails/[eventId]
+-->
+
 <script lang="ts">
+  // ============================================================================
+  // IMPORTS
+  // ============================================================================
+
+  // SvelteKit stores and utilities
   import { page } from "$app/stores";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
+
+  // Supabase database functions
   import {
     getEventById,
     claimFreeTickets,
     verifyWeb3Session,
     getWeb3UserProfile,
   } from "$lib/supabase.js";
+
+  // Web3/Solana payment functions
   import {
     purchaseTicketsWithSolana,
     sendTransactionWithWallet,
   } from "$lib/web3";
+
+  // Mobile money payment functions
   import {
     handleMobileMoneyPaymentWithCode,
     calculatePlatformFee,
   } from "$lib/orangeMoneyPayment.js";
-  import MobileMoneyPaymentModal from "$lib/components/MobileMoneyPaymentModal.svelte";
+
+  // Global stores
   import {
     sessionFromDb,
     walletStore,
     web3UserStore,
     showToast,
   } from "$lib/store";
+
+  // UI Components
+  import MobileMoneyPaymentModal from "$lib/components/MobileMoneyPaymentModal.svelte";
   import EventHeroSection from "$lib/components/EventHeroSection.svelte";
   import EventDetailsCard from "$lib/components/EventDetailsCard.svelte";
   import TicketSelectionCard from "$lib/components/TicketSelectionCard.svelte";
@@ -35,17 +73,35 @@
   import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
   import GuestCheckoutModal from "$lib/components/GuestCheckoutModal.svelte";
 
-  // Mobile money logos (static assets)
+  // ============================================================================
+  // CONSTANTS
+  // ============================================================================
+
+  // Mobile money payment provider logos (static assets served from /static directory)
   const orangeMoneyLogo = "/orangeMoney.png";
   const afriMoneyLogo = "/afriMoney.png";
 
-  // Get event ID from URL params and load event data
+  // ============================================================================
+  // REACTIVE STATE - Event Data
+  // ============================================================================
+
+  // Extract event ID from URL route parameter
   $: eventId = $page.params.eventId;
+
+  // Main event object containing all event details
   let event: any = null;
+
+  // Loading state for initial event data fetch
   let loading = true;
+
+  // Error message if event loading fails
   let error: string | null = null;
 
-  // Ticket types with pricing - will be loaded from database
+  // ============================================================================
+  // REACTIVE STATE - Ticket Data
+  // ============================================================================
+
+  // Array of available ticket types for this event (loaded from database)
   let ticketTypes: Array<{
     id: string;
     name: string;
@@ -55,26 +111,45 @@
     available_quantity: number;
   }> = [];
 
-  // State management
-  let selectedTickets: Record<string, number> = {};
-  let pageLoaded = false;
-  let claimingTickets = false;
-  let processingPayment = false;
-  let processingOrangeMoney = false;
-  let processingAfrimoney = false;
-  let showPaymentConfirmation = false;
-  let showGuestCheckout = false;
+  // ============================================================================
+  // REACTIVE STATE - User Selection & UI State
+  // ============================================================================
 
-  // Payment Code modal state
+  // Map of ticket type IDs to selected quantities
+  // Format: { [ticketTypeId]: quantity }
+  let selectedTickets: Record<string, number> = {};
+
+  // Flag to indicate page has finished initial load animation
+  let pageLoaded = false;
+
+  // Loading states for different operations
+  let claimingTickets = false; // Free ticket claiming in progress
+  let processingPayment = false; // Solana payment in progress
+  let processingOrangeMoney = false; // Orange Money payment in progress
+  let processingAfrimoney = false; // Afrimoney payment in progress
+
+  // Modal visibility flags
+  let showPaymentConfirmation = false; // Solana payment confirmation dialog
+  let showGuestCheckout = false; // Guest checkout modal
+
+  // ============================================================================
+  // REACTIVE STATE - Payment Modal Data
+  // ============================================================================
+
+  // Controls visibility of mobile money payment modal (USSD code display)
   let showPaymentModal = false;
+
+  // Data passed to mobile money payment modal
   let paymentModalData: {
-    paymentCodeId: string;
-    ussdCode: string;
-    amount: number;
-    currency: string;
+    paymentCodeId: string; // Monime payment code ID for polling
+    ussdCode: string; // USSD code to dial for payment
+    amount: number; // Total amount including fees
+    currency: string; // Currency code (e.g., "NLe")
     paymentMethod: "orange_money" | "afrimoney";
-    purchaseData: any;
+    purchaseData: any; // Full purchase data for order creation
   } | null = null;
+
+  // Payment details for Solana payment confirmation dialog
   let paymentDetails: {
     totalTickets: number;
     ticketDetails: Array<{
@@ -83,64 +158,114 @@
       price: number;
       quantity: number;
     }>;
-    totalAmount: number;
-    fromWallet: string;
-    toWallet: string;
+    totalAmount: number; // Total in SOL
+    fromWallet: string; // Buyer's wallet address
+    toWallet: string; // Platform receiving wallet
   } = {
     totalTickets: 0,
     ticketDetails: [],
     totalAmount: 0,
     fromWallet: "",
-    toWallet: "HDCrEYrGwPBP2rqX1G7TqChzkN6ckRSpJBVF1YT1YPSF",
+    toWallet: "HDCrEYrGwPBP2rqX1G7TqChzkN6ckRSpJBVF1YT1YPSF", // Platform wallet
   };
 
-  // Wallet connection state
+  // ============================================================================
+  // REACTIVE STATE - Wallet Connection
+  // ============================================================================
+
+  // Currently connected Solana wallet address (null if not connected)
   $: connectedWalletAddress = $walletStore?.address || null;
+
+  // Web3 user profile data (if wallet is connected and user is authenticated)
   $: web3User = $web3UserStore?.user || null;
 
-  // Initialize ticket quantities
+  // ============================================================================
+  // REACTIVE STATEMENTS - Initialization & Calculations
+  // ============================================================================
+
+  /**
+   * Initialize selectedTickets object with all ticket types set to 0
+   * Runs whenever ticketTypes array changes
+   */
   $: ticketTypes.forEach((ticket) => {
     if (!selectedTickets[ticket.id]) {
       selectedTickets[ticket.id] = 0;
     }
   });
 
-  // Calculate total price
+  /**
+   * Calculate total price based on selected tickets
+   * Sums up: (ticket price × quantity) for each selected ticket type
+   */
   $: totalPrice = ticketTypes.reduce((total, ticket) => {
     return total + ticket.price * (selectedTickets[ticket.id] || 0);
   }, 0);
 
-  // Calculate platform fee for mobile money payments (disabled)
+  /**
+   * Platform fee for mobile money payments
+   * Currently disabled (set to 0)
+   */
   $: platformFee = 0;
 
-  // Calculate base total (ticket price only; no platform fee)
+  /**
+   * Base total (ticket prices only, no fees)
+   * Used as the base for fee calculations
+   */
   $: baseTotal = totalPrice;
 
-  // Calculate Monime's 1% processing fee
+  /**
+   * Monime processing fee
+   * 1% of the base total (charged by Monime payment gateway)
+   */
   $: monimeFee = baseTotal > 0 ? baseTotal * 0.01 : 0;
 
-  // Total with platform fee and Monime fee (for mobile money)
+  /**
+   * Total amount including all fees
+   * Used for mobile money payments (baseTotal + monimeFee)
+   */
   $: totalWithFee = baseTotal + monimeFee;
 
-  // Event details - will be populated after event loads
+  // ============================================================================
+  // STATE - Event Details Display
+  // ============================================================================
+
+  // Array of event detail items to display in the Key Details section
+  // Populated after event data is loaded
   let eventDetails: Array<{ icon: string; label: string; value: string }> = [];
 
+  // ============================================================================
+  // FUNCTIONS - Ticket Selection & Validation
+  // ============================================================================
+
+  /**
+   * Handles quantity changes from the QuantitySelector component
+   *
+   * Validates the new quantity against multiple constraints:
+   * 1. Ticket type availability (not sold out)
+   * 2. Max seats per order (per ticket type)
+   * 3. Available quantity for this ticket type
+   * 4. Total event capacity (across all ticket types)
+   *
+   * @param ticketId - The ID of the ticket type being modified
+   * @param newQuantity - The new quantity value from the selector
+   */
   function handleQuantityChange(ticketId: string, newQuantity: number) {
     // Get the ticket type to check its specific constraints
     const ticketType = ticketTypes.find((t) => t.id === ticketId);
     if (!ticketType) return;
 
-    // Validate against multiple constraints
+    // Extract validation constraints from event and ticket data
     const maxSeatsPerOrder = event?.seating_options?.max_seats_per_order || 10;
     const eventTotalCapacity = event?.total_capacity || 100;
     const ticketTypeCapacity = ticketType.available_quantity;
 
-    // Calculate current totals
+    // Calculate total quantity of other ticket types (excluding current one)
+    // Used to check if total exceeds event capacity
     const otherTicketsTotal = Object.entries(selectedTickets)
       .filter(([id]) => id !== ticketId)
       .reduce((sum, [, qty]) => sum + qty, 0);
 
-    // Check if tickets are sold out
+    // Validation 1: Check if tickets are sold out
     if (ticketTypeCapacity <= 0) {
       showToast(
         "error",
@@ -150,7 +275,7 @@
       return;
     }
 
-    // Validation checks - max seats per order is PER TICKET TYPE
+    // Validation 2: Max seats per order is PER TICKET TYPE (not total)
     if (newQuantity > maxSeatsPerOrder) {
       showToast(
         "warning",
@@ -160,6 +285,7 @@
       return;
     }
 
+    // Validation 3: Check against available quantity for this ticket type
     if (newQuantity > ticketTypeCapacity) {
       showToast(
         "warning",
@@ -169,7 +295,7 @@
       return;
     }
 
-    // Check if total across all ticket types exceeds event capacity
+    // Validation 4: Check if total across all ticket types exceeds event capacity
     if (otherTicketsTotal + newQuantity > eventTotalCapacity) {
       showToast(
         "warning",
@@ -179,10 +305,11 @@
       return;
     }
 
+    // All validations passed - update the quantity
     selectedTickets[ticketId] = newQuantity;
-    selectedTickets = { ...selectedTickets };
+    selectedTickets = { ...selectedTickets }; // Trigger reactivity
 
-    // Show success toast for quantity changes
+    // Show success toast for quantity changes (only if quantity > 0)
     if (newQuantity > 0) {
       showToast(
         "success",
@@ -192,6 +319,15 @@
     }
   }
 
+  /**
+   * Handles adding a single ticket to the selection (increment by 1)
+   *
+   * Similar validation to handleQuantityChange, but specifically for
+   * incrementing by 1. Currently not used in the UI (QuantitySelector
+   * handles increments directly), but kept for potential future use.
+   *
+   * @param ticketId - The ID of the ticket type to add
+   */
   function handleAddToCart(ticketId: string) {
     const ticketType = ticketTypes.find((t) => t.id === ticketId);
     if (!ticketType) return;
@@ -254,6 +390,22 @@
     );
   }
 
+  // ============================================================================
+  // FUNCTIONS - Payment Processing
+  // ============================================================================
+
+  /**
+   * Handles Solana/Web3 payment initiation
+   *
+   * Currently disabled for maintenance. When enabled, this function:
+   * 1. Validates wallet connection
+   * 2. Validates ticket selection
+   * 3. Calculates payment details
+   * 4. Shows confirmation dialog
+   * 5. Processes payment via processPayment() after confirmation
+   *
+   * NOTE: Web3 payments are temporarily disabled - function returns early
+   */
   async function handlePayWithSolana() {
     // Web3 payments temporarily disabled
     showToast(
@@ -350,6 +502,18 @@
     }
   }
 
+  /**
+   * Processes the confirmed Solana payment
+   *
+   * Called after user confirms payment in the confirmation dialog.
+   * This function:
+   * 1. Creates a Solana transaction
+   * 2. Sends transaction via wallet
+   * 3. Records purchase in database
+   * 4. Redirects to confirmation page
+   *
+   * NOTE: Web3 payments are temporarily disabled - function returns early
+   */
   async function processPayment() {
     // Web3 payments temporarily disabled
     showToast(
@@ -449,6 +613,22 @@
     }
   }
 
+  /**
+   * Handles Orange Money payment initiation
+   *
+   * Creates a payment code via Monime API and displays the USSD code
+   * in a modal for the user to complete payment.
+   *
+   * Limitations:
+   * - Currently limited to 1 ticket per order
+   * - Requires Monime API integration
+   *
+   * Flow:
+   * 1. Validate ticket selection
+   * 2. Calculate totals and fees
+   * 3. Create payment code via Monime API
+   * 4. Display payment modal with USSD code
+   */
   async function handlePayWithOrangeMoney() {
     // Validate ticket selection
     const totalSelected = Object.values(selectedTickets).reduce(
@@ -465,7 +645,7 @@
       return;
     }
 
-    // Limit Orange Money to 1 ticket per order
+    // Limit Orange Money to 1 ticket per order (Monime API limitation)
     if (totalSelected > 1) {
       showToast(
         "warning",
@@ -564,6 +744,23 @@
     }
   }
 
+  /**
+   * Handles Afrimoney payment initiation
+   *
+   * Similar to handlePayWithOrangeMoney, but for Afrimoney provider.
+   * Creates a payment code via Monime API and displays the USSD code
+   * in a modal for the user to complete payment.
+   *
+   * Limitations:
+   * - Currently limited to 1 ticket per order
+   * - Requires Monime API integration
+   *
+   * Flow:
+   * 1. Validate ticket selection
+   * 2. Calculate totals and fees
+   * 3. Create payment code via Monime API
+   * 4. Display payment modal with USSD code
+   */
   async function handlePayWithAfrimoney() {
     // Validate ticket selection
     const totalSelected = Object.values(selectedTickets).reduce(
@@ -580,7 +777,7 @@
       return;
     }
 
-    // Limit Afrimoney to 1 ticket per order
+    // Limit Afrimoney to 1 ticket per order (Monime API limitation)
     if (totalSelected > 1) {
       showToast(
         "warning",
@@ -679,6 +876,16 @@
     }
   }
 
+  // ============================================================================
+  // FUNCTIONS - Guest Checkout
+  // ============================================================================
+
+  /**
+   * Opens the guest checkout modal for non-Web3 users
+   *
+   * Allows users without wallets to purchase tickets using
+   * mobile money or card payments.
+   */
   async function handleGuestCheckout() {
     // Validate ticket selection
     const totalSelected = Object.values(selectedTickets).reduce(
@@ -699,6 +906,14 @@
     showGuestCheckout = true;
   }
 
+  /**
+   * Handles successful guest payment
+   *
+   * Called when guest checkout completes successfully.
+   * Redirects to guest ticket page with access token.
+   *
+   * @param event - CustomEvent containing accessToken and paymentMethod
+   */
   function handleGuestPaymentSuccess(event: CustomEvent) {
     const { accessToken, paymentMethod } = event.detail;
     const paymentMethodText =
@@ -709,10 +924,16 @@
       `Your ${paymentMethodText} payment was processed. Tickets are ready for download.`
     );
     showGuestCheckout = false;
-    // Redirect to guest ticket page
+    // Redirect to guest ticket page with access token
     goto(`/tickets/guest/${accessToken}`);
   }
 
+  /**
+   * Handles wallet connection request from guest checkout modal
+   *
+   * Closes guest checkout modal and prompts user to connect wallet
+   * to access Web3 features.
+   */
   function handleConnectWalletFromGuest() {
     showGuestCheckout = false;
     // Trigger wallet connection (you can implement this based on your existing wallet connection logic)
@@ -723,6 +944,23 @@
     );
   }
 
+  // ============================================================================
+  // FUNCTIONS - Free Ticket Claiming
+  // ============================================================================
+
+  /**
+   * Handles claiming free tickets for free events
+   *
+   * Free tickets require wallet connection to ensure tickets are
+   * properly linked to a wallet address for ownership verification.
+   *
+   * Flow:
+   * 1. Validate wallet connection
+   * 2. Validate ticket selection and quantities
+   * 3. Get/verify Web3 user session
+   * 4. Claim tickets via Supabase
+   * 5. Redirect to confirmation page
+   */
   async function handleGetFreeTicket() {
     // Check if wallet is connected - required for free tickets
     if (!connectedWalletAddress) {
@@ -864,8 +1102,28 @@
     }
   }
 
+  // ============================================================================
+  // LIFECYCLE - Component Initialization
+  // ============================================================================
+
+  /**
+   * Component mount handler
+   *
+   * Runs when the component is first mounted to the DOM.
+   *
+   * Responsibilities:
+   * 1. Handle URL query parameters (payment cancellation, old session cleanup)
+   * 2. Load event data from Supabase
+   * 3. Process and format event data
+   * 4. Initialize ticket types and event details
+   * 5. Set loading states
+   */
   onMount(async () => {
-    // Check if payment was cancelled
+    // ========================================================================
+    // URL Parameter Handling
+    // ========================================================================
+
+    // Check if payment was cancelled (from redirect back from payment gateway)
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("payment") === "cancelled") {
       showToast(
@@ -893,12 +1151,22 @@
       );
     }
 
+    // ========================================================================
+    // Event Data Loading
+    // ========================================================================
+
     try {
       // Load event data from database
       const eventData = await getEventById(eventId);
 
       if (eventData) {
-        // Determine if event is free based on all ticket types having zero price
+        // ====================================================================
+        // Event Data Processing
+        // ====================================================================
+
+        // Determine if event is free based on:
+        // 1. Explicit is_free_event flag, OR
+        // 2. All ticket types having zero/null/undefined price
         const isFreeEvent =
           eventData.is_free_event ||
           (eventData.ticket_types &&
@@ -911,6 +1179,7 @@
               return price === 0 || price === null || price === undefined;
             }));
 
+        // Format event object for display
         event = {
           id: eventData.id,
           name: eventData.name,
@@ -939,24 +1208,31 @@
           is_free_event: isFreeEvent,
         };
 
+        // ====================================================================
+        // Ticket Types Processing
+        // ====================================================================
+
         // Update ticket types from database - always show actual ticket types
         if (eventData.ticket_types && eventData.ticket_types.length > 0) {
+          // Map database ticket types to component format
           ticketTypes = eventData.ticket_types.map((ticket: any) => ({
             id: ticket.id,
             name: ticket.name,
+            // Handle both string and number price formats
             price:
               typeof ticket.price === "string"
                 ? parseFloat(ticket.price)
                 : ticket.price,
             description: ticket.description,
             features: ticket.benefits || [],
+            // Calculate available quantity: total - sold (minimum 0)
             available_quantity: Math.max(
               0,
               (ticket.quantity || 0) - (ticket.sold_quantity || 0)
             ),
           }));
         } else {
-          // Fallback for events without ticket types
+          // Fallback for events without ticket types (shouldn't happen in production)
           ticketTypes = [
             {
               id: "fallback-ticket-type",
@@ -973,7 +1249,11 @@
           ];
         }
 
-        // Populate event details after event is loaded
+        // ====================================================================
+        // Event Details Array for Display
+        // ====================================================================
+
+        // Populate event details array for the Key Details section
         eventDetails = [
           { icon: "calendar", label: "Date", value: event.date },
           { icon: "clock", label: "Time", value: eventData.time || "TBD" },
@@ -995,11 +1275,26 @@
       loading = false;
     }
 
+    // Small delay to allow for smooth page load animation
     setTimeout(() => {
       pageLoaded = true;
     }, 100);
   });
 </script>
+
+<!-- ============================================================================
+     TEMPLATE - Page Structure
+     ============================================================================
+     
+     The page is structured as follows:
+     1. Loading/Error states
+     2. Navigation buttons (Back, Share)
+     3. Hero section with event image and basic info
+     4. Two-column layout:
+        - Left: Event information (About, Key Details)
+        - Right: Ticket selection and payment
+     5. Modals (Payment confirmation, Guest checkout, Mobile money payment)
+-->
 
 <div class="min-h-screen bg-gray-900 text-white">
   {#if loading}
@@ -1028,7 +1323,11 @@
       </div>
     </div>
   {:else if event}
-    <!-- Back Button -->
+    <!-- ======================================================================
+         Navigation Buttons
+         ====================================================================== -->
+
+    <!-- Back Button - Returns to marketplace -->
     <BackButton
       top="top-20"
       left="left-6"
@@ -1036,7 +1335,7 @@
       title="Back to Marketplace"
     />
 
-    <!-- Share Button -->
+    <!-- Share Button - Share event on social media -->
     <ShareButton
       top="top-20"
       right="right-6"
@@ -1045,22 +1344,31 @@
       description={event.description || "Check out this amazing event!"}
     />
 
-    <!-- Hero Section -->
+    <!-- ======================================================================
+         Hero Section
+         ====================================================================== -->
+
+    <!-- Hero Section - Displays event image, name, date, venue -->
     <EventHeroSection {event} />
 
-    <!-- Main Content -->
+    <!-- ======================================================================
+         Main Content - Two Column Layout
+         ====================================================================== -->
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Left Column - Event Information -->
+        <!-- ==================================================================
+             Left Column - Event Information
+             ================================================================== -->
         <div class="space-y-8">
-          <!-- About the Event -->
+          <!-- About the Event - Event description -->
           <EventDetailsCard
             title="About the Event"
             description={event.description ||
               "Experience this amazing event with world-class entertainment and unforgettable moments."}
           />
 
-          <!-- Key Details -->
+          <!-- Key Details - Date, time, location, category, organizer, max per order -->
           <EventDetailsCard title="Key Details">
             <div class="space-y-4">
               {#each eventDetails as detail}
@@ -1074,11 +1382,14 @@
           </EventDetailsCard>
         </div>
 
-        <!-- Right Column - Ticket Selection -->
+        <!-- ==================================================================
+             Right Column - Ticket Selection & Payment
+             ================================================================== -->
         <div class="space-y-6">
+          <!-- Ticket Type Cards - One for each ticket type -->
           {#each ticketTypes as ticket}
             <TicketSelectionCard {ticket}>
-              <!-- Sold Out Overlay -->
+              <!-- Sold Out Overlay - Shown when no tickets available -->
               {#if ticket.available_quantity <= 0}
                 <div
                   class="absolute inset-0 bg-gray-900/80 rounded-xl flex items-center justify-center z-10"
@@ -1135,6 +1446,7 @@
                 </div>
               </div>
 
+              <!-- Quantity Selector - Allows user to select ticket quantity -->
               <div class="flex justify-center">
                 <QuantitySelector
                   quantity={selectedTickets[ticket.id] || 0}
@@ -1142,6 +1454,7 @@
                   onQuantityChange={(newQuantity) =>
                     handleQuantityChange(ticket.id, newQuantity)}
                 />
+                <!-- Note: Add to Cart button is commented out - QuantitySelector handles selection directly -->
                 <!-- <GradientButton
                   text={ticket.price === 0 ? "Select Quantity" : "Add to Cart"}
                   onClick={() => handleAddToCart(ticket.id)}
@@ -1152,7 +1465,16 @@
             </TicketSelectionCard>
           {/each}
 
-          <!-- Payment Summary -->
+          <!-- ==================================================================
+               Payment Summary Card
+               ==================================================================
+               
+               Displays:
+               - Total price
+               - Fee breakdown (if applicable)
+               - Payment buttons (varies based on event type and wallet connection)
+               - Info about max tickets and wallet status
+          -->
           <PaymentSummaryCard
             totalPrice={totalWithFee}
             currency="NLe"
@@ -1205,7 +1527,17 @@
               </div>
             </div>
 
+            <!-- ==============================================================
+                 Payment Buttons Section
+                 ==============================================================
+                 
+                 Payment options vary based on:
+                 1. Event type (free vs paid)
+                 2. Wallet connection status
+            -->
+
             {#if event.is_free_event}
+              <!-- Free Event: Show "Get Free Ticket" button -->
               <GradientButton
                 text={claimingTickets
                   ? "Claiming Tickets..."
@@ -1223,7 +1555,7 @@
             {:else}
               <!-- Paid Event: Show different buttons based on wallet connection -->
               {#if connectedWalletAddress}
-                <!-- Web3 User: Show Solana payment -->
+                <!-- Web3 User: Show Solana payment option -->
                 <GradientButton
                   text={processingPayment
                     ? "Processing Payment..."
@@ -1259,13 +1591,23 @@
               {:else}
                 <!-- Non-Web3 User: Show Mobile Money Payment Options -->
                 <div class="space-y-3">
-                  <!-- Orange Money Payment Option -->
+                  <!-- ==========================================================
+                       Orange Money Payment Button
+                       ==========================================================
+                       
+                       Features:
+                       - Logo-only button (no text)
+                       - White background with orange border
+                       - Hover effects (scale, shadow, shine)
+                       - Loading spinner when processing
+                       - Limited to 1 ticket per order
+                  -->
                   <button
                     on:click={handlePayWithOrangeMoney}
                     disabled={totalPrice === 0 || processingOrangeMoney}
                     class="relative overflow-hidden w-full px-4 sm:px-6 py-3 sm:py-4 bg-white hover:bg-gray-50 border-2 border-orange-500/30 hover:border-orange-500 rounded-lg font-semibold transition-all duration-300 ease-out transform hover:scale-[1.02] hover:shadow-xl hover:shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:scale-100 group/btn flex items-center justify-center"
                   >
-                    <!-- Button shine effect -->
+                    <!-- Button shine effect on hover -->
                     <div
                       class="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"
                     ></div>
@@ -1273,6 +1615,7 @@
                       class="relative z-10 flex items-center justify-center"
                     >
                       {#if processingOrangeMoney}
+                        <!-- Loading spinner -->
                         <svg
                           class="animate-spin h-5 w-5 sm:h-6 sm:w-6 text-orange-500"
                           xmlns="http://www.w3.org/2000/svg"
@@ -1294,6 +1637,7 @@
                           ></path>
                         </svg>
                       {:else}
+                        <!-- Orange Money logo -->
                         <img
                           src={orangeMoneyLogo}
                           alt="Orange Money"
@@ -1303,13 +1647,23 @@
                     </span>
                   </button>
 
-                  <!-- Afrimoney Payment Option -->
+                  <!-- ==========================================================
+                       Afrimoney Payment Button
+                       ==========================================================
+                       
+                       Features:
+                       - Logo-only button (no text)
+                       - White background with purple border
+                       - Hover effects (scale, shadow, shine)
+                       - Loading spinner when processing
+                       - Limited to 1 ticket per order
+                  -->
                   <button
                     on:click={handlePayWithAfrimoney}
                     disabled={totalPrice === 0 || processingAfrimoney}
                     class="relative overflow-hidden w-full px-4 sm:px-6 py-3 sm:py-4 bg-white hover:bg-gray-50 border-2 border-purple-500/30 hover:border-purple-500 rounded-lg font-semibold transition-all duration-300 ease-out transform hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:scale-100 group/btn flex items-center justify-center"
                   >
-                    <!-- Button shine effect -->
+                    <!-- Button shine effect on hover -->
                     <div
                       class="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"
                     ></div>
@@ -1317,6 +1671,7 @@
                       class="relative z-10 flex items-center justify-center"
                     >
                       {#if processingAfrimoney}
+                        <!-- Loading spinner -->
                         <svg
                           class="animate-spin h-5 w-5 sm:h-6 sm:w-6 text-purple-500"
                           xmlns="http://www.w3.org/2000/svg"
@@ -1338,6 +1693,7 @@
                           ></path>
                         </svg>
                       {:else}
+                        <!-- Afrimoney logo -->
                         <img
                           src={afriMoneyLogo}
                           alt="Afrimoney"
@@ -1420,7 +1776,12 @@
   {/if}
 </div>
 
-<!-- Payment Confirmation Dialog -->
+<!-- ============================================================================
+     MODALS
+     ============================================================================ -->
+
+<!-- Payment Confirmation Dialog
+     Shown before processing Solana payment to confirm transaction details -->
 <ConfirmationDialog
   bind:show={showPaymentConfirmation}
   title="Confirm Payment"
@@ -1446,7 +1807,8 @@
   }}
 />
 
-<!-- Guest Checkout Modal -->
+<!-- Guest Checkout Modal
+     Allows non-Web3 users to purchase tickets with mobile money or card -->
 <GuestCheckoutModal
   bind:show={showGuestCheckout}
   totalAmount={totalPrice}
@@ -1456,6 +1818,9 @@
   on:close={() => (showGuestCheckout = false)}
 />
 
+<!-- Mobile Money Payment Modal
+     Displays USSD code for Orange Money or Afrimoney payment
+     Polls payment status and redirects on success -->
 {#if paymentModalData}
   <MobileMoneyPaymentModal
     bind:show={showPaymentModal}
@@ -1471,7 +1836,7 @@
     }}
     on:success={(e) => {
       const { orderId } = e.detail;
-      // Redirect to confirmation page
+      // Redirect to confirmation page on successful payment
       goto(`/tickets/confirmation/${orderId}`);
       showPaymentModal = false;
       paymentModalData = null;
@@ -1479,8 +1844,12 @@
   />
 {/if}
 
+<!-- ============================================================================
+     STYLES
+     ============================================================================ -->
+
 <style>
-  /* Page load animation */
+  /* Page load animation - smooth transitions for all properties */
   .transition-all {
     transition-property: all;
   }

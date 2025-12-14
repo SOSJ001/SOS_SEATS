@@ -1,106 +1,222 @@
+<!--
+  Marketplace Page
+  ================
+  
+  Main landing page for browsing and discovering events in the SOS SEATS platform.
+  
+  Features:
+  - Hero section with animated banner and call-to-action
+  - Search and filter functionality (by name, venue, category)
+  - Featured events section (first 4 events)
+  - Tabbed "All Events" section with:
+    * Upcoming tab (all filtered events)
+    * Resales tab (events after the first 6)
+  - Responsive grid layouts for event cards
+  - Loading states with skeleton loaders
+  - Smooth animations and transitions
+  
+  Route: /marketplace
+-->
+
 <script lang="ts">
-  // =====================================================
+  // ============================================================================
   // IMPORTS
-  // =====================================================
+  // ============================================================================
+
+  // UI Components
   import EventCard from "$lib/components/EventCard.svelte";
   import SearchFilters from "$lib/components/SearchFilters.svelte";
+
+  // Svelte lifecycle
   import { onMount } from "svelte";
+
+  // Database functions
   import { loadPublicEvents } from "$lib/supabase.js";
 
-  // =====================================================
-  // STATE VARIABLES
-  // =====================================================
+  // ============================================================================
+  // STATE VARIABLES - Search & Filter
+  // ============================================================================
 
-  // Search and filter functionality
-  let searchQuery = ""; // Current search query for filtering events
-  let selectedCategory = "All Events"; // Currently selected category filter
-  let showFilters = false; // Toggle for showing/hiding filter options
-  let pageLoaded = false; // Animation state for page load
-  let cardsVisible = false; // Animation state for event cards
-  let heroSearchQuery = ""; // Search query from hero section (currently disabled)
-  let activeTab: "upcoming" | "resales" = "upcoming"; // Active tab for All Events section
+  // Current search query for filtering events by name or venue
+  let searchQuery = "";
 
-  // Event data collections
-  let allEvents: any[] = []; // All events loaded from database
-  let featuredEvents: any[] = []; // Featured events (first 4 events)
-  let upcomingEvents: any[] = []; // Upcoming events (first 6 events)
-  let resaleEvents: any[] = []; // Resale events (events after the first 6)
-  let loading = true; // Loading state for event data
+  // Currently selected category filter (defaults to "All Events")
+  let selectedCategory = "All Events";
 
-  // =====================================================
-  // REACTIVE STATEMENTS - EVENT FILTERING
-  // =====================================================
+  // Toggle for showing/hiding filter options (currently unused)
+  let showFilters = false;
 
-  // Filter all events based on search query and selected category
-  // Updates automatically when searchQuery or selectedCategory changes
+  // Search query from hero section (currently disabled - hero search is commented out)
+  let heroSearchQuery = "";
+
+  // ============================================================================
+  // STATE VARIABLES - UI Animation States
+  // ============================================================================
+
+  // Controls page load animation (fade in, slide up)
+  let pageLoaded = false;
+
+  // Controls event card animations (staggered fade in)
+  let cardsVisible = false;
+
+  // Active tab in "All Events" section ("upcoming" or "resales")
+  let activeTab: "upcoming" | "resales" = "upcoming";
+
+  // ============================================================================
+  // STATE VARIABLES - Event Data Collections
+  // ============================================================================
+
+  // All events loaded from database (raw data)
+  let allEvents: any[] = [];
+
+  // Featured events (first 4 events from allEvents)
+  // Displayed prominently at the top of the page
+  let featuredEvents: any[] = [];
+
+  // Upcoming events (first 6 events from allEvents)
+  // Shown in the "Upcoming" tab
+  let upcomingEvents: any[] = [];
+
+  // Resale events (events after the first 6)
+  // Shown in the "Resales" tab
+  let resaleEvents: any[] = [];
+
+  // Loading state for event data fetch
+  let loading = true;
+
+  // ============================================================================
+  // REACTIVE STATEMENTS - Event Filtering
+  // ============================================================================
+
+  /**
+   * Filtered events for the "All Events" section
+   *
+   * Reactively filters allEvents based on:
+   * 1. Search query (matches event name or venue)
+   * 2. Selected category filter
+   *
+   * Updates automatically when:
+   * - searchQuery changes
+   * - selectedCategory changes
+   * - allEvents changes
+   *
+   * Used in the "Upcoming" tab to display filtered results.
+   */
   $: filteredEvents = (() => {
+    // Normalize search query (lowercase, trimmed)
     const query = (searchQuery || "").toLowerCase().trim();
     const category = selectedCategory || "All Events";
 
     return allEvents.filter((event: any) => {
-      // Check if event matches search query (name or venue)
+      // Search matching: Check event name or venue
       const eventName = (event.name || "").toLowerCase();
       const eventVenue = (event.venue || "").toLowerCase();
       const matchesSearch =
         query === "" || eventName.includes(query) || eventVenue.includes(query);
 
-      // Check if event matches selected category
+      // Category matching: Check if event category matches selected filter
       const matchesCategory =
         category === "All Events" || event.category === category;
 
-      // Return events that match both search and category
+      // Event must match both search AND category to be included
       return matchesSearch && matchesCategory;
     });
   })();
 
-  // Filter featured events based on search query and selected category
-  // Updates automatically when searchQuery, selectedCategory, or featuredEvents changes
+  /**
+   * Filtered featured events
+   *
+   * Reactively filters featuredEvents based on:
+   * 1. Search query (matches event name or venue)
+   * 2. Selected category filter
+   *
+   * Updates automatically when:
+   * - searchQuery changes
+   * - selectedCategory changes
+   * - featuredEvents changes
+   *
+   * Used in the "Featured Events" section at the top of the page.
+   */
   $: filteredFeaturedEvents = (() => {
+    // Normalize search query (lowercase, trimmed)
     const query = (searchQuery || "").toLowerCase().trim();
     const category = selectedCategory || "All Events";
 
     return featuredEvents.filter((event: any) => {
-      // Check if event matches search query (name or venue)
+      // Search matching: Check event name or venue
       const eventName = (event.name || "").toLowerCase();
       const eventVenue = (event.venue || "").toLowerCase();
       const matchesSearch =
         query === "" || eventName.includes(query) || eventVenue.includes(query);
 
-      // Check if event matches selected category
+      // Category matching: Check if event category matches selected filter
       const matchesCategory =
         category === "All Events" || event.category === category;
 
-      // Return events that match both search and category
+      // Event must match both search AND category to be included
       return matchesSearch && matchesCategory;
     });
   })();
 
-  // =====================================================
+  // ============================================================================
   // FUNCTIONS
-  // =====================================================
+  // ============================================================================
 
-  // Handle search from hero section
-  // Sets the main search query and scrolls to the main content area
+  /**
+   * Handles search from hero section
+   *
+   * Currently disabled (hero search bar is commented out).
+   * When enabled, this function:
+   * 1. Sets the main search query from hero input
+   * 2. Smoothly scrolls to the main content area
+   *
+   * This allows users to search directly from the hero section
+   * and automatically see results.
+   */
   function handleHeroSearch() {
     searchQuery = heroSearchQuery;
-    // Scroll to the main content
+    // Smooth scroll to main content area to show filtered results
     document
       .getElementById("main-content")
       ?.scrollIntoView({ behavior: "smooth" });
   }
 
-  // =====================================================
-  // LIFECYCLE - ON MOUNT
-  // =====================================================
+  // ============================================================================
+  // LIFECYCLE - Component Initialization
+  // ============================================================================
 
-  // Load events when component mounts
+  /**
+   * Component mount handler
+   *
+   * Runs when the component is first mounted to the DOM.
+   *
+   * Responsibilities:
+   * 1. Load public events from Supabase database
+   * 2. Process events to determine free event status
+   * 3. Categorize events into collections (featured, upcoming, resales)
+   * 4. Trigger page load animations
+   * 5. Trigger card animations after page loads
+   */
   onMount(async () => {
     try {
-      // Load public events from database
+      // ========================================================================
+      // Load Events from Database
+      // ========================================================================
+
+      // Load all public events from Supabase
       const events = await loadPublicEvents();
 
+      // ========================================================================
+      // Process Events - Determine Free Event Status
+      // ========================================================================
+
       // Process events: Ensure all events have the is_free_event property
-      // Checks various formats for free events (0, "Free", "NLe 0", etc.)
+      // Handles various price formats that indicate a free event:
+      // - Explicit is_free_event flag
+      // - Price === 0 (number)
+      // - Price === "Free" (string)
+      // - Price === "0" or "NLe 0" (string)
+      // - Price string containing "free" or "nle 0" (case-insensitive)
       allEvents = (events || []).map((event: any) => {
         const price = event.price;
         const isFree =
@@ -119,14 +235,17 @@
         };
       });
 
-      // Categorize events into different collections
-      // Set featured events (first 4 events)
+      // ========================================================================
+      // Categorize Events into Collections
+      // ========================================================================
+
+      // Featured events: First 4 events (displayed prominently at top)
       featuredEvents = allEvents.slice(0, 4);
 
-      // Set upcoming events (first 6 events)
+      // Upcoming events: First 6 events (shown in "Upcoming" tab)
       upcomingEvents = allEvents.slice(0, 6);
 
-      // Set resale events (remaining events after first 6)
+      // Resale events: Remaining events after first 6 (shown in "Resales" tab)
       resaleEvents = allEvents.slice(6);
 
       loading = false;
@@ -135,12 +254,18 @@
       loading = false;
     }
 
-    // Trigger page load animation after a short delay
+    // ========================================================================
+    // Trigger Animations
+    // ========================================================================
+
+    // Trigger page load animation after a short delay (100ms)
+    // This allows the DOM to render before animations start
     setTimeout(() => {
       pageLoaded = true;
     }, 100);
 
-    // Trigger card animations after page load
+    // Trigger card animations after page load animation completes (300ms delay)
+    // Creates a staggered effect where cards fade in one by one
     setTimeout(() => {
       cardsVisible = true;
     }, 300);
@@ -151,15 +276,33 @@
   <title>Marketplace - SOS SEATS</title>
 </svelte:head>
 
-<!-- =====================================================
-     MARKETPLACE PAGE
-     Main page for browsing and discovering events
-     ===================================================== -->
+<!-- ============================================================================
+     TEMPLATE - Page Structure
+     ============================================================================
+     
+     The page is structured as follows:
+     1. Hero section with animated banner and call-to-action
+     2. Main content area:
+        - Search and filter section
+        - Featured events section (first 4 events)
+        - All events section with tabs:
+          * Upcoming tab (all filtered events)
+          * Resales tab (events after first 6)
+     3. Loading states with skeleton loaders
+     4. Empty states for when no events match filters
+-->
+
 <div class="min-h-screen bg-gray-900 text-white">
-  <!-- =====================================================
+  <!-- ============================================================================
        HERO SECTION
-       Full-height hero banner with background image and main heading
-       ===================================================== -->
+       ============================================================================
+       
+       Full-height hero banner (70vh, minimum 600px) featuring:
+       - Background image with dark and gradient overlays
+       - Animated heading and subheading
+       - Scroll indicator (animated arrow)
+       - Hero search bar (currently commented out/disabled)
+  -->
   <div class="relative h-[70vh] min-h-[600px] overflow-hidden">
     <!-- Background Image with Overlays -->
     <div class="absolute inset-0">
@@ -260,12 +403,25 @@
     </div>
   </div>
 
-  <!-- =====================================================
+  <!-- ============================================================================
        MAIN CONTENT AREA
-       Container for search filters, featured events, and all events
-       ===================================================== -->
+       ============================================================================
+       
+       Container for all main content sections:
+       - Search and filter controls
+       - Featured events grid
+       - All events tabbed section
+  -->
   <div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Search and Filters Section: Search bar and category filters -->
+    <!-- ========================================================================
+         Search and Filters Section
+         ========================================================================
+         
+         SearchFilters component provides:
+         - Search input (filters by event name or venue)
+         - Category dropdown (filters by event category)
+         - Two-way binding with searchQuery and selectedCategory
+    -->
     <div
       class="bg-gray-800 rounded-xl p-6 mb-8 shadow-lg transition-all duration-1000 ease-out delay-600 {pageLoaded
         ? 'opacity-100 translate-y-0'
@@ -274,10 +430,19 @@
       <SearchFilters bind:searchQuery bind:selectedCategory />
     </div>
 
-    <!-- =====================================================
+    <!-- ============================================================================
          FEATURED EVENTS SECTION
-         Displays the first 4 events as featured/promoted events
-         ===================================================== -->
+         ============================================================================
+         
+         Displays the first 4 events from allEvents as featured/promoted events.
+         These events are shown prominently at the top of the page.
+         
+         Features:
+         - Responsive grid: 4 columns (desktop), 2 columns (tablet), 1 column (mobile)
+         - Loading state with skeleton loaders
+         - Staggered card animations (cards fade in one by one)
+         - Empty state when no featured events match filters
+    -->
     <div
       class="mb-12 transition-all duration-1000 ease-out delay-800 {pageLoaded
         ? 'opacity-100 translate-y-0'
@@ -334,25 +499,43 @@
       {/if}
     </div>
 
-    <!-- =====================================================
+    <!-- ============================================================================
          ALL EVENTS SECTION
-         Tabbed section displaying all events with filtering
-         ===================================================== -->
+         ============================================================================
+         
+         Tabbed section displaying all events with filtering capabilities.
+         
+         Structure:
+         - Section title with tab pills (Upcoming / Resales)
+         - Tab content that switches based on activeTab state
+         - Each tab shows filtered events in a responsive grid
+    -->
     <div
       class="transition-all duration-1000 ease-out delay-1000 {pageLoaded
         ? 'opacity-100 translate-y-0'
         : 'opacity-0 translate-y-8'}"
     >
-      <!-- Section Title and Filter Pills: "All Events" text with pill-shaped filter buttons -->
+      <!-- ========================================================================
+           Section Header - Title and Tab Pills
+           ========================================================================
+           
+           Displays "All Events" title with two tab buttons:
+           - Upcoming: Shows all filtered events (purple when active)
+           - Resales: Shows resale events (red when active)
+      -->
       <div
         class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mb-8"
       >
-        <!-- Section Title: Plain text on the left -->
+        <!-- Section Title -->
         <h2 class="text-3xl md:text-4xl font-bold text-white">All Events</h2>
 
-        <!-- Filter Pills: Two pill-shaped buttons next to the title -->
+        <!-- Tab Pills: Two pill-shaped buttons for switching between views -->
         <div class="flex items-center gap-3">
-          <!-- Upcoming Button: Purple pill when active -->
+          <!-- Upcoming Tab Button
+               - Purple background when active
+               - Scales up and shows shadow when active
+               - Gray background when inactive
+          -->
           <button
             on:click={() => (activeTab = "upcoming")}
             class="px-6 py-3 rounded-full font-semibold text-white transition-all duration-300 ease-out {activeTab ===
@@ -363,7 +546,11 @@
             Upcoming
           </button>
 
-          <!-- Resales Button: Red/pink pill when active -->
+          <!-- Resales Tab Button
+               - Red background when active
+               - Scales up and shows shadow when active
+               - Gray background when inactive
+          -->
           <button
             on:click={() => (activeTab = "resales")}
             class="px-6 py-3 rounded-full font-semibold text-white transition-all duration-300 ease-out {activeTab ===
@@ -376,12 +563,21 @@
         </div>
       </div>
 
-      <!-- =====================================================
-           UPCOMING CONTENT
-           Displays all filtered events in a grid layout
-           ===================================================== -->
+      <!-- ========================================================================
+           UPCOMING TAB CONTENT
+           ========================================================================
+           
+           Displays all filtered events (filteredEvents) in a responsive grid.
+           
+           Features:
+           - Loading state: 6 skeleton loaders in 3-column grid
+           - Events grid: 4 columns (desktop), 1 column (mobile)
+           - Staggered animations: Cards fade in with 100ms delay between each
+           - Empty state: Message when no events match search/filter criteria
+           - Button text: "Get Free Ticket" for free events, "View Details" for paid
+      -->
       {#if activeTab === "upcoming"}
-        <!-- Loading State: Skeleton loaders for upcoming events -->
+        <!-- Loading State: Skeleton loaders while events are being fetched -->
         {#if loading}
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {#each Array(6) as _, index}
@@ -397,11 +593,11 @@
               </div>
             {/each}
           </div>
-          <!-- Events Grid: Responsive 4-column grid showing filtered events -->
+          <!-- Events Grid: Shows filteredEvents in responsive 4-column grid -->
         {:else if filteredEvents.length > 0}
           <div class="grid grid-cols-1 sm:grid-cols-4 gap-6">
             {#each filteredEvents as event, index}
-              <!-- Event Card with staggered animation delay -->
+              <!-- Event Card with staggered animation (100ms delay per card) -->
               <div
                 class="transition-all duration-700 ease-out {cardsVisible
                   ? 'opacity-100 translate-y-0 scale-100'
@@ -417,7 +613,7 @@
               </div>
             {/each}
           </div>
-          <!-- Empty State: Message when no events match the search/filter criteria -->
+          <!-- Empty State: Shown when no events match search/filter criteria -->
         {:else}
           <div class="text-center py-12">
             <p class="text-gray-400 text-lg">
@@ -427,12 +623,21 @@
         {/if}
       {/if}
 
-      <!-- =====================================================
-           RESALES CONTENT
-           Displays resale events (events after the first 6)
-           ===================================================== -->
+      <!-- ========================================================================
+           RESALES TAB CONTENT
+           ========================================================================
+           
+           Displays resale events (resaleEvents - events after the first 6).
+           
+           Features:
+           - Loading state: 3 skeleton loaders in 3-column grid
+           - Events grid: 3 columns (desktop), 2 columns (tablet), 1 column (mobile)
+           - Staggered animations: Cards fade in with 100ms delay between each
+           - Empty state: Message when no resale events are available
+           - Button text: "Get Free Ticket" for free events, "View Details" for paid
+      -->
       {#if activeTab === "resales"}
-        <!-- Loading State: Skeleton loaders for resale events -->
+        <!-- Loading State: Skeleton loaders while events are being fetched -->
         {#if loading}
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {#each Array(3) as _, index}
@@ -448,11 +653,11 @@
               </div>
             {/each}
           </div>
-          <!-- Resale Events Grid: Responsive 3-column grid for resale events -->
+          <!-- Resale Events Grid: Shows resaleEvents in responsive 3-column grid -->
         {:else if resaleEvents.length > 0}
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {#each resaleEvents as event, index}
-              <!-- Event Card with staggered animation delay -->
+              <!-- Event Card with staggered animation (100ms delay per card) -->
               <div
                 class="transition-all duration-700 ease-out {cardsVisible
                   ? 'opacity-100 translate-y-0 scale-100'
@@ -468,7 +673,7 @@
               </div>
             {/each}
           </div>
-          <!-- Empty State: Message when no resale events are available -->
+          <!-- Empty State: Shown when no resale events are available -->
         {:else}
           <div class="text-center py-12">
             <p class="text-gray-400 text-lg">
@@ -481,47 +686,63 @@
   </div>
 </div>
 
-<style>
-  /* =====================================================
-     CUSTOM ANIMATIONS AND TRANSITIONS
-     ===================================================== */
+<!-- ============================================================================
+     STYLES
+     ============================================================================ -->
 
-  /* Custom animations for smooth transitions */
+<style>
+  /* ============================================================================
+     CUSTOM ANIMATIONS AND TRANSITIONS
+     ============================================================================
+     
+     Global utility classes for smooth page transitions and animations.
+     These classes are used throughout the template for consistent animations.
+  */
+
+  /* Global transition utility - applies transitions to all properties */
   :global(.transition-all) {
     transition-property: all;
   }
 
+  /* Global duration utility - 700ms transition duration */
   :global(.duration-700) {
     transition-duration: 700ms;
   }
 
+  /* Global easing utility - ease-out timing function */
   :global(.ease-out) {
     transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
   }
 
-  /* =====================================================
+  /* ============================================================================
      ENHANCED TAB ANIMATIONS
-     Custom styles for Flowbite tabs with hover effects
-     ===================================================== */
+     ============================================================================
+     
+     Custom styles for Flowbite tabs with hover effects.
+     These styles add shimmer/shine effects on tab hover.
+     
+     Note: Currently not used in this component, but reserved for potential
+     future tab component integration.
+  */
 
-  /* Tab container transitions */
+  /* Tab container - smooth transitions for all properties */
   :global(.flowbite-tabs) {
     transition: all 0.3s ease-out;
   }
 
-  /* Individual tab item styling */
+  /* Individual tab item - positioned relative for shimmer effect */
   :global(.flowbite-tab-item) {
     transition: all 0.3s ease-out;
     position: relative;
     overflow: hidden;
   }
 
-  /* Shimmer effect on tab hover */
+  /* Shimmer effect pseudo-element - creates a sliding shine effect */
   :global(.flowbite-tab-item::before) {
     content: "";
     position: absolute;
     top: 0;
-    left: -100%;
+    left: -100%; /* Start off-screen to the left */
     width: 100%;
     height: 100%;
     background: linear-gradient(
@@ -533,16 +754,21 @@
     transition: left 0.5s ease-out;
   }
 
-  /* Animate shimmer effect on hover */
+  /* Animate shimmer effect on hover - slides from left to right */
   :global(.flowbite-tab-item:hover::before) {
-    left: 100%;
+    left: 100%; /* End off-screen to the right */
   }
 
-  /* =====================================================
+  /* ============================================================================
      HERO SECTION ENHANCEMENTS
-     Backdrop blur effects for hero search input
-     (Currently unused - reserved for future hero search feature)
-     ===================================================== */
+     ============================================================================
+     
+     Backdrop blur effects for hero search input.
+     
+     Currently unused - reserved for future hero search feature.
+     When hero search is enabled, these styles will provide a glassmorphism
+     effect to the search input.
+  */
   /* .hero-search-input {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
