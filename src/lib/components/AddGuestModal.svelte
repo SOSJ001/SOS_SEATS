@@ -222,14 +222,8 @@
             },
           };
 
-          console.log(
-            `Form preview - Dynamic canvas size: ${canvasSize.width}x${canvasSize.height} (from image: ${imageDimensions.width}x${imageDimensions.height})`
-          );
         } catch (imageError) {
-          console.warn(
-            "Could not get image dimensions for form preview, using default canvas size:",
-            imageError
-          );
+          // Using default canvas size
         }
       }
 

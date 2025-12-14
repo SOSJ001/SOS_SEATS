@@ -101,6 +101,21 @@
         }
       });
     }
+
+    // Solflare wallet listeners
+    if (typeof window !== "undefined" && (window as any).solflare) {
+      try {
+        (window as any).solflare.on("connect", () => {
+          checkAvailableWallets(); // Refresh wallet list when Solflare connects
+        });
+
+        (window as any).solflare.on("disconnect", () => {
+          handleWalletDisconnect();
+        });
+      } catch (error) {
+        // Solflare might not support all event listeners
+      }
+    }
   }
 
   // Handle wallet disconnect (called when wallet is disconnected externally)
@@ -269,8 +284,15 @@
     }
 
     // Check for Solflare
-    if (typeof window !== "undefined" && (window as any).solflare) {
-      availableWallets.push("Solflare");
+    // Solflare can be injected as window.solflare or window.solflareAdapter
+    if (typeof window !== "undefined") {
+      if (
+        (window as any).solflare ||
+        (window as any).solflareAdapter ||
+        ((window as any).solana && (window as any).solana.isSolflare)
+      ) {
+        availableWallets.push("Solflare");
+      }
     }
 
     // Check for Backpack
@@ -280,6 +302,9 @@
 
     // Update store after wallet detection
     updateStore();
+
+    // Re-setup listeners in case new wallets were detected
+    setupWalletListeners();
   }
 
   function updateStore() {
@@ -423,7 +448,26 @@
         typeof window !== "undefined" &&
         (window as any).solflare
       ) {
-        response = await (window as any).solflare.connect();
+        // Solflare connect() may return the wallet object or just a confirmation
+        // We need to get the public key from window.solflare.publicKey after connection
+        await (window as any).solflare.connect();
+        // Get public key directly from the wallet object
+        const solflarePublicKey = (window as any).solflare.publicKey;
+        if (solflarePublicKey) {
+          // Handle both toBase58() and toString() methods
+          walletAddress = solflarePublicKey.toBase58
+            ? solflarePublicKey.toBase58()
+            : solflarePublicKey.toString();
+          walletConnected = true;
+          updateStore();
+        } else {
+          connectionError =
+            "Solflare connection failed: No public key available";
+          updateStore();
+          return false;
+        }
+        // Skip the generic response handling for Solflare since we handled it above
+        // Continue to authentication
       } else if (
         walletName === "Backpack" &&
         typeof window !== "undefined" &&
@@ -432,13 +476,30 @@
         response = await (window as any).backpack.connect();
       } else {
         connectionError = `${walletName} wallet not found or not available.`;
-        console.error("[Wallet] Provider not found:", walletName);
         updateStore();
         return false;
       }
 
-      // Set wallet connection state
-      walletAddress = response.publicKey.toString();
+      // Set wallet connection state (skip for Solflare as it's already handled)
+      if (walletName !== "Solflare") {
+        // Handle different response structures for different wallets
+        if (response.publicKey) {
+          walletAddress = response.publicKey.toString();
+        } else if (
+          response &&
+          typeof response === "object" &&
+          response.toString
+        ) {
+          // Some wallets return the public key directly
+          walletAddress = response.toString();
+        } else {
+          connectionError = `${walletName} connection failed: No public key received`;
+          updateStore();
+          return false;
+        }
+        walletConnected = true;
+        updateStore();
+      }
       walletConnected = true;
       updateStore();
 
@@ -452,7 +513,6 @@
 
       return authResult.success;
     } catch (error: any) {
-      console.error("[Wallet] Connect error:", walletName, error);
       connectionError = error?.message || `Failed to connect to ${walletName}`;
       updateStore();
       return false;
