@@ -17,6 +17,7 @@
   import SolanaWalletProvider from "$lib/components/SolanaWalletProvider.svelte";
   import ScrollObserver from "$lib/components/ScrollObserver.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
+  import PWAInstallButton from "$lib/components/PWAInstallButton.svelte";
 
   export let data;
 
@@ -529,6 +530,9 @@
 
 <!-- Global Toast Container -->
 <ToastContainer position="bottom-right" />
+
+<!-- PWA Install Button -->
+<PWAInstallButton />
 
 <style>
   :global(body) {
