@@ -4,6 +4,7 @@
     supabase,
     validateAndCheckInTicket,
     checkInGuest,
+    loadScanHistory,
   } from "$lib/supabase";
   import { showToast } from "$lib/store";
   import EventSelector from "$lib/components/EventSelector.svelte";
@@ -48,11 +49,18 @@
   let __prevSelectedEvent = "";
   $: if (selectedEvent !== __prevSelectedEvent) {
     __prevSelectedEvent = selectedEvent;
-    if (selectedEvent) handleEventChange(selectedEvent);
+    if (selectedEvent) {
+      handleEventChange(selectedEvent); // Fire and forget async call
+    }
   }
 
   onMount(async () => {
     await loadEvents();
+
+    // Load scan history for selected event if available
+    if (selectedEvent) {
+      await loadScanHistoryForEvent(selectedEvent);
+    }
 
     // Trigger entrance animations
     setTimeout(() => {
@@ -89,6 +97,8 @@
       // Set first event as selected if available
       if (events.length > 0 && !selectedEvent) {
         selectedEvent = events[0].id;
+        // Load scan history for the selected event
+        await loadScanHistoryForEvent(selectedEvent);
       }
     } catch (err) {
       console.error("Error loading events:", err);
@@ -99,11 +109,25 @@
     }
   }
 
-  function handleEventChange(eventId: string) {
+  async function handleEventChange(eventId: string) {
     selectedEvent = eventId;
     // Reset scan state when event changes
     isScanning = false;
     currentScanResult = null;
+    // Load scan history for the new event
+    if (eventId) {
+      await loadScanHistoryForEvent(eventId);
+    }
+  }
+
+  async function loadScanHistoryForEvent(eventId: string) {
+    try {
+      const history = await loadScanHistory(eventId, 50);
+      scanHistory = history;
+    } catch (err) {
+      console.error("Error loading scan history:", err);
+      // Don't show error toast, just log it
+    }
   }
 
   function isUuid(value: string) {
@@ -146,7 +170,7 @@
         // Enforce selected event: ensure guest belongs to selectedEvent before check-in
         const { data: guestRow, error: guestErr } = await supabase
           .from("guests")
-          .select("id, event_id, status")
+          .select("id, event_id, status, check_in_time")
           .eq("id", scannedValue)
           .maybeSingle();
 
@@ -160,24 +184,35 @@
             success: false,
             message: "Invalid code",
           };
+        } else if (guestRow.check_in_time) {
+          // Already checked in
+          const checkInDate = new Date(guestRow.check_in_time);
+          const formattedDate = checkInDate.toLocaleString([], {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          result = {
+            success: false,
+            message: `This ticket has already been checked in on ${formattedDate}. Each ticket can only be used once.`,
+          };
+        } else if (guestRow.status && guestRow.status !== "confirmed") {
+          result = { success: false, message: "Invalid code" };
         } else {
-          // Valid guest for this event; ensure not already checked in
-          if (guestRow.status && guestRow.status !== "confirmed") {
-            result = { success: false, message: "Invalid code" };
-          } else {
-            // Confirm before performing guest check-in
-            pendingGuestId = scannedValue;
-            confirmMode = "guest";
-            confirmDialogData = {
-              title: "Confirm Check-In",
-              message: "Proceed to check in this ticket?",
-              confirmText: "Check In",
-              confirmVariant: "success",
-            };
-            showConfirmDialog = true;
-            isScanning = false;
-            return;
-          }
+          // Confirm before performing guest check-in
+          pendingGuestId = scannedValue;
+          confirmMode = "guest";
+          confirmDialogData = {
+            title: "Confirm Check-In",
+            message: "Proceed to check in this ticket?",
+            confirmText: "Check In",
+            confirmVariant: "success",
+          };
+          showConfirmDialog = true;
+          isScanning = false;
+          return;
         }
       } else if (isLikelySolanaAddress(scannedValue)) {
         // Wallet path (Web3) — if multiple unscanned tickets exist, confirm before consuming one
@@ -243,18 +278,10 @@
           ticketInfo: ticketInfo,
         };
 
-        // Add to scan history
-        scanHistory = [
-          {
-            id: Date.now().toString(),
-            guestName: ticketInfo.original_buyer_name || "Unknown",
-            status: "success" as const,
-            message: `${ticketInfo.ticket_type_name} - Checked In`,
-            timestamp: currentScanResult.timestamp,
-            walletAddress: undefined,
-          },
-          ...scanHistory.slice(0, 9), // Keep only last 10 entries
-        ];
+        // Reload scan history from database
+        if (selectedEvent) {
+          await loadScanHistoryForEvent(selectedEvent);
+        }
 
         showToast(
           "success",
@@ -272,18 +299,7 @@
           }),
         };
 
-        // Add to scan history
-        scanHistory = [
-          {
-            id: Date.now().toString(),
-            guestName: "Invalid Ticket",
-            status: "error" as const,
-            message: result.message,
-            timestamp: currentScanResult.timestamp,
-            walletAddress: undefined,
-          },
-          ...scanHistory.slice(0, 9),
-        ];
+        // Don't add failed scans to history (only successful check-ins are stored)
 
         showToast("error", "Validation Failed", result.message);
       }
@@ -317,8 +333,9 @@
       return;
     }
 
-    isScanning = true;
+    // Clear previous scan result to show camera again
     currentScanResult = null;
+    isScanning = true;
   }
 
   function stopScanning() {
@@ -337,6 +354,10 @@
 
     const selectedEventData = events.find((e) => e.id === selectedEvent);
 
+    // Clear previous scan result and stop any ongoing scanning to show camera
+    currentScanResult = null;
+    isScanning = false;
+    
     confirmMode = "start";
     confirmDialogData = {
       title: "Start Scanning",
@@ -347,11 +368,11 @@
     showConfirmDialog = true;
   }
 
-  function handleScanConfirm() {
+  async function handleScanConfirm() {
     showConfirmDialog = false;
     if (confirmMode === "wallet" && pendingWalletAddress) {
       processWalletScan(pendingWalletAddress)
-        .then(({ result }) => {
+        .then(async ({ result }) => {
           if (result.success) {
             const ticketInfo = result.ticketInfo;
             currentScanResult = {
@@ -366,43 +387,52 @@
               }),
               ticketInfo: ticketInfo,
             };
-            scanHistory = [
-              {
-                id: Date.now().toString(),
-                guestName: ticketInfo.original_buyer_name || "Unknown",
-                status: "success" as const,
-                message: `${ticketInfo.ticket_type_name} - Checked In`,
-                timestamp: currentScanResult.timestamp,
-                walletAddress: pendingWalletAddress || undefined,
-              },
-              ...scanHistory.slice(0, 9),
-            ];
+            // Reload scan history from database
+            if (selectedEvent) {
+              await loadScanHistoryForEvent(selectedEvent);
+            }
             showToast(
               "success",
               "Ticket Validated",
               `${ticketInfo.original_buyer_name} checked in successfully`
             );
           } else {
+            // Format error message if it contains a timestamp
+            let errorMessage = result.message;
+            if (
+              errorMessage &&
+              errorMessage.includes("already checked in at")
+            ) {
+              // Try to format the timestamp in the message
+              const timestampMatch = errorMessage.match(
+                /already checked in at (.+)/
+              );
+              if (timestampMatch && timestampMatch[1]) {
+                try {
+                  const checkInDate = new Date(timestampMatch[1]);
+                  const formattedDate = checkInDate.toLocaleString([], {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                  errorMessage = `This ticket has already been checked in on ${formattedDate}. Each ticket can only be used once.`;
+                } catch (e) {
+                  // If date parsing fails, use original message
+                }
+              }
+            }
             currentScanResult = {
               success: false,
-              message: result.message,
+              message: errorMessage,
               timestamp: new Date().toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
               }),
             };
-            scanHistory = [
-              {
-                id: Date.now().toString(),
-                guestName: "Invalid Ticket",
-                status: "error" as const,
-                message: result.message,
-                timestamp: currentScanResult.timestamp,
-                walletAddress: pendingWalletAddress || undefined,
-              },
-              ...scanHistory.slice(0, 9),
-            ];
-            showToast("error", "Validation Failed", result.message);
+            // Don't add failed scans to history (only successful check-ins are stored)
+            showToast("error", "Validation Failed", errorMessage);
           }
         })
         .finally(() => {
@@ -413,7 +443,7 @@
     } else if (confirmMode === "guest" && pendingGuestId) {
       // Proceed with guest check-in after confirmation
       checkInGuest(pendingGuestId)
-        .then((check) => {
+        .then(async (check) => {
           if (check.success) {
             const ticketInfo: any = {
               original_buyer_name: "Guest",
@@ -431,16 +461,10 @@
               }),
               ticketInfo,
             };
-            scanHistory = [
-              {
-                id: Date.now().toString(),
-                guestName: ticketInfo.original_buyer_name,
-                status: "success" as const,
-                message: `${ticketInfo.ticket_type_name} - Checked In`,
-                timestamp: currentScanResult.timestamp,
-              },
-              ...scanHistory.slice(0, 9),
-            ];
+            // Reload scan history from database
+            if (selectedEvent) {
+              await loadScanHistoryForEvent(selectedEvent);
+            }
             showToast(
               "success",
               "Ticket Validated",
@@ -455,16 +479,7 @@
                 minute: "2-digit",
               }),
             };
-            scanHistory = [
-              {
-                id: Date.now().toString(),
-                guestName: "Invalid Ticket",
-                status: "error" as const,
-                message: currentScanResult.message,
-                timestamp: currentScanResult.timestamp,
-              },
-              ...scanHistory.slice(0, 9),
-            ];
+            // Don't add failed scans to history (only successful check-ins are stored)
             showToast("error", "Validation Failed", currentScanResult.message);
           }
         })
@@ -587,9 +602,48 @@
         <!-- Event Selector -->
         <EventSelector bind:selectedEvent />
 
-        <!-- QR Scanner -->
+        <!-- QR Scanner or Scan Result -->
         <div class="flex justify-center">
-          <QRScanner {isScanning} onScan={handleScanResult} />
+          {#if currentScanResult}
+            <!-- Show scan result in place of camera -->
+            <div class="w-80 min-h-80 bg-gray-800 border-2 border-cyan-400 rounded-lg overflow-hidden shadow-lg flex items-center justify-center p-6" style="box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);">
+              {#if currentScanResult.success}
+                <!-- Success Result -->
+                <div class="bg-green-600 border border-green-500 rounded-lg p-6 w-full">
+                  <div class="flex items-center mb-4 justify-center">
+                    <svg class="w-8 h-8 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    <h3 class="ml-2 text-white font-bold text-xl">Ticket Verified!</h3>
+                  </div>
+                  <div class="space-y-3 text-white text-center">
+                    <p class="font-semibold text-lg">{currentScanResult.guestName}</p>
+                    <p class="text-green-100">
+                      {currentScanResult.ticketType} - {currentScanResult.section}
+                    </p>
+                    <p class="text-green-200 text-sm">{currentScanResult.timestamp}</p>
+                  </div>
+                </div>
+              {:else}
+                <!-- Error Result -->
+                <div class="bg-red-600 border border-red-500 rounded-lg p-6 w-full">
+                  <div class="flex items-center mb-4 justify-center">
+                    <svg class="w-8 h-8 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <h3 class="ml-2 text-white font-bold text-xl">Scan Failed</h3>
+                  </div>
+                  <div class="space-y-3 text-white text-center">
+                    <p class="font-semibold text-base leading-relaxed">{currentScanResult.message}</p>
+                    <p class="text-red-200 text-sm">{currentScanResult.timestamp}</p>
+                  </div>
+                </div>
+              {/if}
+            </div>
+          {:else}
+            <!-- Show camera scanner when no result -->
+            <QRScanner {isScanning} onScan={handleScanResult} />
+          {/if}
         </div>
 
         <!-- Scan Controls -->
@@ -662,9 +716,6 @@
             </div>
           </div>
         {/if}
-
-        <!-- Scan Result -->
-        <ScanResult scanResult={currentScanResult} />
       </div>
 
       <!-- Right Column - Scan History -->
