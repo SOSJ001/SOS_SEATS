@@ -7,44 +7,6 @@
 
   const dispatch = createEventDispatcher();
 
-  // ============================================================================
-  // WALLET LOGO MAPPING
-  // ============================================================================
-  // Maps wallet names to their logo image paths in the static directory.
-  // The actual logo files provided are:
-  // - /Phantom-Icon_App_60x60.png (Phantom wallet)
-  // - /brave.png (Brave wallet)
-  // - /backpack.png (Backpack wallet)
-  // - /solflare.png (Solflare wallet - add this file to static directory)
-  // ============================================================================
-
-  /**
-   * Wallet logo paths mapping
-   *
-   * Maps wallet names to their logo file paths in the static directory.
-   * These are the actual wallet logo images provided.
-   *
-   * Supported formats: .png, .svg, .jpg, .webp
-   */
-  const walletLogos: Record<string, string> = {
-    Phantom: "/Phantom-Icon_App_60x60.png", // Phantom wallet logo (ghost icon)
-    Brave: "/brave.png", // Brave wallet logo (lion head)
-    Solflare: "/solflare.png", // Solflare wallet logo
-    Backpack: "/backpack.png", // Backpack wallet logo (red backpack icon)
-  };
-
-  /**
-   * Get wallet logo path
-   *
-   * Returns the logo path for a given wallet name, or null if not found.
-   *
-   * @param walletName - The name of the wallet (e.g., "Phantom", "Brave")
-   * @returns Logo path string or null
-   */
-  function getWalletLogo(walletName: string): string | null {
-    return walletLogos[walletName] || null;
-  }
-
   function selectWallet(walletName: string) {
     dispatch("select", { wallet: walletName });
     show = false;
@@ -122,31 +84,75 @@
               on:click={() => selectWallet(wallet)}
               class="w-full p-4 bg-gradient-to-br from-[#18122B] via-[#232946] to-[#0A0A0A] border border-[#00F5FF]/30 rounded-xl hover:border-[#00F5FF]/60 hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-3 group"
             >
-              <!-- Wallet icon - Fixed width container for consistent alignment -->
-              <div
-                class="flex-shrink-0 w-10 h-10 flex items-center justify-center"
-              >
-                {#if getWalletLogo(wallet)}
-                  <!-- Use actual wallet logo image -->
-                  <img
-                    src={getWalletLogo(wallet)}
-                    alt="{wallet} Logo"
-                    class="w-10 h-10 object-contain rounded-lg group-hover:scale-110 transition-transform duration-200"
-                  />
-                {:else}
-                  <!-- Default/Unknown Wallet Icon - Generic wallet icon -->
+              <!-- Wallet icon -->
+              <div class="flex-shrink-0">
+                {#if wallet === "Phantom"}
                   <div
-                    class="w-10 h-10 bg-gradient-to-br from-[#FFD700] to-[#FFA500] rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg shadow-yellow-500/20"
+                    class="w-8 h-8 bg-gradient-to-br from-[#9D4EDD] to-[#9D4EDD]/80 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200"
                   >
                     <svg
-                      class="w-6 h-6 text-gray-900"
+                      class="w-5 h-5 text-white"
                       viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
+                      fill="currentColor"
                     >
                       <path
-                        d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"
-                        fill="currentColor"
+                        d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                      />
+                    </svg>
+                  </div>
+                {:else if wallet === "Brave"}
+                  <div
+                    class="w-8 h-8 bg-gradient-to-br from-[#FF6B00] to-[#FF8C3A] rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200"
+                  >
+                    <svg
+                      class="w-5 h-5 text-white"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M12 2l4 2 4 3-2 11-6 4-6-4L4 7l4-3 4-2zm0 3.2L9.2 6.5 6.7 8.3 8 16l4 2.6 4-2.6 1.3-7.7-2.5-1.8L12 5.2z"
+                      />
+                    </svg>
+                  </div>
+                {:else if wallet === "Solflare"}
+                  <div
+                    class="w-8 h-8 bg-gradient-to-br from-[#FF6B6B] to-[#FF6B6B]/80 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200"
+                  >
+                    <svg
+                      class="w-5 h-5 text-white"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                      />
+                    </svg>
+                  </div>
+                {:else if wallet === "Backpack"}
+                  <div
+                    class="w-8 h-8 bg-gradient-to-br from-[#00F5FF] to-[#00F5FF]/80 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200"
+                  >
+                    <svg
+                      class="w-5 h-5 text-white"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M19 7h-3V6c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v1H5c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 6h4v1h-4V6z"
+                      />
+                    </svg>
+                  </div>
+                {:else}
+                  <div
+                    class="w-8 h-8 bg-gradient-to-br from-[#FFD700] to-[#FFD700]/80 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200"
+                  >
+                    <svg
+                      class="w-5 h-5 text-gray-900"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
                       />
                     </svg>
                   </div>
@@ -155,7 +161,7 @@
 
               <!-- Wallet name -->
               <span
-                class="font-medium text-gray-200 group-hover:text-white transition-colors duration-200 flex-shrink-0"
+                class="font-medium text-gray-200 group-hover:text-white transition-colors duration-200"
               >
                 {wallet}
               </span>
