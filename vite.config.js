@@ -87,9 +87,4 @@ export default defineConfig({
       transformMixedEsModules: true,
     },
   },
-  server: {
-    allowedHosts: ["4e4363144c04.ngrok-free.app"],
-    host: true,
-    port: 5173,
-  },
 });
