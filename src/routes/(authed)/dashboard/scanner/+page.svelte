@@ -35,6 +35,16 @@
   let confirmMode: "start" | "wallet" | "guest" = "start";
   let pendingWalletAddress: string | null = null;
   let pendingGuestId: string | null = null;
+  
+  // Valid ticket info (for showing before check-in)
+  let validTicketInfo: {
+    type: "guest" | "wallet";
+    guestId?: string;
+    walletAddress?: string;
+    guestName?: string;
+    ticketType?: string;
+    unscannedCount?: number;
+  } | null = null;
 
   // Animation states
   let isLoaded = false;
@@ -114,6 +124,7 @@
     // Reset scan state when event changes
     isScanning = false;
     currentScanResult = null;
+    validTicketInfo = null;
     // Load scan history for the new event
     if (eventId) {
       await loadScanHistoryForEvent(eventId);
@@ -170,9 +181,22 @@
         // Enforce selected event: ensure guest belongs to selectedEvent before check-in
         const { data: guestRow, error: guestErr } = await supabase
           .from("guests")
-          .select("id, event_id, status, check_in_time")
+          .select("id, event_id, status, check_in_time, first_name, last_name, ticket_type_id")
           .eq("id", scannedValue)
           .maybeSingle();
+        
+        // Get ticket type name separately if needed
+        let ticketTypeName = "Ticket";
+        if (guestRow && guestRow.ticket_type_id) {
+          const { data: ticketType } = await supabase
+            .from("ticket_types")
+            .select("name")
+            .eq("id", guestRow.ticket_type_id)
+            .maybeSingle();
+          if (ticketType) {
+            ticketTypeName = ticketType.name;
+          }
+        }
 
         if (guestErr || !guestRow) {
           result = {
@@ -201,16 +225,25 @@
         } else if (guestRow.status && guestRow.status !== "confirmed") {
           result = { success: false, message: "Invalid code" };
         } else {
-          // Confirm before performing guest check-in
-          pendingGuestId = scannedValue;
-          confirmMode = "guest";
-          confirmDialogData = {
-            title: "Confirm Check-In",
-            message: "Proceed to check in this ticket?",
-            confirmText: "Check In",
-            confirmVariant: "success",
+          // Valid ticket - show result card with check-in button
+          validTicketInfo = {
+            type: "guest",
+            guestId: scannedValue,
+            guestName: `${guestRow.first_name} ${guestRow.last_name}`,
+            ticketType: ticketTypeName,
           };
-          showConfirmDialog = true;
+          currentScanResult = {
+            success: true, // Use success to show valid ticket UI
+            message: "Ticket is valid and ready to check in",
+            guestName: validTicketInfo.guestName,
+            ticketType: validTicketInfo.ticketType,
+            section: "General Admission",
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            isPending: true, // Flag to indicate this is before check-in
+          };
           isScanning = false;
           return;
         }
@@ -233,26 +266,69 @@
           unscannedCount = count || 0;
         }
 
-        // Only show dialog if there is at least one unscanned ticket; otherwise invalid
+        // Check if tickets exist but are all checked in
         if ((unscannedCount || 0) < 1) {
-          route = "invalid";
-          result = { success: false, message: "Invalid code" };
+          // Check if there are any tickets for this wallet (to show better error)
+          const { data: checkedInTickets } = await supabase
+            .from("order_items")
+            .select("check_in_time, orders(buyer_name)")
+            .eq("current_owner", scannedValue)
+            .in("order_id", orderIds)
+            .not("check_in_time", "is", null)
+            .order("check_in_time", { ascending: false })
+            .limit(1);
+
+          if (checkedInTickets && checkedInTickets.length > 0 && checkedInTickets[0].check_in_time) {
+            // All tickets checked in
+            const checkInDate = new Date(checkedInTickets[0].check_in_time);
+            const formattedDate = checkInDate.toLocaleString([], {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            result = {
+              success: false,
+              message: `All tickets for this wallet have already been checked in. Last check-in: ${formattedDate}. Each ticket can only be used once.`,
+            };
+          } else {
+            route = "invalid";
+            result = { success: false, message: "Invalid code" };
+          }
         } else {
-          pendingWalletAddress = scannedValue;
-          confirmMode = "wallet";
-          confirmDialogData = {
-            title:
-              unscannedCount > 1
-                ? "Multiple Tickets Found"
-                : "Confirm Check-In",
-            message:
-              unscannedCount > 1
-                ? `This wallet has ${unscannedCount} unscanned tickets. Proceed to check in one?`
-                : "Proceed to check in this ticket?",
-            confirmText: unscannedCount > 1 ? "Check In One" : "Check In",
-            confirmVariant: "success",
+          // Valid ticket - show result card with check-in button
+          // Get buyer name for display
+          const { data: ticketInfo } = await supabase
+            .from("order_items")
+            .select("orders(buyer_name), ticket_types(name)")
+            .eq("current_owner", scannedValue)
+            .is("check_in_time", null)
+            .in("order_id", orderIds)
+            .limit(1)
+            .maybeSingle();
+
+          validTicketInfo = {
+            type: "wallet",
+            walletAddress: scannedValue,
+            guestName: ticketInfo?.orders?.buyer_name || "Ticket Holder",
+            ticketType: ticketInfo?.ticket_types?.name || "Ticket",
+            unscannedCount: unscannedCount,
           };
-          showConfirmDialog = true;
+          currentScanResult = {
+            success: true, // Use success to show valid ticket UI
+            message: unscannedCount > 1 
+              ? `${unscannedCount} unscanned tickets available`
+              : "Ticket is valid and ready to check in",
+            guestName: validTicketInfo.guestName,
+            ticketType: validTicketInfo.ticketType,
+            section: "General Admission",
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            isPending: true, // Flag to indicate this is before check-in
+          };
           isScanning = false;
           return;
         }
@@ -335,6 +411,7 @@
 
     // Clear previous scan result to show camera again
     currentScanResult = null;
+    validTicketInfo = null;
     isScanning = true;
   }
 
@@ -356,6 +433,7 @@
 
     // Clear previous scan result and stop any ongoing scanning to show camera
     currentScanResult = null;
+    validTicketInfo = null;
     isScanning = false;
     
     confirmMode = "start";
@@ -485,6 +563,7 @@
         })
         .finally(() => {
           pendingGuestId = null;
+          validTicketInfo = null;
           confirmMode = "start";
           isScanning = false;
         });
@@ -495,6 +574,41 @@
 
   function handleScanCancel() {
     showConfirmDialog = false;
+  }
+
+  function handleCheckInClick() {
+    if (!validTicketInfo) return;
+
+    if (validTicketInfo.type === "guest" && validTicketInfo.guestId) {
+      // Show confirmation dialog for guest check-in
+      pendingGuestId = validTicketInfo.guestId;
+      confirmMode = "guest";
+      confirmDialogData = {
+        title: "Confirm Check-In",
+        message: `Proceed to check in ${validTicketInfo.guestName}?`,
+        confirmText: "Check In",
+        confirmVariant: "success",
+      };
+      showConfirmDialog = true;
+    } else if (validTicketInfo.type === "wallet" && validTicketInfo.walletAddress) {
+      // Show confirmation dialog for wallet check-in
+      pendingWalletAddress = validTicketInfo.walletAddress;
+      confirmMode = "wallet";
+      const ticketCount = validTicketInfo.unscannedCount || 1;
+      confirmDialogData = {
+        title:
+          ticketCount > 1
+            ? "Multiple Tickets Found"
+            : "Confirm Check-In",
+        message:
+          ticketCount > 1
+            ? `This wallet has ${ticketCount} unscanned tickets. Proceed to check in one?`
+            : `Proceed to check in ${validTicketInfo.guestName}?`,
+        confirmText: ticketCount > 1 ? "Check In One" : "Check In",
+        confirmVariant: "success",
+      };
+      showConfirmDialog = true;
+    }
   }
 
   function toggleManualInput() {
@@ -608,22 +722,47 @@
             <!-- Show scan result in place of camera -->
             <div class="w-80 min-h-80 bg-gray-800 border-2 border-cyan-400 rounded-lg overflow-hidden shadow-lg flex items-center justify-center p-6" style="box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);">
               {#if currentScanResult.success}
-                <!-- Success Result -->
-                <div class="bg-green-600 border border-green-500 rounded-lg p-6 w-full">
-                  <div class="flex items-center mb-4 justify-center">
-                    <svg class="w-8 h-8 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                    </svg>
-                    <h3 class="ml-2 text-white font-bold text-xl">Ticket Verified!</h3>
+                {#if currentScanResult.isPending}
+                  <!-- Valid Ticket - Pending Check-In -->
+                  <div class="bg-cyan-600 border border-cyan-500 rounded-lg p-6 w-full">
+                    <div class="flex items-center mb-4 justify-center">
+                      <svg class="w-8 h-8 text-cyan-300" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd"/>
+                      </svg>
+                      <h3 class="ml-2 text-white font-bold text-xl">Valid Ticket</h3>
+                    </div>
+                    <div class="space-y-3 text-white text-center mb-4">
+                      <p class="font-semibold text-lg">{currentScanResult.guestName}</p>
+                      <p class="text-cyan-100">
+                        {currentScanResult.ticketType} - {currentScanResult.section}
+                      </p>
+                      <p class="text-cyan-200 text-sm">{currentScanResult.timestamp}</p>
+                    </div>
+                    <button
+                      on:click={handleCheckInClick}
+                      class="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      Check In
+                    </button>
                   </div>
-                  <div class="space-y-3 text-white text-center">
-                    <p class="font-semibold text-lg">{currentScanResult.guestName}</p>
-                    <p class="text-green-100">
-                      {currentScanResult.ticketType} - {currentScanResult.section}
-                    </p>
-                    <p class="text-green-200 text-sm">{currentScanResult.timestamp}</p>
+                {:else}
+                  <!-- Success Result (Already Checked In) -->
+                  <div class="bg-green-600 border border-green-500 rounded-lg p-6 w-full">
+                    <div class="flex items-center mb-4 justify-center">
+                      <svg class="w-8 h-8 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                      </svg>
+                      <h3 class="ml-2 text-white font-bold text-xl">Ticket Verified!</h3>
+                    </div>
+                    <div class="space-y-3 text-white text-center">
+                      <p class="font-semibold text-lg">{currentScanResult.guestName}</p>
+                      <p class="text-green-100">
+                        {currentScanResult.ticketType} - {currentScanResult.section}
+                      </p>
+                      <p class="text-green-200 text-sm">{currentScanResult.timestamp}</p>
+                    </div>
                   </div>
-                </div>
+                {/if}
               {:else}
                 <!-- Error Result -->
                 <div class="bg-red-600 border border-red-500 rounded-lg p-6 w-full">
