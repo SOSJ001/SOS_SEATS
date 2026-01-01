@@ -368,7 +368,8 @@
       </button>
 
       <!-- Show error message if any -->
-      {#if connectionError}
+      <!-- Error message display commented out -->
+      <!-- {#if connectionError}
         <div
           class="mt-1 md:mt-2 px-2 md:px-3 py-0.5 md:py-1 bg-red-900/50 border border-red-500/30 rounded-lg"
         >
@@ -376,7 +377,7 @@
             {connectionError}
           </div>
         </div>
-      {/if}
+      {/if} -->
     </div>
   {/if}
 </div>
