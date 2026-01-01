@@ -42,12 +42,12 @@
 </script>
 
 <div class="mb-4 sm:mb-6">
-  <label
+  <!-- <label
     for="event-select"
     class="block text-sm font-medium text-gray-300 mb-2"
   >
     Select Event to Scan
-  </label>
+  </label> -->
   <select
     id="event-select"
     value={selectedEvent || ""}
