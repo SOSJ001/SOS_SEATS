@@ -28,10 +28,7 @@
               e && e.id && (e.status === "published" || e.status === "live")
           )
           .map((e: any) => ({ id: e.id, name: e.name, date: e.date }));
-        if (!selectedEvent && options.length > 0) {
-          selectedEvent = options[0].id;
-          dispatch("eventChange", { eventId: selectedEvent });
-        }
+        // Don't auto-select - let user explicitly choose an event
       } else {
         options = [];
       }
@@ -53,11 +50,11 @@
   </label>
   <select
     id="event-select"
-    value={selectedEvent}
+    value={selectedEvent || ""}
     on:change={handleEventChange}
     class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
   >
-    <option value="all">All Events</option>
+    <option value="" disabled={selectedEvent !== ""}>Select an event...</option>
     {#each options as event}
       <option value={event.id}>{event.name}</option>
     {/each}
