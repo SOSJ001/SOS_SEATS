@@ -1,6 +1,5 @@
 <script>
   //@ts-nocheck
-  import Banner from "$lib/components/Banner.svelte";
   import Search from "$lib/components/Search.svelte";
   import michael from "$lib/assets/michael.jpeg";
   import jnice from "$lib/assets/jnice.jpeg";
