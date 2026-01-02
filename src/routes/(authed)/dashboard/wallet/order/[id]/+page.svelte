@@ -2,9 +2,8 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import { supabase } from "$lib/supabase";
-  import { sessionFromDb, loadUserEvents } from "$lib/supabase";
-  import { showToast } from "$lib/store";
+  import { supabase, loadUserEvents } from "$lib/supabase";
+  import { sessionFromDb, showToast } from "$lib/store";
 
   let order: any = null;
   let loading = true;
