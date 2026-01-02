@@ -166,6 +166,7 @@ class MonimeService {
 
   /**
    * Create a Payout to mobile money wallet
+   * @param fetchFn Optional fetch function (use event.fetch in server-side routes)
    */
   async createPayout(
     amount: { currency: string; value: number },
@@ -177,7 +178,8 @@ class MonimeService {
       financialAccountId?: string;
     },
     metadata?: Record<string, any>,
-    reference?: string
+    reference?: string,
+    fetchFn?: typeof fetch
   ): Promise<{
     id: string;
     status: string;
@@ -200,7 +202,8 @@ class MonimeService {
     createTime: string;
     metadata?: Record<string, any>;
   }> {
-    const response = await fetch("/api/monime/payout", {
+    const fetchToUse = fetchFn || fetch;
+    const response = await fetchToUse("/api/monime/payout", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -243,6 +246,68 @@ class MonimeService {
       }
 
       throw error;
+    }
+  }
+
+  /**
+   * Get Payout status by ID
+   * @param payoutId The Monime payout ID
+   * @param fetchFn Optional fetch function (use event.fetch in server-side routes)
+   */
+  async getPayoutStatus(
+    payoutId: string,
+    fetchFn?: typeof fetch
+  ): Promise<{
+    id: string;
+    status: string;
+    amount: { currency: string; value: number };
+    source?: { financialAccountId?: string; transactionReference?: string };
+    destination: {
+      type?: string;
+      providerId?: string;
+      accountId?: string;
+      phoneNumber?: string;
+      transactionReference?: string;
+    };
+    fees?: Array<{
+      code: string;
+      amount: { currency: string; value: number };
+      metadata?: Record<string, any>;
+    }>;
+    failureDetail?: {
+      code: string;
+      message?: string;
+    };
+    createTime: string;
+    updateTime?: string;
+    metadata?: Record<string, any>;
+  }> {
+    const fetchToUse = fetchFn || fetch;
+    const response = await fetchToUse(
+      `/api/monime/payout-status?payoutId=${payoutId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(
+        `Monime API Error: ${response.status} - ${
+          error.error || error.message || response.statusText
+        }`
+      );
+    }
+
+    const result = await response.json();
+
+    if (result.success && result.data) {
+      return result.data;
+    } else {
+      throw new Error(result.error || "Unknown API error");
     }
   }
 }

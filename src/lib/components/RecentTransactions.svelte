@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
+
   // Dynamic transactions passed from parent
   export let transactions: Array<{
     id: string;
@@ -8,6 +10,9 @@
     amount: string;
     status: string;
     icon: string;
+    source?: string;
+    external_id?: string;
+    transactionType?: string; // 'order' or 'wallet_transaction'
   }> = [];
   export let isLoading: boolean = false;
 
@@ -112,27 +117,47 @@
               </div>
             </div>
 
-            <!-- Right side - Amount and Status -->
+            <!-- Right side - Amount, Status, and View Details -->
             <div
-              class="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 flex-shrink-0"
+              class="flex flex-col sm:flex-row items-end sm:items-center justify-between sm:justify-end gap-2 sm:gap-3 flex-shrink-0"
             >
-              <!-- Amount -->
-              <span
-                class="font-semibold text-xs sm:text-sm md:text-base {getAmountClass(
-                  transaction.amount
-                )} whitespace-nowrap"
-              >
-                {transaction.amount}
-              </span>
+              <!-- Amount and Status Row -->
+              <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Amount -->
+                <span
+                  class="font-semibold text-xs sm:text-sm md:text-base {getAmountClass(
+                    transaction.amount
+                  )} whitespace-nowrap"
+                >
+                  {transaction.amount}
+                </span>
 
-              <!-- Status Tag -->
-              <span
-                class="px-2 py-1 text-[10px] sm:text-xs font-medium rounded-full {getStatusClass(
-                  transaction.status
-                )} whitespace-nowrap"
-              >
-                {transaction.status.toUpperCase()}
-              </span>
+                <!-- Status Tag -->
+                <span
+                  class="px-2 py-1 text-[10px] sm:text-xs font-medium rounded-full {getStatusClass(
+                    transaction.status
+                  )} whitespace-nowrap"
+                >
+                  {transaction.status.toUpperCase()}
+                </span>
+              </div>
+
+              <!-- View Details Button (only for completed transactions) -->
+              {#if transaction.status === "completed" || transaction.status === "paid"}
+                <button
+                  on:click={() => {
+                    if (transaction.transactionType === "wallet_transaction") {
+                      goto(`/dashboard/wallet/transaction/${transaction.id}`);
+                    } else if (transaction.transactionType === "order") {
+                      goto(`/dashboard/wallet/order/${transaction.id}`);
+                    }
+                  }}
+                  class="text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 font-medium transition-colors whitespace-nowrap underline underline-offset-2"
+                  title="View transaction details"
+                >
+                  View Details
+                </button>
+              {/if}
             </div>
           </div>
         </div>

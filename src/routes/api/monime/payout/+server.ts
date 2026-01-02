@@ -46,7 +46,9 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     // Get Monime credentials from environment
-    const apiKey = env.PUBLIC_MONIME_API_KEY;
+    // Prioritize payout API key if available (may have different permissions)
+    const apiKey =
+      env.PUBLIC_MONIME_PAYOUT_API_KEY || env.PUBLIC_MONIME_API_KEY;
     const spaceId = env.PUBLIC_MONIME_SPACE_ID;
     const environment = env.PUBLIC_MONIME_ENVIRONMENT || "live";
 
@@ -57,26 +59,104 @@ export const POST: RequestHandler = async ({ request }) => {
       );
     }
 
+    // Validate and format phone number
+    let formattedPhone = body.destination.accountId.trim();
+    // Remove any spaces, dashes, or other characters
+    formattedPhone = formattedPhone.replace(/[\s\-\(\)]/g, "");
+
+    // Handle different phone number formats
+    if (formattedPhone.startsWith("+")) {
+      // Already has country code, use as is
+      // Remove leading 0 if present after +232 (e.g., +232078002221 -> +23278002221)
+      if (formattedPhone.startsWith("+2320") && formattedPhone.length === 13) {
+        formattedPhone = formattedPhone.replace("+2320", "+232");
+      }
+    } else if (formattedPhone.startsWith("232")) {
+      // Has country code without +
+      formattedPhone = `+${formattedPhone}`;
+      // Remove leading 0 if present (e.g., +232078002221 -> +23278002221)
+      if (formattedPhone.startsWith("+2320") && formattedPhone.length === 13) {
+        formattedPhone = formattedPhone.replace("+2320", "+232");
+      }
+    } else {
+      // Local number - remove leading 0 if present, then add +232
+      // Sierra Leone numbers often start with 0 (e.g., 078002221 -> 78002221 -> +23278002221)
+      if (formattedPhone.startsWith("0")) {
+        formattedPhone = formattedPhone.substring(1); // Remove leading 0
+      }
+      formattedPhone = `+232${formattedPhone}`;
+    }
+
+    // Validate format: +232 followed by exactly 8 digits
+    const phoneRegex = /^\+232\d{8}$/;
+    if (!phoneRegex.test(formattedPhone)) {
+      return json(
+        {
+          success: false,
+          error: `Invalid phone number format. Expected +232XXXXXXXX (exactly 8 digits after +232). Got: ${body.destination.accountId}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Convert currency from "NLe" to "SLE" for Monime API (Monime uses ISO currency codes)
+    const monimeCurrency =
+      body.amount.currency === "NLe" ? "SLE" : body.amount.currency;
+
+    // Helper function to convert all metadata values to strings (Monime requires StringMap)
+    function convertMetadataToStrings(
+      metadata: Record<string, any>
+    ): Record<string, string> {
+      const stringMetadata: Record<string, string> = {};
+      for (const [key, value] of Object.entries(metadata)) {
+        if (value === null || value === undefined) {
+          continue;
+        } else if (typeof value === "object") {
+          stringMetadata[key] = JSON.stringify(value);
+        } else {
+          stringMetadata[key] = String(value);
+        }
+      }
+      return stringMetadata;
+    }
+
     // Prepare payout request
     const payoutRequest = {
       amount: {
-        currency: body.amount.currency,
+        currency: monimeCurrency, // Use ISO currency code (SLE) for Monime API
         value: Math.round(body.amount.value * 100), // Convert to smallest currency unit (cents)
       },
       destination: {
-        providerCode: body.destination.providerCode,
-        accountId: body.destination.accountId,
+        type: "momo", // Required: specifies destination type (bank, momo, or wallet)
+        providerId: body.destination.providerCode, // Use providerId (Monime expects this, not providerCode)
+        phoneNumber: formattedPhone, // Use phoneNumber for momo destination
       },
       ...(body.source?.financialAccountId && {
         source: {
           financialAccountId: body.source.financialAccountId,
         },
       }),
-      metadata: {
-        source: "sos_seats",
-        ...body.metadata,
-      },
-      ...(body.reference && { reference: body.reference }),
+      metadata: (() => {
+        const stringMetadata: Record<string, string> = {
+          source: "sos_seats",
+        };
+        if (body.metadata) {
+          for (const [key, value] of Object.entries(body.metadata)) {
+            if (value === null || value === undefined) {
+              continue;
+            } else if (typeof value === "object") {
+              stringMetadata[key] = JSON.stringify(value);
+            } else {
+              stringMetadata[key] = String(value);
+            }
+          }
+        }
+        // Add reference to metadata if provided (Monime doesn't allow reference as top-level field)
+        if (body.reference) {
+          stringMetadata.reference = body.reference;
+        }
+        return stringMetadata;
+      })(),
     };
 
     // Generate idempotency key

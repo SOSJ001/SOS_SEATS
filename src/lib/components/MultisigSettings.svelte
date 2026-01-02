@@ -24,8 +24,8 @@
   let originalIsEnabled = false;
   let originalRequiredSignatures = 2;
   
-  // Check if there are changes to save
-  $: hasChanges = originalIsEnabled !== isEnabled || originalRequiredSignatures !== requiredSignatures;
+  // Check if there are changes to save (only track required signatures now, isEnabled is auto-managed)
+  $: hasChanges = originalRequiredSignatures !== requiredSignatures;
 
   onMount(() => {
     loadMultisigConfig();
@@ -175,14 +175,29 @@
           signers: freshSigners,
         };
 
-        isEnabled = multisigConfig.is_enabled;
+        // Auto-enable multisig if signers exist (even if config says disabled)
+        const shouldAutoEnable = finalSignerCount >= 2;
+        isEnabled = shouldAutoEnable ? true : multisigConfig.is_enabled;
         requiredSignatures = multisigConfig.required_signatures;
         totalAvailableSigners = finalSignerCount;
         signers = freshSigners;
         
         // Save original state to detect changes
-        originalIsEnabled = multisigConfig.is_enabled;
+        originalIsEnabled = shouldAutoEnable ? true : multisigConfig.is_enabled;
         originalRequiredSignatures = multisigConfig.required_signatures;
+        
+        // If we auto-enabled, save the config to database
+        if (shouldAutoEnable && !multisigConfig.is_enabled && primaryWallet && primaryUserId) {
+          // Auto-save in background (don't wait for it)
+          supabase.rpc("upsert_multisig_config", {
+            p_wallet_address: primaryWallet,
+            p_user_id: primaryUserId,
+            p_required_signatures: requiredSignatures,
+            p_is_enabled: true,
+          }).catch(err => {
+            console.error("Error auto-enabling multisig on load:", err);
+          });
+        }
         
       } else {
         // No config exists yet, but we can show signers if they exist
@@ -236,13 +251,13 @@
     }
 
     // Validation
-    if (isEnabled && totalAvailableSigners < 2) {
-      showToast("error", "Invalid Configuration", "You need at least 2 signers (including your primary wallet) to enable multisig.");
+    if (totalAvailableSigners < 2) {
+      showToast("error", "Invalid Configuration", "You need at least 2 signers (including your primary wallet) to use multisig.");
       return;
     }
 
-    if (isEnabled && requiredSignatures < 2) {
-      showToast("error", "Invalid Configuration", "Multisig requires at least 2 signatures when enabled.");
+    if (requiredSignatures < 2) {
+      showToast("error", "Invalid Configuration", "Multisig requires at least 2 signatures.");
       return;
     }
 
@@ -254,11 +269,17 @@
     try {
       isLoading = true;
 
+      // Auto-enable multisig if there are signers (multisig is always enabled when signers exist)
+      const shouldEnable = totalAvailableSigners >= 2;
+      if (shouldEnable) {
+        isEnabled = true;
+      }
+
       const { data, error } = await supabase.rpc("upsert_multisig_config", {
         p_wallet_address: primaryWallet,
         p_user_id: primaryUserId,
         p_required_signatures: requiredSignatures,
-        p_is_enabled: isEnabled,
+        p_is_enabled: shouldEnable, // Always enable if signers exist
       });
 
       if (error) {
@@ -376,6 +397,41 @@
       await new Promise(resolve => setTimeout(resolve, 1500));
       await loadMultisigConfig();
     }
+    
+    // Auto-enable multisig when a signer is added (if we now have at least 2 signers)
+    if (totalAvailableSigners >= 2 && !isEnabled && primaryWallet && primaryUserId) {
+      isEnabled = true;
+      // Ensure required signatures is at least 2 and doesn't exceed total signers
+      if (requiredSignatures < 2) {
+        requiredSignatures = 2;
+      }
+      if (requiredSignatures > totalAvailableSigners) {
+        requiredSignatures = totalAvailableSigners;
+      }
+      
+      // Automatically save the config with multisig enabled
+      try {
+        const { data, error } = await supabase.rpc("upsert_multisig_config", {
+          p_wallet_address: primaryWallet,
+          p_user_id: primaryUserId,
+          p_required_signatures: requiredSignatures,
+          p_is_enabled: true, // Auto-enable when signer is added
+        });
+
+        if (error) {
+          console.error("Error auto-enabling multisig:", error);
+          // Don't show error toast - this is automatic
+        } else if (data && data.length > 0 && data[0].success) {
+          // Update original state to match
+          originalIsEnabled = true;
+          originalRequiredSignatures = requiredSignatures;
+          showToast("success", "Multi-Signature Enabled", "Multi-signature withdrawals have been automatically enabled.", 5000);
+        }
+      } catch (err) {
+        console.error("Error auto-enabling multisig:", err);
+        // Don't show error toast - this is automatic
+      }
+    }
   }
 
   async function refreshConfig() {
@@ -423,21 +479,22 @@
     </div>
   {:else}
     <!-- Info Banner -->
-    {#if signers.length > 0 && !isEnabled}
-      <div class="bg-blue-900/20 border border-blue-700 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+    {#if signers.length > 0 && totalAvailableSigners >= 2}
+      <div class="bg-green-900/20 border border-green-700 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
         <div class="flex items-start gap-2 sm:gap-3">
-          <svg class="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <svg class="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
           <div class="flex-1">
-            <p class="text-blue-300 text-sm sm:text-base font-semibold mb-1">Signers Added</p>
-            <p class="text-blue-200 text-xs sm:text-sm">You have {signers.length} signer(s) configured. Enable multisig below to require multiple approvals for withdrawals.</p>
+            <p class="text-green-300 text-sm sm:text-base font-semibold mb-1">Multi-Signature Active</p>
+            <p class="text-green-200 text-xs sm:text-sm">You have {totalAvailableSigners} signer(s) configured. Multi-signature withdrawals are automatically enabled and require {requiredSignatures} signature(s) for approval.</p>
           </div>
         </div>
       </div>
     {/if}
 
-    <!-- Enable/Disable Toggle -->
+    <!-- Enable/Disable Toggle - COMMENTED OUT: Auto-enabled when signers are added -->
+    <!--
     <div class="mb-4 sm:mb-6">
       <label for="enable-multisig-toggle" class="flex items-center justify-between cursor-pointer">
         <div class="flex-1">
@@ -459,6 +516,7 @@
         <p class="text-red-400 text-xs mt-2">Add at least one signer wallet to enable multisig.</p>
       {/if}
     </div>
+    -->
 
     <!-- Required Signatures -->
     <div class="mb-4 sm:mb-6">
@@ -472,7 +530,7 @@
           bind:value={requiredSignatures}
           min="1"
           max={totalAvailableSigners}
-          disabled={isLoading || !isEnabled || totalAvailableSigners < 2}
+          disabled={isLoading || totalAvailableSigners < 2}
           class="w-full sm:w-24 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <span class="text-gray-400 text-xs sm:text-sm">
@@ -481,6 +539,11 @@
       </div>
       {#if requiredSignatures > totalAvailableSigners}
         <p class="text-red-400 text-xs mt-2">Required signatures cannot exceed total signers.</p>
+      {/if}
+      {#if totalAvailableSigners >= 2}
+        <p class="text-gray-400 text-xs mt-2">
+          Multi-signature is automatically enabled when signers are added.
+        </p>
       {/if}
     </div>
 
@@ -551,24 +614,26 @@
       {/if}
     </div>
 
-    <!-- Save Button -->
-    <button
-      on:click={saveMultisigConfig}
-      disabled={isLoading || !hasChanges || (isEnabled && totalAvailableSigners < 2) || (requiredSignatures > totalAvailableSigners)}
-      class="w-full px-4 py-2.5 sm:py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg text-sm sm:text-base font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {#if isLoading}
-        <span class="flex items-center justify-center gap-2">
-          <svg class="animate-spin h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Saving...
-        </span>
-      {:else}
-        Save
-      {/if}
-    </button>
+    <!-- Save Button (only show if there are changes to required signatures) -->
+    {#if hasChanges && totalAvailableSigners >= 2}
+      <button
+        on:click={saveMultisigConfig}
+        disabled={isLoading || requiredSignatures > totalAvailableSigners || requiredSignatures < 2}
+        class="w-full px-4 py-2.5 sm:py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg text-sm sm:text-base font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {#if isLoading}
+          <span class="flex items-center justify-center gap-2">
+            <svg class="animate-spin h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Saving...
+          </span>
+        {:else}
+          Save Changes
+        {/if}
+      </button>
+    {/if}
   {/if}
 </div>
 

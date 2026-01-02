@@ -17,6 +17,118 @@
   import MultisigSettings from "$lib/components/MultisigSettings.svelte";
   import PendingWithdrawalCard from "$lib/components/PendingWithdrawalCard.svelte";
 
+  // Function to check and update withdrawal status from Monime
+  async function checkAndUpdateWithdrawalStatus() {
+    try {
+      // Get wallet address
+      const session = await verifyWeb3Session();
+      let wallet =
+        session?.success && session.user?.wallet_address
+          ? session.user.wallet_address
+          : null;
+      if (!wallet) {
+        wallet = getActiveWalletAddress();
+      }
+
+      if (!wallet) return;
+
+      // Find pending withdrawals with external_id (Monime payout ID)
+      // Check both "pending" and "pending_approval" withdrawals that have been executed
+      const { data: pendingWithdrawals, error } = await supabase
+        .from("wallet_transactions")
+        .select("id, external_id, metadata, status")
+        .eq("wallet_address", wallet)
+        .eq("type", "withdrawal")
+        .in("status", ["pending", "pending_approval"])
+        .not("external_id", "is", null);
+
+      if (error || !pendingWithdrawals || pendingWithdrawals.length === 0) {
+        return;
+      }
+
+      let hasUpdates = false;
+
+      // Check each pending withdrawal's status with Monime
+      for (const withdrawal of pendingWithdrawals) {
+        if (!withdrawal.external_id) continue;
+
+        try {
+          const payoutStatus = await monimeService.getPayoutStatus(
+            withdrawal.external_id
+          );
+
+          // Map Monime statuses to our database statuses
+          // Also check for transactionReference in destination - this indicates the transaction was completed by the mobile money provider
+          let newStatus: string;
+          const hasTransactionReference =
+            payoutStatus.destination?.transactionReference;
+
+          if (
+            payoutStatus.status === "completed" ||
+            payoutStatus.status === "paid" ||
+            hasTransactionReference
+          ) {
+            // Transaction is completed if:
+            // 1. Payout status is "completed" or "paid"
+            // 2. OR destination has a transactionReference (means mobile money provider processed it)
+            newStatus = "completed";
+          } else if (
+            payoutStatus.status === "failed" ||
+            payoutStatus.status === "cancelled"
+          ) {
+            newStatus = "failed";
+          } else {
+            // "pending" or "processing" -> keep current status
+            newStatus = withdrawal.status;
+          }
+
+          // Always update metadata with latest Monime response
+          // Store transaction reference for tracking
+          const updatedMetadata = {
+            ...(withdrawal.metadata || {}),
+            payout_status: payoutStatus.status,
+            last_status_check: new Date().toISOString(),
+            transaction_reference:
+              payoutStatus.destination?.transactionReference || null,
+            monime_response: payoutStatus,
+          };
+
+          // Use RPC function to update status (bypasses RLS)
+          const { data: updateResult, error: updateError } = await supabase.rpc(
+            "update_withdrawal_status",
+            {
+              p_withdrawal_id: withdrawal.id,
+              p_status: newStatus,
+              p_external_id: withdrawal.external_id,
+              p_metadata: updatedMetadata,
+            }
+          );
+
+          if (!updateError && newStatus !== withdrawal.status) {
+            hasUpdates = true;
+          }
+        } catch (err) {
+          console.error(
+            "Error checking withdrawal status:",
+            withdrawal.id,
+            err
+          );
+          // Skip if status check fails (e.g., network error, payout not found)
+          continue;
+        }
+      }
+
+      // Refresh data if any updates were made
+      if (hasUpdates) {
+        await loadMobileMoneyTotal();
+        await loadPendingWithdrawals();
+        await loadRecentTransactions();
+      }
+    } catch (err) {
+      // Error checking withdrawal status - don't block page load
+    }
+  }
+
   export const data = undefined;
 
   // Animation states
@@ -126,10 +238,47 @@
       return;
     }
 
-    // Format phone number (ensure it starts with +)
-    const formattedPhone = phoneNumber.startsWith("+")
-      ? phoneNumber
-      : `+${phoneNumber}`;
+    // Format phone number for Monime API
+    // Monime expects: +232XXXXXXXX (exactly 8 digits after country code)
+    let formattedPhone = phoneNumber.trim();
+
+    // Remove any spaces, dashes, or other characters
+    formattedPhone = formattedPhone.replace(/[\s\-\(\)]/g, "");
+
+    // Handle different phone number formats
+    if (formattedPhone.startsWith("+")) {
+      // Already has country code, use as is
+      // Remove leading 0 if present after +232 (e.g., +232078002221 -> +23278002221)
+      if (formattedPhone.startsWith("+2320") && formattedPhone.length === 13) {
+        formattedPhone = formattedPhone.replace("+2320", "+232");
+      }
+    } else if (formattedPhone.startsWith("232")) {
+      // Has country code without +
+      formattedPhone = `+${formattedPhone}`;
+      // Remove leading 0 if present (e.g., +232078002221 -> +23278002221)
+      if (formattedPhone.startsWith("+2320") && formattedPhone.length === 13) {
+        formattedPhone = formattedPhone.replace("+2320", "+232");
+      }
+    } else {
+      // Local number - remove leading 0 if present, then add +232
+      // Sierra Leone numbers often start with 0 (e.g., 078002221 -> 78002221 -> +23278002221)
+      if (formattedPhone.startsWith("0")) {
+        formattedPhone = formattedPhone.substring(1); // Remove leading 0
+      }
+      formattedPhone = `+232${formattedPhone}`;
+    }
+
+    // Validate format: +232 followed by exactly 8 digits
+    const phoneRegex = /^\+232\d{8}$/;
+    if (!phoneRegex.test(formattedPhone)) {
+      showToast(
+        "error",
+        "Invalid Phone Number",
+        `Phone number must be in the format +232XXXXXXXX (exactly 8 digits after +232). You entered: ${phoneNumber}`,
+        6000
+      );
+      return;
+    }
 
     isWithdrawing = true;
 
@@ -239,15 +388,17 @@
                 note: "Multi-signature withdrawal pending approval",
                 provider: withdrawalProvider,
                 phone_number: formattedPhone,
-                gross_amount: mobileMoneyTotal,
-                platform_fee: platformFee,
-                estimated_monime_fee: monimeFee,
-                net_amount_after_platform_fee: netAmountAfterPlatformFee,
-                final_net_amount: finalNetAmount,
+                gross_amount: String(mobileMoneyTotal.toFixed(2)),
+                platform_fee: String(platformFee.toFixed(2)),
+                estimated_monime_fee: String(monimeFee.toFixed(2)),
+                net_amount_after_platform_fee: String(
+                  netAmountAfterPlatformFee.toFixed(2)
+                ),
+                final_net_amount: String(finalNetAmount.toFixed(2)),
                 fees_breakdown: {
-                  platform_fee: platformFee,
-                  estimated_monime_fee: monimeFee,
-                  total_fees: platformFee + monimeFee,
+                  platform_fee: String(platformFee.toFixed(2)),
+                  estimated_monime_fee: String(monimeFee.toFixed(2)),
+                  total_fees: String((platformFee + monimeFee).toFixed(2)),
                 },
                 wallet_signature: {
                   message: withdrawalMessage,
@@ -263,7 +414,6 @@
           .single();
 
         if (pendingError) {
-          console.error("Error creating pending withdrawal:", pendingError);
           showToast(
             "error",
             "Error",
@@ -274,43 +424,77 @@
           return;
         }
 
-        // Send notifications to all authorized signers
-        const signers = multisigConfig[0].signers || [];
-        const notificationPromises = [];
-
-        for (const signer of signers) {
-          if (signer.is_active && signer.signer_wallet_address !== wallet) {
-            notificationPromises.push(
-              supabase.from("notifications").insert([
-                {
-                  user_wallet_address: signer.signer_wallet_address,
-                  title: "Withdrawal Signature Required",
-                  message: `A withdrawal of ${currency} ${finalNetAmount.toFixed(2)} to ${formattedPhone} needs your signature.`,
-                  type: "warning",
-                  action_url: `/dashboard/wallet/pending-withdrawal/${pendingToken}`,
-                  is_read: false,
-                },
-              ])
-            );
+        // Send notifications to all authorized signers using RPC function to bypass RLS
+        // Fetch signers using RPC function to bypass RLS policies
+        const { data: signersData, error: signersError } = await supabase.rpc(
+          "get_multisig_signers",
+          {
+            p_wallet_address: wallet,
           }
+        );
+
+        // Ensure notifications are created - retry if initial attempt fails
+        let notificationsCreated = false;
+
+        if (!signersError && signersData && signersData.length > 0) {
+          // Create notifications immediately
+          const sentCount = await createWithdrawalNotifications(
+            signersData,
+            wallet,
+            currency,
+            finalNetAmount,
+            formattedPhone,
+            pendingToken
+          );
+          notificationsCreated = sentCount > 0;
         }
 
-        // Send all notifications
-        await Promise.all(notificationPromises);
+        // If initial creation failed or no signers found, retry after a short delay
+        if (!notificationsCreated || signersError) {
+          setTimeout(async () => {
+            const retryResult = await supabase.rpc("get_multisig_signers", {
+              p_wallet_address: wallet,
+            });
+            if (
+              !retryResult.error &&
+              retryResult.data &&
+              retryResult.data.length > 0
+            ) {
+              await createWithdrawalNotifications(
+                retryResult.data,
+                wallet,
+                currency,
+                finalNetAmount,
+                formattedPhone,
+                pendingToken
+              );
+            }
+          }, 500);
+        }
 
         // Close modal and show success message
         closeWithdrawalModal();
-        showToast(
-          "info",
-          "Withdrawal Pending",
-          `Waiting for ${multisigConfig[0].required_signatures - 1} more signature(s). Notifications sent to authorized signers.`,
-          8000
-        );
+
+        // Calculate remaining signatures needed
+        const remainingSigs = multisigConfig[0].required_signatures - 1;
+        const sigMessage =
+          remainingSigs === 1
+            ? "Waiting for 1 more signature. Notification sent to authorized signer."
+            : `Waiting for ${remainingSigs} more signature(s). Notifications sent to authorized signers.`;
+
+        showToast("info", "Withdrawal Pending", sigMessage, 8000);
 
         // Refresh balances and transactions
         await loadMobileMoneyTotal();
         await loadRecentTransactions();
         await loadPendingWithdrawals();
+
+        // Ensure notifications are created (backup in case initial creation failed)
+        // This will create notifications for any signers that might have been missed
+        if (wallet) {
+          await ensurePendingWithdrawalNotifications(wallet);
+        }
+
         isWithdrawing = false;
         return;
       }
@@ -320,10 +504,13 @@
       const providerCode =
         withdrawalProvider === "orange_money" ? "m17" : "m18";
 
+      // Convert currency from "NLe" to "SLE" for Monime API (Monime uses ISO currency codes)
+      const monimeCurrency = currency === "NLe" ? "SLE" : currency;
+
       // Create payout via Monime API (send amount after platform fee - Monime will deduct their 1% fee)
       const payout = await monimeService.createPayout(
         {
-          currency: currency,
+          currency: monimeCurrency,
           value: netAmountAfterPlatformFee, // Send amount after platform fee (Monime will deduct their 1% from this)
         },
         {
@@ -335,11 +522,13 @@
           wallet_address: wallet,
           user_id: userId,
           withdrawal_type: "mobile_money",
-          gross_amount: mobileMoneyTotal,
-          platform_fee: platformFee,
-          estimated_monime_fee: monimeFee,
-          net_amount_after_platform_fee: netAmountAfterPlatformFee,
-          final_net_amount: finalNetAmount,
+          gross_amount: String(mobileMoneyTotal.toFixed(2)),
+          platform_fee: String(platformFee.toFixed(2)),
+          estimated_monime_fee: String(monimeFee.toFixed(2)),
+          net_amount_after_platform_fee: String(
+            netAmountAfterPlatformFee.toFixed(2)
+          ),
+          final_net_amount: String(finalNetAmount.toFixed(2)),
         },
         `withdrawal_${Date.now()}_${wallet}`
       );
@@ -370,17 +559,21 @@
             payout_status: payout.status,
             provider: withdrawalProvider,
             phone_number: formattedPhone,
-            gross_amount: mobileMoneyTotal,
-            platform_fee: platformFee,
-            monime_fees: monimeFees,
-            estimated_monime_fee: monimeFee,
-            net_amount_after_platform_fee: netAmountAfterPlatformFee,
-            final_net_amount: finalNetAmount,
+            gross_amount: String(mobileMoneyTotal.toFixed(2)),
+            platform_fee: String(platformFee.toFixed(2)),
+            monime_fees: String((monimeFees || 0).toFixed(2)),
+            estimated_monime_fee: String(monimeFee.toFixed(2)),
+            net_amount_after_platform_fee: String(
+              netAmountAfterPlatformFee.toFixed(2)
+            ),
+            final_net_amount: String(finalNetAmount.toFixed(2)),
             fees_breakdown: {
-              platform_fee: platformFee,
-              estimated_monime_fee: monimeFee,
-              actual_monime_fees: monimeFees,
-              total_fees: platformFee + (monimeFees || monimeFee),
+              platform_fee: String(platformFee.toFixed(2)),
+              estimated_monime_fee: String(monimeFee.toFixed(2)),
+              actual_monime_fees: String((monimeFees || 0).toFixed(2)),
+              total_fees: String(
+                (platformFee + (monimeFees || monimeFee)).toFixed(2)
+              ),
             },
             wallet_signature: {
               message: withdrawalMessage,
@@ -500,6 +693,8 @@
 
       // Step 2: Calculate total withdrawals from wallet_transactions
       // (withdrawals are stored as negative amounts, so we sum them to get total withdrawn)
+      // IMPORTANT: Only count completed/paid withdrawals - pending withdrawals should NOT affect balance
+      // because the money hasn't actually been withdrawn yet
       let totalWithdrawals = 0;
       if (wallet) {
         const { data: withdrawals, error: withdrawalsError } = await supabase
@@ -508,7 +703,7 @@
           .eq("wallet_address", wallet)
           .in("source", ["mobile_money", "orange_money", "afrimoney"])
           .eq("type", "withdrawal")
-          .in("status", ["completed", "pending", "paid"]);
+          .in("status", ["completed", "paid"]); // Only count completed/paid withdrawals, NOT pending
 
         if (withdrawalsError) {
           console.error("Error loading withdrawals:", withdrawalsError);
@@ -602,19 +797,21 @@
           }, 0);
 
       solanaOrdersTotal = sumBy("solana");
-      // mobileMoneyTotal already computed separately; ensure not double work
-      if (mobileMoneyTotal === 0) {
-        // Sum both orange_money and afrimoney for mobile money total
-        mobileMoneyTotal = sumBy("orange_money") + sumBy("afrimoney");
-      }
-      totalRevenue = (solanaOrdersTotal || 0) + (mobileMoneyTotal || 0);
+      // Calculate total revenue (gross revenue from all orders)
+      // Note: mobileMoneyTotal is already calculated in loadMobileMoneyTotal() 
+      // as deposits - withdrawals (available balance), so we need to calculate 
+      // gross mobile money revenue separately for totalRevenue
+      const mobileMoneyGrossRevenue = sumBy("orange_money") + sumBy("afrimoney");
+      totalRevenue = (solanaOrdersTotal || 0) + (mobileMoneyGrossRevenue || 0);
       totalDisplay = totalRevenue.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
     } catch (err) {
       console.error("Error in loadOrderTotals:", err);
-      totalRevenue = mobileMoneyTotal || 0;
+      // On error, use mobileMoneyTotal for revenue calculation (fallback)
+      // But don't overwrite mobileMoneyTotal itself - it's calculated separately
+      totalRevenue = (solanaOrdersTotal || 0) + (mobileMoneyTotal || 0);
       totalDisplay = totalRevenue.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
@@ -687,6 +884,7 @@
                 o.payment_method === "afrimoney"
                   ? "deposit"
                   : "ticket",
+              transactionType: "order",
             };
           });
         }
@@ -730,6 +928,9 @@
                   : t.type === "deposit"
                     ? "deposit"
                     : "ticket",
+              source: t.source,
+              external_id: t.external_id,
+              transactionType: "wallet_transaction",
             };
           });
         }
@@ -745,6 +946,132 @@
     } finally {
       isLoadingTransactions = false;
     }
+  }
+
+  // Helper function to ensure wallet exists in web3_users (required for notifications)
+  async function ensureWalletUser(walletAddress: string): Promise<boolean> {
+    try {
+      // Check if wallet exists using RPC function
+      const { data: checkResult, error: checkError } = await supabase.rpc(
+        "check_wallet_exists",
+        {
+          wallet_address_param: walletAddress,
+        }
+      );
+
+      // check_wallet_exists returns a table with 'exists' field
+      // If wallet exists, return true
+      if (
+        !checkError &&
+        checkResult &&
+        checkResult.length > 0 &&
+        checkResult[0].exists === true
+      ) {
+        return true;
+      }
+
+      // If wallet doesn't exist, create it using RPC function
+      const { data: createResult, error: createError } = await supabase.rpc(
+        "create_web3_user",
+        {
+          wallet_address_param: walletAddress,
+          username_param: null, // No username required
+          display_name_param: null, // No display name required
+        }
+      );
+
+      // Return true if created successfully (check result array first element success field)
+      return (
+        !createError &&
+        createResult &&
+        createResult.length > 0 &&
+        createResult[0].success === true
+      );
+    } catch (err) {
+      return false;
+    }
+  }
+
+  // Helper function to create withdrawal notifications for signers
+  async function createWithdrawalNotifications(
+    signersData: any[],
+    primaryWallet: string,
+    currency: string,
+    finalNetAmount: number,
+    formattedPhone: string,
+    pendingToken: string
+  ): Promise<number> {
+    let notificationsSent = 0;
+    const notificationPromises = [];
+
+    // Send notifications to all active signers (excluding the primary wallet who already signed)
+    for (const signer of signersData) {
+      if (signer.is_active && signer.signer_wallet_address !== primaryWallet) {
+        notificationPromises.push(
+          (async () => {
+            try {
+              // Ensure the signer wallet exists in web3_users (required for notifications)
+              // Do this BEFORE attempting to create notification
+              const walletExists = await ensureWalletUser(
+                signer.signer_wallet_address
+              );
+
+              if (!walletExists) {
+                // Wallet doesn't exist and couldn't be created - try one more time
+                const retryWallet = await ensureWalletUser(
+                  signer.signer_wallet_address
+                );
+                if (!retryWallet) {
+                  return { error: new Error("Wallet not found in web3_users") };
+                }
+              }
+
+              // Create notification
+              const result = await supabase.rpc("create_notification", {
+                p_user_wallet_address: signer.signer_wallet_address,
+                p_title: "Withdrawal Signature Required",
+                p_message: `A withdrawal of ${currency} ${finalNetAmount.toFixed(2)} to ${formattedPhone} needs your signature.`,
+                p_type: "warning",
+                p_action_url: `/dashboard/wallet/pending-withdrawal/${pendingToken}`,
+                p_is_read: false,
+              });
+
+              // Check if notification was created successfully
+              if (result.error) {
+                // If error, ensure wallet exists again and retry once more
+                await ensureWalletUser(signer.signer_wallet_address);
+                const retryResult = await supabase.rpc("create_notification", {
+                  p_user_wallet_address: signer.signer_wallet_address,
+                  p_title: "Withdrawal Signature Required",
+                  p_message: `A withdrawal of ${currency} ${finalNetAmount.toFixed(2)} to ${formattedPhone} needs your signature.`,
+                  p_type: "warning",
+                  p_action_url: `/dashboard/wallet/pending-withdrawal/${pendingToken}`,
+                  p_is_read: false,
+                });
+                if (!retryResult.error && retryResult.data) {
+                  notificationsSent++;
+                }
+                return retryResult;
+              } else if (result.data) {
+                // Success - notification created
+                notificationsSent++;
+              }
+              return result;
+            } catch (err: any) {
+              // Individual notification error - don't block others
+              return { error: err };
+            }
+          })()
+        );
+      }
+    }
+
+    // Send all notifications (errors are handled individually to not block withdrawal creation)
+    if (notificationPromises.length > 0) {
+      await Promise.allSettled(notificationPromises);
+    }
+
+    return notificationsSent;
   }
 
   async function loadPendingWithdrawals() {
@@ -766,22 +1093,28 @@
       }
 
       // Load pending withdrawals for this wallet
+      // Include both multisig (pending_approval) and standard (pending) withdrawals
+      // Exclude cancelled withdrawals
       const { data: pending, error } = await supabase
         .from("wallet_transactions")
         .select("*")
         .eq("wallet_address", wallet)
         .eq("type", "withdrawal")
-        .eq("status", "pending_approval")
-        .eq("multisig_enabled", true)
+        .in("status", ["pending_approval", "pending"])
+        .neq("status", "cancelled") // Explicitly exclude cancelled
+        .neq("status", "completed") // Explicitly exclude completed
         .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error loading pending withdrawals:", error);
         pendingWithdrawals = [];
       } else {
-        // Filter out expired withdrawals
+        // Filter out expired and cancelled withdrawals
         const now = new Date();
         pendingWithdrawals = (pending || []).filter((w: any) => {
+          // Exclude cancelled withdrawals
+          if (w.status === "cancelled") return false;
+          // Filter out expired withdrawals
           if (!w.expires_at) return true;
           return new Date(w.expires_at) > now;
         });
@@ -800,7 +1133,6 @@
   // Ensure notifications exist for pending withdrawals that need signers
   async function ensurePendingWithdrawalNotifications(currentWallet: string) {
     try {
-
       // Find all pending withdrawals where this wallet is a potential signer
       // Use the security definer function to bypass RLS
       const { data: signerConfigs, error: signerError } = await supabase.rpc(
@@ -811,7 +1143,6 @@
       );
 
       if (signerError) {
-        console.error("Error fetching signer configs:", signerError);
         return;
       }
 
@@ -833,7 +1164,6 @@
           .eq("multisig_enabled", true);
 
       if (withdrawalError) {
-        console.error("Error fetching pending withdrawals:", withdrawalError);
         return;
       }
 
@@ -876,10 +1206,6 @@
             .limit(1);
 
         if (notifCheckError) {
-          console.error(
-            "Error checking existing notifications:",
-            notifCheckError
-          );
           continue;
         }
 
@@ -894,21 +1220,17 @@
         const currency = withdrawal.currency || "NLe";
         const phoneNumber = metadata.phone_number || "N/A";
 
-        const { data: notificationData, error: insertError } = await supabase.rpc(
-          "create_notification",
-          {
+        const { data: notificationData, error: insertError } =
+          await supabase.rpc("create_notification", {
             p_user_wallet_address: currentWallet,
             p_title: "Withdrawal Signature Required",
             p_message: `A withdrawal of ${currency} ${finalAmount.toFixed(2)} to ${phoneNumber} needs your signature.`,
             p_type: "warning",
             p_action_url: `/dashboard/wallet/pending-withdrawal/${withdrawal.pending_token}`,
             p_is_read: false,
-          }
-        );
+          });
 
-        if (insertError) {
-          console.error("Error creating notification:", insertError);
-        } else {
+        if (!insertError) {
           notificationsCreated++;
         }
       }
@@ -918,7 +1240,7 @@
         // We could dispatch an event here if needed, but the auto-refresh should catch it
       }
     } catch (err) {
-      console.error("Error ensuring pending withdrawal notifications:", err);
+      // Error ensuring pending withdrawal notifications
     }
   }
 
@@ -974,6 +1296,9 @@
         loadRecentTransactions(),
         loadPendingWithdrawals(),
       ]);
+
+      // Check and update status of pending withdrawals
+      await checkAndUpdateWithdrawalStatus();
 
       // Ensure notifications exist for pending withdrawals (for signers)
       if (walletForNotifications) {
@@ -1037,8 +1362,11 @@
     <div class="lg:col-span-2 space-y-6 lg:space-y-8">
       <!-- Current Balance (Web3) -->
       <WalletBalance
-        balance={isLoadingTotal ? "--" : `NLe ${totalDisplay}`}
-        isLoading={isLoadingTotal}
+        balance={isLoadingMobileMoney ? "--" : `NLe ${mobileMoneyTotal.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`}
+        isLoading={isLoadingMobileMoney}
       />
 
       <!-- Mobile Money Total -->
@@ -1174,7 +1502,19 @@
           </h2>
           <div class="space-y-3">
             {#each pendingWithdrawals as withdrawal (withdrawal.id)}
-              <PendingWithdrawalCard {withdrawal} />
+              <PendingWithdrawalCard
+                {withdrawal}
+                onCancel={async () => {
+                  await loadMobileMoneyTotal();
+                  await loadRecentTransactions();
+                  await loadPendingWithdrawals();
+                }}
+                onRefresh={async () => {
+                  await loadMobileMoneyTotal();
+                  await loadPendingWithdrawals();
+                  await loadRecentTransactions();
+                }}
+              />
             {/each}
           </div>
         </div>

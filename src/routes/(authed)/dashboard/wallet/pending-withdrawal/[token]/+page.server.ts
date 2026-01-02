@@ -18,10 +18,8 @@ export async function load({ params }) {
       .maybeSingle();
 
     if (checkError) {
-      console.error("Error checking withdrawal:", checkError);
       // Check if it's a fetch/network error
       if (checkError.message?.includes("fetch failed") || checkError.message?.includes("Failed to fetch")) {
-        console.error("Supabase client fetch failed. Check environment variables and network connection.");
         throw error(500, "Database connection failed. Please try again later.");
       }
       throw error(500, "Failed to load withdrawal details.");
@@ -48,7 +46,6 @@ export async function load({ params }) {
       .maybeSingle();
 
     if (dbError) {
-      console.error("Error loading pending withdrawal:", dbError);
       throw error(500, "Failed to load withdrawal details.");
     }
 
@@ -87,7 +84,6 @@ export async function load({ params }) {
           }
         }
       } catch (multisigError) {
-        console.error("Error loading multisig config:", multisigError);
         // Continue without signers if there's an error
       }
     }
@@ -99,11 +95,17 @@ export async function load({ params }) {
       multisig_enabled: withdrawal.multisig_enabled,
     };
   } catch (err: any) {
-    console.error("Error in load function:", err);
-    // If it's already an HTTP error from SvelteKit, rethrow it
+    // If it's already an HTTP error from SvelteKit (like 410 for cancelled/processed), rethrow it
+    // These are expected errors and are handled by the error component
     if (err.status && err.body) {
+      // Only log unexpected errors (not 410 Gone errors which are expected)
+      if (err.status !== 410) {
+        // console.error("Error in load function:", err); // Removed console.error
+      }
       throw err;
     }
+    // Log unexpected errors (500, network errors, etc.)
+    // console.error("Error in load function:", err); // Removed console.error
     // Otherwise, wrap it in a 500 error
     throw error(500, err.message || "Failed to load withdrawal details.");
   }
