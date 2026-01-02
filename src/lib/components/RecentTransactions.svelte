@@ -94,21 +94,78 @@
     {:else}
       {#each transactions as transaction}
         <div class="bg-gray-800 border border-gray-700 rounded-lg p-3 sm:p-4 hover:bg-gray-700/50 transition-colors">
-          <div
-            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <!-- Left side - Icon and Description -->
-            <div class="flex items-start sm:items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
+          <!-- Mobile Layout: Stacked -->
+          <div class="flex flex-col gap-3 sm:hidden">
+            <!-- Top Row: Icon, Description, Amount -->
+            <div class="flex items-start gap-2.5">
               <!-- Transaction Icon -->
               <div
-                class="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0"
+                class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0"
+              >
+                {@html getTransactionIcon(transaction.icon)}
+              </div>
+
+              <!-- Description and Amount -->
+              <div class="flex-1 min-w-0">
+                <p class="text-white font-medium text-sm leading-tight mb-1 break-words">
+                  {transaction.description}
+                </p>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span
+                    class="font-semibold text-sm {getAmountClass(
+                      transaction.amount
+                    )} whitespace-nowrap"
+                  >
+                    {transaction.amount}
+                  </span>
+                  <span
+                    class="px-2 py-0.5 text-[10px] font-medium rounded-full {getStatusClass(
+                      transaction.status
+                    )} whitespace-nowrap"
+                  >
+                    {transaction.status.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bottom Row: Date and View Details -->
+            <div class="flex items-center justify-between gap-2 pl-[2.625rem]">
+              <p class="text-gray-400 text-xs flex-1">
+                {transaction.date}
+              </p>
+              {#if transaction.status === "completed" || transaction.status === "paid"}
+                <button
+                  on:click={() => {
+                    if (transaction.transactionType === "wallet_transaction") {
+                      goto(`/dashboard/wallet/transaction/${transaction.id}`);
+                    } else if (transaction.transactionType === "order") {
+                      goto(`/dashboard/wallet/order/${transaction.id}`);
+                    }
+                  }}
+                  class="px-3 py-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-medium transition-colors whitespace-nowrap bg-cyan-400/10 hover:bg-cyan-400/20 rounded-lg border border-cyan-400/20"
+                  title="View transaction details"
+                >
+                  View Details
+                </button>
+              {/if}
+            </div>
+          </div>
+
+          <!-- Desktop Layout: Horizontal -->
+          <div class="hidden sm:flex sm:items-center sm:justify-between sm:gap-4">
+            <!-- Left side - Icon and Description -->
+            <div class="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+              <!-- Transaction Icon -->
+              <div
+                class="w-10 h-10 md:w-11 md:h-11 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0"
               >
                 {@html getTransactionIcon(transaction.icon)}
               </div>
 
               <!-- Description and Date -->
               <div class="min-w-0 flex-1 overflow-hidden">
-                <p class="text-white font-medium text-xs sm:text-sm md:text-base truncate leading-tight sm:leading-normal mb-1 sm:mb-0.5">
+                <p class="text-white font-medium text-sm md:text-base truncate mb-0.5">
                   {transaction.description}
                 </p>
                 <p class="text-gray-400 text-xs sm:text-sm truncate">
@@ -118,23 +175,18 @@
             </div>
 
             <!-- Right side - Amount, Status, and View Details -->
-            <div
-              class="flex flex-col sm:flex-row items-end sm:items-center justify-between sm:justify-end gap-2 sm:gap-3 flex-shrink-0"
-            >
-              <!-- Amount and Status Row -->
-              <div class="flex items-center gap-2 sm:gap-3">
-                <!-- Amount -->
+            <div class="flex items-center justify-end gap-3 flex-shrink-0">
+              <!-- Amount and Status -->
+              <div class="flex items-center gap-3">
                 <span
-                  class="font-semibold text-xs sm:text-sm md:text-base {getAmountClass(
+                  class="font-semibold text-sm md:text-base {getAmountClass(
                     transaction.amount
                   )} whitespace-nowrap"
                 >
                   {transaction.amount}
                 </span>
-
-                <!-- Status Tag -->
                 <span
-                  class="px-2 py-1 text-[10px] sm:text-xs font-medium rounded-full {getStatusClass(
+                  class="px-2 py-1 text-xs font-medium rounded-full {getStatusClass(
                     transaction.status
                   )} whitespace-nowrap"
                 >
@@ -152,7 +204,7 @@
                       goto(`/dashboard/wallet/order/${transaction.id}`);
                     }
                   }}
-                  class="text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 font-medium transition-colors whitespace-nowrap underline underline-offset-2"
+                  class="text-sm text-cyan-400 hover:text-cyan-300 font-medium transition-colors whitespace-nowrap hover:underline underline-offset-2"
                   title="View transaction details"
                 >
                   View Details
