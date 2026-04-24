@@ -97,13 +97,40 @@ PUBLIC_SUPABASE_URL=your_supabase_url
 PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Solana
-SOLANA_NETWORK=devnet  # or mainnet-beta
+PUBLIC_SOLANA_NETWORK=devnet
+PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 
-# Monime API (Orange Money payments)
-PUBLIC_MONIME_API_KEY=mon_test_xxxxxxxxxxxxxxxxxxxxxxxxx  # or mon_xxxxxxxxxxxxxxxxxxxxxxxxx for live
-PUBLIC_MONIME_SPACE_ID=spc-xxxxxxxxxxxxxxxx
-PUBLIC_MONIME_ENVIRONMENT=test  # or live for production
+# Monime API (Orange Money) — server-only; never use PUBLIC_ for these
+MONIME_API_KEY=mon_test_xxxxxxxxxxxxxxxxxxxxxxxxx
+MONIME_PAYOUT_API_KEY=
+MONIME_SPACE_ID=spc-xxxxxxxxxxxxxxxx
+MONIME_ENVIRONMENT=test
+
+# If you ever used PUBLIC_MONIME_* in .env, rotate the keys in the Monime dashboard
+# and switch to the variables above; old keys may have been bundled in client builds.
 ```
+
+### **Monime key rotation checklist (one-time ops)**
+
+If `PUBLIC_MONIME_*` was ever committed, merged to `main`, or used in a client bundle, treat those keys as **compromised**.
+
+1. In [Monime Dashboard](https://dashboard.monime.io), revoke or rotate the affected **payment** and **payout** API tokens.
+2. Update deployment secrets and local `.env` with new values under **`MONIME_*` only** (no `PUBLIC_` prefix for secrets).
+3. Search the repo and history: `git log -p -S PUBLIC_MONIME` (and your host’s secret-scan alerts). Remove any stray `PUBLIC_MONIME_*` from tracked files.
+4. Confirm production and preview envs in Netlify/Vercel/etc. do not define `PUBLIC_MONIME_*`.
+5. Redeploy so all running instances pick up the new keys.
+
+### **Server security (SvelteKit)**
+
+- **`src/hooks.server.js`**: Attaches `locals.supabase` using `@supabase/ssr` so server routes can use a cookie-aware Supabase client (refresh runs on each request).
+- **`src/lib/supabase/server.js`**: Factory `createSupabaseServerClient(cookies)` if you need a client outside `locals` (e.g. tests).
+- **Monime**: Keys must live in **`MONIME_*`** (private env). Route handlers live under `src/routes/api/monime/` and read secrets only on the server.
+- **Orange Money fulfillment**: After payment, the success UI calls **`POST /api/orders/fulfill-mobile-money`**, which re-verifies the payment code with Monime before creating orders (do not rely on URL params alone to confirm payment).
+- **Service layout**: Browser client is `src/lib/supabase/client.js`; extracted modules include `src/lib/services/orders.ts` and `src/lib/services/eventCrud.js`. `src/lib/supabase.js` re-exports for backward compatibility.
+- **RLS rollout (storage / `images`)**: See [docs/RLS_ROLLOUT.md](docs/RLS_ROLLOUT.md) for shadow policies, verification gate, and rollback.
+- **API contract (`src/routes/api`)**: See [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for the JSON envelope, mobile-oriented notes, and the reference Monime route.
+- **Dashboard vs merchant**: **`/dashboard`** shows live-event / check-in counts, recent activity, organizer quick actions, and shortcuts (tickets, wallet, marketplace, settings). **`/dashboard/merchant`** is for **sales** (tickets sold, total revenue, per-event orders/revenue on event cards); door check-in uses **`/dashboard/scanner`** (calls **`POST /api/tickets/verify`**). **`POST /api/payouts`** verifies mobile-money balance before Monime payout (see API contract doc).
+- **Ops / SOS Pulse**: Set **`OPS_ADMIN_WALLETS`** (comma-separated wallet addresses from `web3Session.wallet_address`) so those wallets see **SOS Pulse** in the sidebar and can open **`/dashboard/ops/pulse`** (Monime + Solana health). **`OPS_ADMIN_USER_IDS`** remains supported for legacy compatibility. Optional **`MONIME_PRICING_LIMITS_JSON`** overrides minimum ticket prices (see `.env.example`).
 
 ### **Wallet Setup**
 
@@ -120,7 +147,7 @@ For Orange Money mobile payments via Monime:
 1. **Create Monime Account**: Sign up at [Monime Dashboard](https://dashboard.monime.io)
 2. **Create Space**: Set up a new Space for your business
 3. **Generate API Token**: Create a Personal Access Token with payments permissions
-4. **Configure Environment**: Set the environment variables in your `.env` file
+4. **Configure Environment**: Set **`MONIME_*`** variables in `.env` (see **Environment Variables** above; never use `PUBLIC_` for Monime keys)
 5. **Test Integration**: Use test mode first, then switch to live for production
 
 **Test vs Live Mode:**

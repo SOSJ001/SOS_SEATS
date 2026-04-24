@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { env } from "$env/dynamic/public";
+import { getMonimePaymentApiKeys } from "$lib/server/monimeEnv";
 
 export const GET: RequestHandler = async ({ url }) => {
   try {
@@ -13,9 +13,7 @@ export const GET: RequestHandler = async ({ url }) => {
       );
     }
 
-    // Get Monime credentials from environment
-    const apiKey = env.PUBLIC_MONIME_API_KEY;
-    const spaceId = env.PUBLIC_MONIME_SPACE_ID;
+    const { apiKey, spaceId } = getMonimePaymentApiKeys();
 
     if (!apiKey || !spaceId) {
       return json(

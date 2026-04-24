@@ -8,6 +8,8 @@
 
   export let onClose = undefined; // Optional close handler for mobile
   export let userName = "User"; // User name for mobile display
+  /** Set from dashboard layout when user id is listed in OPS_ADMIN_USER_IDS */
+  export let isOpsAdmin = false;
   // export let walletBalance = "$1,234.56"; // Wallet balance for mobile display
 
   $: activeUrl = $page.url.pathname;
@@ -292,6 +294,12 @@
       svg: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>`,
     },
     {
+      icon: "briefcase",
+      name: "Merchant",
+      url: "/dashboard/merchant",
+      svg: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h4a2 2 0 012 2v3.382l-8 4.236-8-4.236V8a2 2 0 012-2h4zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm-4 9.618V16a2 2 0 002 2h8a2 2 0 002-2v-1.382l-8 4.236-8-4.236z" clip-rule="evenodd"/></svg>`,
+    },
+    {
       icon: "ticket",
       name: "My Tickets",
       url: "/dashboard/my-tickets",
@@ -340,6 +348,15 @@
       svg: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>`,
     },
   ];
+
+  const opsPulseRoute = {
+    icon: "pulse",
+    name: "SOS Pulse",
+    url: "/dashboard/ops/pulse",
+    svg: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>`,
+  };
+
+  $: routesToRender = isOpsAdmin ? [...routes, opsPulseRoute] : routes;
 
   let logout = async () => {
     await signOutbtnFunction();
@@ -394,7 +411,7 @@
 
   <!-- Navigation -->
   <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-    {#each routes as route, index}
+    {#each routesToRender as route, index}
       <a
         href={route.url}
         class="flex items-center px-4 py-3 text-gray-300 rounded-lg transition-all duration-200 hover:bg-gray-800 hover:text-white group {activeUrl ===

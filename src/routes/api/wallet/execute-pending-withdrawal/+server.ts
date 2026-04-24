@@ -1,11 +1,21 @@
 import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "@sveltejs/kit";
-import { supabase } from "$lib/supabase";
+import type { RequestHandler } from "./$types";
 import { monimeService } from "$lib/monime";
+import { requireSessionOr401 } from "$lib/server/requireSession";
 
-export const POST: RequestHandler = async ({ request, fetch: eventFetch }) => {
+type ExecuteWithdrawalBody = {
+  withdrawal_id?: string;
+};
+
+export const POST: RequestHandler = async (event) => {
+  const { request, fetch: eventFetch, locals } = event;
   try {
-    const { withdrawal_id } = await request.json();
+    const auth = requireSessionOr401(event);
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const { supabase } = locals;
+    const { withdrawal_id } = (await request.json()) as ExecuteWithdrawalBody;
 
     if (!withdrawal_id) {
       return json(
@@ -132,7 +142,7 @@ export const POST: RequestHandler = async ({ request, fetch: eventFetch }) => {
 
     // Calculate actual Monime fees
     const monimeFees =
-      payout.fees?.reduce((sum: number, fee: any) => {
+      payout.fees?.reduce((sum: number, fee: { amount?: { value?: number } }) => {
         const feeValue =
           typeof fee.amount?.value === "number"
             ? fee.amount.value / 100
@@ -245,11 +255,13 @@ export const POST: RequestHandler = async ({ request, fetch: eventFetch }) => {
       payout_status: finalPayoutStatus,
       database_status: newStatus,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Failed to execute withdrawal.";
     return json(
       {
         success: false,
-        message: error.message || "Failed to execute withdrawal.",
+        message,
       },
       { status: 500 }
     );

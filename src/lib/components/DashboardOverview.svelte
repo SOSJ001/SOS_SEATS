@@ -4,12 +4,20 @@
 
   /** @type {Array<{icon: string, value: string, label: string, color: string}>} */
   export let metrics = [];
+
+  /** Section heading */
+  export let title = "Dashboard overview";
+
+  $: gridClass =
+    metrics.length <= 2
+      ? "grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl"
+      : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6";
 </script>
 
 <div class="mb-8" in:fade={{ duration: 500 }}>
-  <h2 class="text-2xl font-bold text-white mb-6">Dashboard Overview</h2>
+  <h2 class="text-2xl font-bold text-white mb-6">{title}</h2>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+  <div class={gridClass}>
     {#if metrics && metrics.length > 0}
       {#each metrics as metric, index}
         <DashboardMetricCard

@@ -1,11 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import {
-    supabase,
-    validateAndCheckInTicket,
-    checkInGuest,
-    loadScanHistory,
-  } from "$lib/supabase";
+  import { supabase, loadScanHistory } from "$lib/supabase";
   import { showToast } from "$lib/store";
   import EventSelector from "$lib/components/EventSelector.svelte";
   import QRScanner from "$lib/components/Qrscanner.svelte";
@@ -147,8 +142,62 @@
     return /^[1-9A-HJ-NP-Za-km-z]{32,64}$/.test(value);
   }
 
+  /** Server-side check-in via POST /api/tickets/verify (same RPCs, session + organizer gate). */
+  async function verifyTicketViaApi(
+    scan: string,
+    checkInLocation: string | null = "QR Scanner"
+  ): Promise<{
+    success: boolean;
+    message: string;
+    ticketInfo: any | null;
+    error: string | null;
+  }> {
+    try {
+      const res = await fetch("/api/tickets/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_id: selectedEvent,
+          scan: scan.trim(),
+          check_in_location: checkInLocation,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        return {
+          success: false,
+          message: json.error || json.message || "Verification failed",
+          ticketInfo: null,
+          error: json.code ?? null,
+        };
+      }
+      const d = json.data || {};
+      if (d.ticket_info) {
+        return {
+          success: true,
+          message: d.message || "Ticket checked in successfully",
+          ticketInfo: d.ticket_info,
+          error: null,
+        };
+      }
+      return {
+        success: true,
+        message: d.message || "Guest checked in successfully",
+        ticketInfo: null,
+        error: null,
+      };
+    } catch (e) {
+      return {
+        success: false,
+        message: e instanceof Error ? e.message : "Network error",
+        ticketInfo: null,
+        error: "NETWORK",
+      };
+    }
+  }
+
   async function processWalletScan(walletAddress: string) {
-    const res = await validateAndCheckInTicket(walletAddress, selectedEvent);
+    const res = await verifyTicketViaApi(walletAddress, "QR Scanner");
     return {
       route: "wallet" as const,
       result: res,
@@ -582,19 +631,21 @@
           isScanning = false;
         });
     } else if (confirmMode === "guest" && pendingGuestId) {
-      // Proceed with guest check-in after confirmation
-      checkInGuest(pendingGuestId)
+      // Proceed with guest check-in after confirmation (server API)
+      verifyTicketViaApi(pendingGuestId, "QR Scanner")
         .then(async (check) => {
           if (check.success) {
+            const guestName = validTicketInfo?.guestName || "Guest";
+            const ticketTypeName = validTicketInfo?.ticketType || "Ticket";
             const ticketInfo: any = {
-              original_buyer_name: "Guest",
-              ticket_type_name: "Ticket",
+              original_buyer_name: guestName,
+              ticket_type_name: ticketTypeName,
             };
             currentScanResult = {
               success: true,
               message: check.message || "Guest checked in successfully",
-              guestName: ticketInfo.original_buyer_name,
-              ticketType: ticketInfo.ticket_type_name,
+              guestName,
+              ticketType: ticketTypeName,
               section: "General Admission",
               timestamp: new Date().toLocaleTimeString([], {
                 hour: "2-digit",
@@ -609,13 +660,13 @@
             showToast(
               "success",
               "Ticket Validated",
-              `${ticketInfo.original_buyer_name} checked in successfully`
+              `${guestName} checked in successfully`
             );
           } else {
             currentScanResult = {
               success: false,
               message:
-                check.error ||
+                check.message ||
                 "Invalid ticket or invite code. Please check the invite code and try again.",
               timestamp: new Date().toLocaleTimeString([], {
                 hour: "2-digit",

@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
-import { env } from "$env/dynamic/public";
 import type { RequestHandler } from "./$types";
+import { getMonimePaymentApiKeys } from "$lib/server/monimeEnv";
 
 export const GET: RequestHandler = async ({ url }) => {
   try {
@@ -11,10 +11,8 @@ export const GET: RequestHandler = async ({ url }) => {
       return json({ error: "Missing sessionId parameter" }, { status: 400 });
     }
 
-    // Get environment variables
-    const apiKey = env.PUBLIC_MONIME_API_KEY;
-    const spaceId = env.PUBLIC_MONIME_SPACE_ID;
-    const environment = env.PUBLIC_MONIME_ENVIRONMENT || "test";
+    const { apiKey, spaceId, environment } = getMonimePaymentApiKeys();
+    const testMode = environment === "test";
 
     if (!apiKey || !spaceId) {
       return json(
@@ -27,7 +25,7 @@ export const GET: RequestHandler = async ({ url }) => {
     }
 
     // Check if this is a mock session (test mode doesn't support checkout-sessions endpoint)
-    if (sessionId.startsWith("mock_") || environment === "test") {
+    if (sessionId.startsWith("mock_") || testMode) {
       // Extract payment method from session ID or URL parameters
       // For mock sessions, we'll use a default but allow override via URL params
       const paymentMethodParam = url.searchParams.get("payment_method");

@@ -1,10 +1,22 @@
 import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "@sveltejs/kit";
-import { supabase } from "$lib/supabase.js";
+import type { RequestHandler } from "./$types";
+import { requireSessionOr401 } from "$lib/server/requireSession";
 
-export const POST: RequestHandler = async ({ request }) => {
+type CancelWithdrawalBody = {
+  withdrawal_id?: string;
+  wallet_address?: string;
+};
+
+export const POST: RequestHandler = async (event) => {
+  const { request, locals } = event;
   try {
-    const { withdrawal_id, wallet_address } = await request.json();
+    const auth = requireSessionOr401(event);
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const { supabase } = locals;
+    const { withdrawal_id, wallet_address } =
+      (await request.json()) as CancelWithdrawalBody;
 
     if (!withdrawal_id || !wallet_address) {
       return json(
@@ -134,11 +146,10 @@ export const POST: RequestHandler = async ({ request }) => {
       { success: false, message: `Cannot cancel withdrawal with status: ${withdrawal.status}` },
       { status: 400 }
     );
-  } catch (error: any) {
-    return json(
-      { success: false, message: error.message || "Failed to cancel withdrawal." },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Failed to cancel withdrawal.";
+    return json({ success: false, message }, { status: 500 });
   }
 };
 

@@ -6,7 +6,7 @@ import { transferSol } from "$lib/web3";
 import { ACTIONS_CORS_HEADERS } from "@solana/actions";
 import { sendAndConfirmTransaction } from "@solana/web3.js";
 
-export async function POST({ cookies, request }) {
+export async function POST({ cookies, request, locals }) {
   const { publickey, userName, amount } = await request.json();
   let payload;
   //get the cookie
@@ -37,7 +37,7 @@ export async function POST({ cookies, request }) {
   }
 
   // search for the wallet of that userName
-  const response = await searchWalletAndUserName();
+  const response = await searchWalletAndUserName(locals.supabase);
   if (!response.error) {
     //check if the user exists
     let userExists = response.data.find(

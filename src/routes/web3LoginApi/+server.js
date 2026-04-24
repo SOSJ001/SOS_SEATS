@@ -1,5 +1,6 @@
 import { json } from "@sveltejs/kit";
 
+/** Primary login path for the app: wallet session only (no Supabase Auth JWT yet). */
 export async function POST({ request, cookies }) {
   try {
     const { sessionData } = await request.json();

@@ -1,7 +1,12 @@
-import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { randomUUID } from "crypto";
-import { env } from "$env/dynamic/public";
+import { getMonimePaymentApiKeys } from "$lib/server/monimeEnv";
+import { jsonError, jsonSuccess } from "$lib/server/apiResponse";
+
+/**
+ * POST /api/monime/payment-code
+ * Contract: see docs/API_CONTRACT.md (reference Monime route for envelope + codes).
+ */
 
 interface PaymentCodeRequest {
   name: string;
@@ -9,24 +14,32 @@ interface PaymentCodeRequest {
   mode?: "one_time" | "recurrent";
   duration?: string;
   authorizedProviders?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   reference?: string;
+}
+
+function monimeErrorMessage(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const o = payload as Record<string, unknown>;
+  const err = o.error;
+  if (err && typeof err === "object" && "message" in err) {
+    const m = (err as { message?: unknown }).message;
+    if (typeof m === "string") return m;
+  }
+  if (typeof o.message === "string") return o.message;
+  return undefined;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const body: PaymentCodeRequest = await request.json();
 
-    // Get Monime credentials from environment (using same pattern as checkout-session)
-    const apiKey = env.PUBLIC_MONIME_API_KEY;
-    const spaceId = env.PUBLIC_MONIME_SPACE_ID;
-    const environment = env.PUBLIC_MONIME_ENVIRONMENT || "live";
+    const { apiKey, spaceId } = getMonimePaymentApiKeys();
 
     if (!apiKey || !spaceId) {
-      return json(
-        { success: false, error: "Monime API credentials not configured" },
-        { status: 500 }
-      );
+      return jsonError("Monime API credentials not configured", 500, {
+        code: "MONIME_NOT_CONFIGURED",
+      });
     }
 
     // Prepare payment code request
@@ -47,7 +60,7 @@ export const POST: RequestHandler = async ({ request }) => {
     // Make request to Monime API with retry logic for transient errors
     // Idempotency-Key is required by Monime API (see docs: https://docs.monime.io/apis/versions/caph-2025-08-23/payment-code/create-payment-code)
     const maxRetries = 3;
-    let lastError: any = null;
+    let lastError: unknown = null;
     let lastResponse: Response | null = null;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -74,20 +87,23 @@ export const POST: RequestHandler = async ({ request }) => {
       lastResponse = response;
 
       if (response.ok) {
-        const paymentCode = await response.json();
-        return json({
-          success: true,
-          data: paymentCode.result,
-        });
+        const paymentCode: unknown = await response.json();
+        const result =
+          paymentCode &&
+          typeof paymentCode === "object" &&
+          "result" in paymentCode
+            ? (paymentCode as { result: unknown }).result
+            : paymentCode;
+        return jsonSuccess(result);
       }
 
       // Check if it's a CROSSSLOT error (500) - might be transient
-      const errorData = await response.json().catch(() => ({}));
+      const errorData: unknown = await response.json().catch(() => ({}));
       lastError = errorData;
 
+      const errMsg = monimeErrorMessage(errorData) ?? "";
       const isTransientError =
-        response.status === 500 &&
-        errorData?.error?.message?.includes("CROSSSLOT");
+        response.status === 500 && errMsg.includes("CROSSSLOT");
 
       // If it's not a transient error, break and return the error
       if (!isTransientError || attempt === maxRetries - 1) {
@@ -96,36 +112,27 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     // All retries failed or non-retryable error
-    // Extract error message from Monime's error structure
     const errorMessage =
-      lastError?.error?.message ||
-      lastError?.message ||
+      monimeErrorMessage(lastError) ||
       "Failed to create payment code. This may be a temporary Monime infrastructure issue.";
 
-    // Provide user-friendly message for CROSSSLOT errors
-    const userMessage = lastError?.error?.message?.includes("CROSSSLOT")
+    const lastErrStr = monimeErrorMessage(lastError) ?? "";
+    const userMessage = lastErrStr.includes("CROSSSLOT")
       ? "Monime payment service is experiencing issues. Please try again in a moment or contact support if the problem persists."
       : errorMessage;
 
-    return json(
-      {
-        success: false,
-        error: userMessage,
-        details: lastError,
-        isInfrastructureError: lastError?.error?.message?.includes("CROSSSLOT"),
-      },
-      { status: lastResponse?.status || 500 }
-    );
+    const isInfrastructureError = lastErrStr.includes("CROSSSLOT");
+
+    return jsonError(userMessage, lastResponse?.status || 500, {
+      code: "MONIME_PAYMENT_CODE_FAILED",
+      details: lastError,
+      isInfrastructureError,
+    });
   } catch (error) {
-    return json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to create payment code",
-      },
-      { status: 500 }
+    return jsonError(
+      error instanceof Error ? error.message : "Failed to create payment code",
+      500,
+      { code: "MONIME_PAYMENT_CODE_FAILED" }
     );
   }
 };

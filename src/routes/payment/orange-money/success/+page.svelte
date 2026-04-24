@@ -2,7 +2,6 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import { processOrangeMoneyCallback } from "$lib/orangeMoneyPayment.js";
   import { showToast } from "$lib/store.js";
 
   let loading = true;
@@ -67,72 +66,31 @@
     }
 
     try {
-      // For now, we'll simulate the callback processing
-      // In a real implementation, you'd get the purchase data from the session
-      // or pass it through the URL parameters
+      // Monime verification and order creation run on the server (cannot be spoofed from the client)
+      const fulfillRes = await fetch("/api/orders/fulfill-mobile-money", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentCodeId: sessionId,
+          eventId: eventId,
+          paymentMethod: paymentMethod,
+        }),
+      });
 
-      // This is a placeholder - you'll need to implement session storage
-      // Get purchase data from the checkout session metadata
-      const { monimeService } = await import("$lib/monime.js");
-      const paymentStatus = await monimeService.getPaymentStatus(sessionId);
-
-      // Extract purchase data from session metadata
-      const metadata = (paymentStatus as any).metadata || {};
-
-      // Get purchase data from Monime metadata (URL params are now minimal)
-      const purchaseData = {
-        eventId: eventId,
-        selectedTickets: {}, // Will be reconstructed from metadata
-        totalAmount: paymentStatus.amount || 0,
-        ticketDetails: [], // Will be reconstructed from metadata
-        buyerInfo: {
-          name: buyerNameParam
-            ? decodeURIComponent(buyerNameParam)
-            : metadata.buyer_name || "Guest User",
-          wallet_address: buyerWalletParam
-            ? decodeURIComponent(buyerWalletParam)
-            : metadata.buyer_wallet || undefined,
-        },
+      const fulfill = await fulfillRes.json().catch(() => ({})) as {
+        success?: boolean;
+        data?: { orderId?: string };
+        orderId?: string;
+        error?: string;
       };
-
-      // Reconstruct ticket data from metadata
-      // Since we can't pass full ticket details in URL, we'll fetch from checkout session
-      // The checkout session has the line items which tell us what was purchased
-      if (paymentStatus.lineItems?.data) {
-        const ticketLineItems = paymentStatus.lineItems.data.filter(
-          (item: any) => item.reference !== "platform_fee"
-        );
-
-        // Reconstruct ticket details
-        purchaseData.ticketDetails = ticketLineItems.map((item: any) => ({
-          id: item.reference || "",
-          name: item.name,
-          price: item.price.value / 100, // Convert from cents back to SLE
-          quantity: item.quantity,
-        }));
-
-        // Reconstruct selected tickets object
-        purchaseData.selectedTickets = {};
-        ticketLineItems.forEach((item: any) => {
-          if (item.reference) {
-            purchaseData.selectedTickets[item.reference] = item.quantity;
-          }
-        });
-
-        // Update total amount (convert from cents)
-        purchaseData.totalAmount = parseFloat(
-          (paymentStatus.amount || 0) / 100
-        );
-      } else if (metadata.total_amount) {
-        // Fallback: use metadata values
-        purchaseData.totalAmount = parseFloat(metadata.total_amount || "0");
-      }
-
-      const result = await processOrangeMoneyCallback(
-        sessionId,
-        purchaseData,
-        paymentMethod
-      );
+      const oid = fulfill.data?.orderId ?? fulfill.orderId;
+      const result =
+        fulfillRes.ok && fulfill.success
+          ? { success: true, orderId: oid || "" }
+          : {
+              success: false,
+              error: fulfill.error || "Failed to complete purchase",
+            };
 
       if (result.success) {
         success = true;

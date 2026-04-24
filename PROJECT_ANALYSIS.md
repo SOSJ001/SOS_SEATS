@@ -482,12 +482,14 @@ PUBLIC_SUPABASE_URL=your_supabase_url
 PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Solana
-SOLANA_NETWORK=devnet  # or mainnet-beta
+PUBLIC_SOLANA_NETWORK=devnet
+PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 
-# Monime API (Orange Money)
-PUBLIC_MONIME_API_KEY=mon_test_...  # or mon_... for live
-PUBLIC_MONIME_SPACE_ID=spc-...
-PUBLIC_MONIME_ENVIRONMENT=test  # or live
+# Monime API (Orange Money) — server-only env vars (never PUBLIC_ for keys)
+MONIME_API_KEY=mon_test_...
+MONIME_PAYOUT_API_KEY=
+MONIME_SPACE_ID=spc-...
+MONIME_ENVIRONMENT=test
 ```
 
 ### Installation

@@ -6,7 +6,7 @@ import {
   getUserIdFromCookies,
 } from "$lib/supabase";
 
-export async function load({ cookies }) {
+export async function load({ cookies, locals }) {
   // Use the helper function to get user ID
   const user_Id = getUserIdFromCookies(cookies);
 
@@ -21,8 +21,8 @@ export async function load({ cookies }) {
   // Load both events and guests data
   try {
     const [guestsData, eventsData] = await Promise.all([
-      loadGuestsRows(user_Id),
-      loadUserEventsForSelector(user_Id),
+      loadGuestsRows(user_Id, locals.supabase),
+      loadUserEventsForSelector(user_Id, locals.supabase),
     ]);
 
     return {

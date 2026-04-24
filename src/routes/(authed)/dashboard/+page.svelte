@@ -1,10 +1,10 @@
 <script>
   // @ts-nocheck
-  import { getDomain, sessionFromDb, updatedEventsData } from "$lib/store";
-  import { invalidateAll, goto } from "$app/navigation";
+  import { sessionFromDb } from "$lib/store";
+  import { goto } from "$app/navigation";
+  import { fade } from "svelte/transition";
   import DashboardOverview from "$lib/components/DashboardOverview.svelte";
   import DashboardRecentActivity from "$lib/components/DashboardRecentActivity.svelte";
-  import { fade } from "svelte/transition";
 
   export let data;
 
@@ -12,46 +12,20 @@
     sessionFromDb.set(data.user_Id);
   }
 
-  // Get event data
-  let EventTableResult = data.EventTableResult;
-  const dashboardStats = data.dashboardStats || {
+  $: dashboardStats = data.dashboardStats ?? {
     liveEvents: 0,
     totalTicketsSold: 0,
     totalRevenue: 0,
     guestsCheckedIn: 0,
   };
 
-  // Helper function to format currency
-  function formatCurrency(amount) {
-    const numAmount = parseFloat(amount) || 0;
-    if (numAmount >= 1000000) {
-      return `NLe ${(numAmount / 1000000).toFixed(2)}M`;
-    } else if (numAmount >= 1000) {
-      return `NLe ${(numAmount / 1000).toFixed(0)}k`;
-    } else {
-      return `NLe ${numAmount.toFixed(2)}`;
-    }
-  }
-
-  // Calculate dashboard metrics dynamically
+  /** Live ops only — tickets sold & revenue live under Merchant zone */
   $: dashboardMetrics = [
     {
       icon: "calendar",
       value: dashboardStats.liveEvents.toString(),
       label: "LIVE EVENTS",
       color: "teal",
-    },
-    {
-      icon: "ticket",
-      value: dashboardStats.totalTicketsSold.toLocaleString(),
-      label: "TICKETS SOLD",
-      color: "blue",
-    },
-    {
-      icon: "currency",
-      value: formatCurrency(dashboardStats.totalRevenue),
-      label: "TOTAL REVENUE",
-      color: "green",
     },
     {
       icon: "users",
@@ -61,136 +35,125 @@
     },
   ];
 
-  // Temporary fallback metrics for testing
-  $: fallbackMetrics = [
-    {
-      icon: "calendar",
-      value: "0",
-      label: "LIVE EVENTS",
-      color: "teal",
-    },
-    {
-      icon: "ticket",
-      value: "0",
-      label: "TICKETS SOLD",
-      color: "blue",
-    },
-    {
-      icon: "currency",
-      value: "$0",
-      label: "TOTAL REVENUE",
-      color: "green",
-    },
-    {
-      icon: "users",
-      value: "0",
-      label: "GUESTS CHECKED IN",
-      color: "purple",
-    },
-  ];
+  $: displayActivities = data.recentActivities ?? [];
 
-  // Use fallback if dashboardMetrics is empty or undefined
-  $: displayMetrics =
-    dashboardMetrics && dashboardMetrics.length > 0
-      ? dashboardMetrics
-      : fallbackMetrics;
-
-  // Get recent activities from server data
-  const recentActivities = data.recentActivities || [];
-
-  // Use real activities if available, otherwise show empty array for proper empty state handling
-  $: displayActivities = recentActivities;
-
-  // Quick action handlers
   let isNavigating = false;
 
-  async function handleCreateEvent() {
+  async function go(path) {
     if (isNavigating) return;
     isNavigating = true;
-    await goto("/dashboard/events/createEvent");
+    await goto(path);
     isNavigating = false;
   }
 
-  async function handleScanQR() {
-    if (isNavigating) return;
-    isNavigating = true;
-    await goto("/dashboard/scanner");
-    isNavigating = false;
-  }
-
-  async function handleManageGuests() {
-    if (isNavigating) return;
-    isNavigating = true;
-    await goto("/dashboard/guests");
-    isNavigating = false;
-  }
+  const links = [
+    {
+      href: "/dashboard/merchant",
+      title: "Merchant zone",
+      desc: "Tickets sold, revenue, and per-event sales. Scanner and guest tools link from here too.",
+      accent: "from-cyan-600/30 to-purple-600/30 border-cyan-500/40",
+      featured: true,
+    },
+    {
+      href: "/dashboard/my-tickets",
+      title: "My tickets",
+      desc: "Tickets you have bought or received.",
+      accent: "bg-gray-800/80 border-gray-600",
+      featured: false,
+    },
+    {
+      href: "/dashboard/wallet",
+      title: "Wallet",
+      desc: "Balances and withdrawals.",
+      accent: "bg-gray-800/80 border-gray-600",
+      featured: false,
+    },
+    {
+      href: "/dashboard/events",
+      title: "Events",
+      desc: "Browse and manage events you care about.",
+      accent: "bg-gray-800/80 border-gray-600",
+      featured: false,
+    },
+    {
+      href: "/marketplace",
+      title: "Marketplace",
+      desc: "Discover public events and buy tickets.",
+      accent: "bg-gray-800/80 border-gray-600",
+      featured: false,
+    },
+    {
+      href: "/dashboard/settings",
+      title: "Settings",
+      desc: "Account and preferences.",
+      accent: "bg-gray-800/80 border-gray-600",
+      featured: false,
+    },
+  ];
 </script>
 
 <svelte:head>
   <title>Dashboard - SOS SEATS</title>
 </svelte:head>
 
-<div class="space-y-8">
-  <!-- Dashboard Overview -->
-  <DashboardOverview metrics={displayMetrics} />
+<div class="max-w-5xl mx-auto space-y-8" in:fade={{ duration: 300 }}>
+  <div>
+    <h1 class="text-3xl font-bold text-white tracking-tight">Welcome</h1>
+    <p class="text-gray-400 mt-2 max-w-2xl">
+      Use the shortcuts below. Live event and check-in counts are here; open
+      <strong class="text-gray-200">Merchant zone</strong> for tickets sold, revenue, and your
+      event cards.
+    </p>
+  </div>
 
-  <!-- Recent Activity -->
+  <DashboardOverview title="At a glance" metrics={dashboardMetrics} />
+
   <DashboardRecentActivity activities={displayActivities} />
 
-  <!-- Quick Actions Section -->
-  <div
-    class="bg-gray-800 border border-gray-700 rounded-lg p-6"
-    in:fade={{ duration: 500, delay: 400 }}
-  >
-    <h2 class="text-2xl font-bold text-white mb-6">Quick Actions</h2>
-
+  <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-4">Organizer quick actions</h2>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <button
-        class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-        on:click={handleCreateEvent}
+        type="button"
+        class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 px-6 rounded-lg transition disabled:opacity-50"
         disabled={isNavigating}
+        on:click={() => go("/dashboard/events/createEvent")}
       >
-        <div class="flex items-center space-x-3">
-          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          <span>Create Event</span>
-        </div>
+        Create event
       </button>
-
       <button
-        class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-        on:click={handleScanQR}
+        type="button"
+        class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition disabled:opacity-50"
         disabled={isNavigating}
+        on:click={() => go("/dashboard/scanner")}
       >
-        <div class="flex items-center space-x-3">
-          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          <span>Scan QR Code</span>
-        </div>
+        Scan tickets
       </button>
-
       <button
-        class="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-        on:click={handleManageGuests}
+        type="button"
+        class="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition disabled:opacity-50"
         disabled={isNavigating}
+        on:click={() => go("/dashboard/guests")}
       >
-        <div class="flex items-center space-x-3">
-          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>Manage Guests</span>
-        </div>
+        Manage guests
       </button>
     </div>
+  </div>
+
+  <div>
+    <h2 class="text-lg font-semibold text-white mb-3">Shortcuts</h2>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {#each links as item}
+      <a
+        href={item.href}
+        class="block rounded-xl border p-5 transition hover:border-cyan-500/50 hover:bg-gray-800/60 {item.accent} {item.featured ? 'ring-1 ring-cyan-500/30' : ''}"
+      >
+        <h2 class="text-lg font-semibold text-white">{item.title}</h2>
+        <p class="text-sm text-gray-400 mt-2 leading-relaxed">{item.desc}</p>
+        <span class="inline-block mt-4 text-sm text-cyan-400 font-medium">Open →</span>
+      </a>
+    {/each}
   </div>
 </div>

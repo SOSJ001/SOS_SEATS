@@ -1,14 +1,13 @@
+// @ts-nocheck
 import { json } from "@sveltejs/kit";
-import {
-  updateEventWithDetails,
-  uploadEventImageNew,
-  supabase,
-} from "$lib/supabase.js";
+import { updateEventWithDetails, uploadEventImageNew } from "$lib/supabase.js";
 import { parseSession } from "$lib/sessionUtils.js";
+import { validateMerchantEventPricing } from "$lib/server/merchantPricingRules";
 
-export async function PUT({ request, cookies, params }) {
+export async function PUT({ request, cookies, params, locals }) {
   try {
     const { user_Id, sessionType } = parseSession(cookies);
+    const { supabase } = locals;
     const eventId = params.eventId;
 
     if (!user_Id) {
@@ -44,7 +43,7 @@ export async function PUT({ request, cookies, params }) {
         const blob = await base64Response.blob();
         const file = new File([blob], "event-image.jpg", { type: blob.type });
 
-        const uploadResult = await uploadEventImageNew(file, user_Id);
+        const uploadResult = await uploadEventImageNew(file, user_Id, supabase);
         if (uploadResult.success) {
           imageId = uploadResult.image_id;
         } else {
@@ -105,12 +104,31 @@ export async function PUT({ request, cookies, params }) {
       updated_at: new Date().toISOString(),
     };
 
+    const pricingCheck = validateMerchantEventPricing({
+      is_free_event: eventPayload.is_free_event,
+      ticket_types: eventData.ticket_types,
+      venue_sections: eventData.venue_sections,
+      merchant_pricing_region: eventData.merchant_pricing_region,
+      default_currency: eventData.default_currency,
+    });
+    if (!pricingCheck.ok) {
+      return json(
+        {
+          success: false,
+          error: pricingCheck.error,
+          code: pricingCheck.code,
+        },
+        { status: 400 }
+      );
+    }
+
     // Update the event in the database
     const updateResult = await updateEventWithDetails(
       eventId,
       eventPayload,
       user_Id,
-      eventData
+      eventData,
+      supabase
     );
 
     if (updateResult.success) {

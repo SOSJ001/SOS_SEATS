@@ -2,7 +2,7 @@ import { json } from "@sveltejs/kit";
 import { loadUserEvents } from "$lib/supabase.js";
 import { parseSession } from "$lib/sessionUtils.js";
 
-export async function GET({ cookies }) {
+export async function GET({ cookies, locals }) {
   try {
     const sessionData = parseSession(cookies);
     const user_Id = sessionData.user_Id;
@@ -12,7 +12,11 @@ export async function GET({ cookies }) {
       return json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const events = await loadUserEvents(user_Id, sessionType || 'traditional');
+    const events = await loadUserEvents(
+      user_Id,
+      sessionType || "traditional",
+      locals.supabase
+    );
     return json({
       success: true,
       events: events,

@@ -21,7 +21,7 @@
 <div class="flex h-screen bg-gray-900">
   <!-- Sidebar (desktop) -->
   <div class="hidden lg:block">
-    <DashboardSidebar {userName} />
+    <DashboardSidebar {userName} isOpsAdmin={data.isOpsAdmin} />
   </div>
 
   <!-- Sidebar Drawer (mobile) -->
@@ -37,7 +37,11 @@
       <div
         class="relative w-64 h-full bg-gray-900 border-r border-gray-700 z-50 animate-slide-in-left"
       >
-        <DashboardSidebar {userName} onClose={closeSidebar} />
+        <DashboardSidebar
+          {userName}
+          isOpsAdmin={data.isOpsAdmin}
+          onClose={closeSidebar}
+        />
       </div>
     </div>
   {/if}

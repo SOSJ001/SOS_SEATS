@@ -1,10 +1,13 @@
+// @ts-nocheck
 import { json } from "@sveltejs/kit";
 import { createEventWithDetails, uploadEventImageNew } from "$lib/supabase.js";
 import { parseSession } from "$lib/sessionUtils.js";
+import { validateMerchantEventPricing } from "$lib/server/merchantPricingRules";
 
-export async function POST({ request, cookies }) {
+export async function POST({ request, cookies, locals }) {
   try {
     const { user_Id, sessionType } = parseSession(cookies);
+    const { supabase } = locals;
 
     if (!user_Id) {
       return json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -39,7 +42,11 @@ export async function POST({ request, cookies }) {
 
     // Handle image upload if provided
     if (imageFile && imageFile.size > 0) {
-      const uploadResult = await uploadEventImageNew(imageFile, user_Id);
+      const uploadResult = await uploadEventImageNew(
+        imageFile,
+        user_Id,
+        supabase
+      );
       if (uploadResult.success) {
         imageId = uploadResult.image_id;
       } else {
@@ -56,7 +63,7 @@ export async function POST({ request, cookies }) {
         const blob = await base64Response.blob();
         const file = new File([blob], "event-image.jpg", { type: blob.type });
 
-        const uploadResult = await uploadEventImageNew(file, user_Id);
+        const uploadResult = await uploadEventImageNew(file, user_Id, supabase);
         if (uploadResult.success) {
           imageId = uploadResult.image_id;
         } else {
@@ -100,8 +107,30 @@ export async function POST({ request, cookies }) {
       seating_options: eventData.seating_options || {},
     };
 
+    const pricingCheck = validateMerchantEventPricing({
+      is_free_event: eventPayload.is_free_event,
+      ticket_types: eventPayload.ticket_types,
+      venue_sections: eventPayload.venue_sections,
+      merchant_pricing_region: eventData.merchant_pricing_region,
+      default_currency: eventData.default_currency,
+    });
+    if (!pricingCheck.ok) {
+      return json(
+        {
+          success: false,
+          error: pricingCheck.error,
+          code: pricingCheck.code,
+        },
+        { status: 400 }
+      );
+    }
+
     // Create event in database
-    const result = await createEventWithDetails(eventPayload, user_Id);
+    const result = await createEventWithDetails(
+      eventPayload,
+      user_Id,
+      supabase
+    );
     if (result.success) {
       return json({
         success: true,
