@@ -1,12 +1,11 @@
 import { redirect } from "@sveltejs/kit";
-import { validateSession } from "$lib/sessionUtils.js";
 
-export function load({ cookies }) {
-  const { valid, user_Id, sessionType } = validateSession(cookies);
+export function load({ locals }) {
+  const user_Id = locals.userId;
+  const sessionType = locals.sessionType;
 
-  if (!valid) {
-    // Uncomment the line below to redirect unauthenticated users
-    throw redirect(302, '/');
+  if (!user_Id) {
+    throw redirect(302, "/");
   }
 
   return { user_Id, sessionType };

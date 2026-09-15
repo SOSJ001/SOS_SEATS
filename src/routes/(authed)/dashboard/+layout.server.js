@@ -1,9 +1,10 @@
 //@ts-nocheck
 import { loadUserEvents, getRecentActivities } from "$lib/supabase";
-import { parseSession } from "$lib/sessionUtils.js";
 
-export async function load({ cookies }) {
-  const { user_Id, userName, sessionType } = parseSession(cookies);
+export async function load({ locals }) {
+  const user_Id = locals.userId;
+  const userName = locals.userName;
+  const sessionType = locals.sessionType;
 
   if (!user_Id) {
     return {
