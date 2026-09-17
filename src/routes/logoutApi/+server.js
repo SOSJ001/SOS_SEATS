@@ -1,7 +1,4 @@
-import { json } from "@sveltejs/kit";
-
-export async function POST({ cookies }) {
-    // delete the cookie
-    cookies.delete("userSession", { path: "/" });
-     return json({}, { status: 201 });
-}
+/**
+ * Rebuild path (roadmap 0.6 / 2.1). Re-exports hardened logout.
+ */
+export { POST } from "../api/auth/logout/+server.ts";

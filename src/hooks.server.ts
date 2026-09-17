@@ -2,22 +2,26 @@ import { redirect, type Handle } from "@sveltejs/kit";
 import { resolveSession } from "$lib/server/auth";
 
 /**
- * Rebuild session door (roadmap 0.5).
- * Cookie session into locals; Bearer stub for 2.1; gate /dashboard only.
+ * Rebuild session door (roadmap 0.5 / 2.1).
+ * Cookie primary; Bearer via getUser; gate /dashboard → /sign-in.
  */
 export const handle: Handle = async ({ event, resolve }) => {
-  const session = resolveSession(event);
+  if (event.url.pathname === "/dev-sw.js") {
+    return new Response(null, { status: 404 });
+  }
+
+  const session = await resolveSession(event);
 
   event.locals.userId = session.userId;
   event.locals.userName = session.userName;
   event.locals.sessionType = session.sessionType;
   event.locals.walletAddress = session.walletAddress;
 
-  if (
-    event.url.pathname.startsWith("/dashboard") &&
-    !event.locals.userId
-  ) {
-    throw redirect(302, "/");
+  if (event.url.pathname.startsWith("/dashboard") && !event.locals.userId) {
+    const next = encodeURIComponent(
+      event.url.pathname + event.url.search
+    );
+    throw redirect(302, `/sign-in?next=${next}`);
   }
 
   return resolve(event);

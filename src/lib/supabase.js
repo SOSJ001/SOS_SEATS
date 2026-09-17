@@ -1,4 +1,9 @@
 // @ts-nocheck
+/**
+ * FREEZE (roadmap 1.2): do not add new Kit-privileged / server-only helpers here.
+ * New privileged work goes under $lib/server/<domain>.
+ * Existing exports remain for as-built client + transitional /api re-exports.
+ */
 import { createClient } from "@supabase/supabase-js";
 import { sessionFromDb } from "$lib/store";
 import { generateUniqueFilename } from "$lib/store";

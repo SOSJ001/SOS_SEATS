@@ -1,0 +1,208 @@
+<script>
+  // @ts-nocheck
+  import { goto, invalidateAll } from "$app/navigation";
+  import { page } from "$app/stores";
+  import AuthTextField from "$lib/components/auth/AuthTextField.svelte";
+  import AuthPrimaryButton from "$lib/components/auth/AuthPrimaryButton.svelte";
+  import AuthHeroPanel from "$lib/components/auth/AuthHeroPanel.svelte";
+  import AuthPanelShell from "$lib/components/auth/AuthPanelShell.svelte";
+  import AuthWordmark from "$lib/components/auth/AuthWordmark.svelte";
+
+  let email = "";
+  let password = "";
+  let errorMessage = null;
+  let loading = false;
+
+  function safeNext(raw) {
+    if (!raw || typeof raw !== "string") return "/dashboard";
+    const path = raw.trim();
+    if (!path.startsWith("/") || path.startsWith("//")) return "/dashboard";
+    return path;
+  }
+
+  async function onSubmit() {
+    errorMessage = null;
+    loading = true;
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        errorMessage = body.error || "Sign in failed";
+        loading = false;
+        return;
+      }
+      await invalidateAll();
+      goto(safeNext($page.url.searchParams.get("next")));
+    } catch {
+      errorMessage = "Something went wrong. Please try again.";
+      loading = false;
+    }
+  }
+</script>
+
+<!-- Mobile Sign In (HI-FI 4:325) -->
+<div class="flex min-h-screen flex-col bg-paper-cream text-ink lg:hidden">
+  <header
+    class="flex w-full flex-col items-start gap-5 bg-gradient-to-b from-brand-soft to-paper-cream p-6"
+  >
+    <AuthWordmark size="mobile" />
+    <div class="flex w-full flex-col items-start gap-2">
+      <h1 class="m-0 text-[28px] font-extrabold leading-none text-ink">Sign In</h1>
+      <p class="m-0 text-sm leading-[1.4] text-ink-secondary opacity-85">
+        Access your digital tickets and event panel securely.
+      </p>
+    </div>
+  </header>
+
+  <form
+    class="flex w-full flex-col gap-6 px-6 pb-10"
+    on:submit|preventDefault={onSubmit}
+  >
+    <div
+      class="flex w-full flex-col gap-4 rounded-2xl border border-paper-border bg-white p-4 shadow-[0px_2px_4px_rgba(18,4,28,0.03),0px_10px_14px_rgba(18,4,28,0.05)]"
+    >
+      <AuthTextField
+        id="sign-in-email-mobile"
+        label="Email Address"
+        type="email"
+        bind:value={email}
+        placeholder="name@domain.com"
+        autocomplete="email"
+        variant="mobile"
+      />
+      <AuthTextField
+        id="sign-in-password-mobile"
+        label="Password"
+        bind:value={password}
+        placeholder="••••••••"
+        autocomplete="current-password"
+        showPasswordToggle={true}
+        variant="mobile"
+      />
+      {#if errorMessage}
+        <p class="m-0 text-sm text-red-600" role="alert">{errorMessage}</p>
+      {/if}
+    </div>
+
+    <div class="flex w-full flex-col items-start gap-4">
+      <AuthPrimaryButton size="mobile" disabled={loading}>
+        {loading ? "Signing in…" : "Sign In"}
+      </AuthPrimaryButton>
+
+      <div class="flex w-full flex-col items-center gap-3">
+        <div class="flex w-full items-center gap-3">
+          <div class="h-px min-w-0 flex-1 bg-paper-border"></div>
+          <span
+            class="rounded-full border border-paper-border bg-paper-cream px-2.5 py-1 text-xs font-bold uppercase text-ink-secondary"
+            >OR</span
+          >
+          <div class="h-px min-w-0 flex-1 bg-paper-border"></div>
+        </div>
+
+        <button
+          type="button"
+          class="h-11 w-full cursor-default rounded-[10px] border border-brand bg-white text-sm font-bold text-brand opacity-90"
+          disabled
+          title="Coming in roadmap 2.2"
+        >
+          Sign in with Phone
+        </button>
+      </div>
+
+      <p class="m-0 w-full text-center text-sm text-ink-secondary">
+        Don't have an account?
+        <a href="/sign-up" class="font-extrabold text-brand hover:underline">Sign Up</a>
+      </p>
+
+      <p class="m-0 w-full text-center text-xs leading-[1.5] text-ink-muted">
+        By signing in, you agree to our
+        <a href="/terms" class="font-semibold text-brand hover:underline">Terms</a>
+        and
+        <a href="/privacy" class="font-semibold text-brand hover:underline">Privacy Policy</a>
+      </p>
+    </div>
+  </form>
+</div>
+
+<!-- Desktop AuthPanel -->
+<div class="hidden min-h-screen bg-white text-ink lg:flex lg:h-screen lg:h-[100dvh] lg:overflow-hidden">
+  <AuthHeroPanel />
+
+  <AuthPanelShell>
+    <div class="flex w-full flex-col items-center gap-[var(--auth-field-gap)] text-center">
+      <h1 class="m-0 w-full text-[length:var(--auth-title-size)] font-extrabold text-ink">Welcome back</h1>
+      <p class="m-0 w-full text-sm font-normal text-ink-secondary">
+        Sign in with your email address and password.
+      </p>
+    </div>
+
+    <form class="flex w-full flex-col gap-[var(--auth-form-gap)]" on:submit|preventDefault={onSubmit}>
+      <AuthTextField
+        id="sign-in-email"
+        label="Email Address"
+        type="email"
+        bind:value={email}
+        placeholder="e.g. musa@kamara.com"
+        autocomplete="email"
+        showLeadingIcon={true}
+        leadingIcon="mail"
+      />
+      <AuthTextField
+        id="sign-in-password"
+        label="Password"
+        bind:value={password}
+        placeholder="••••••••"
+        autocomplete="current-password"
+        showLeadingIcon={true}
+        leadingIcon="lock"
+        showPasswordToggle={true}
+      />
+
+      {#if errorMessage}
+        <p class="m-0 text-sm text-red-600" role="alert">{errorMessage}</p>
+      {/if}
+
+      <AuthPrimaryButton disabled={loading}>
+        {loading ? "Signing in…" : "Sign In"}
+      </AuthPrimaryButton>
+    </form>
+
+    <div class="flex w-full flex-col items-center gap-3 text-center">
+      <p class="m-0 w-full text-sm text-ink-secondary">
+        New to SOS SEATS?
+        <a href="/sign-up" class="font-bold text-brand hover:underline">Create an account</a>
+      </p>
+
+      <div class="flex w-full flex-col items-center gap-3">
+        <div class="flex w-full items-center gap-3">
+          <div class="h-px min-w-0 flex-1 bg-paper-border"></div>
+          <span
+            class="rounded-full bg-white px-2.5 py-1 text-xs font-bold uppercase tracking-[0.02em] text-ink-secondary"
+            >or</span
+          >
+          <div class="h-px min-w-0 flex-1 bg-paper-border"></div>
+        </div>
+
+        <button
+          type="button"
+          class="h-10 w-full cursor-default rounded-[10px] border border-brand bg-white text-sm font-bold text-brand opacity-90"
+          disabled
+          title="Coming in roadmap 2.2"
+        >
+          Sign in with Phone
+        </button>
+      </div>
+
+      <p class="m-0 w-full text-center text-xs leading-[1.5] text-ink-muted">
+        By signing in, you agree to our
+        <a href="/terms" class="font-semibold text-brand hover:underline">Terms</a>
+        and
+        <a href="/privacy" class="font-semibold text-brand hover:underline">Privacy Policy</a>
+      </p>
+    </div>
+  </AuthPanelShell>
+</div>

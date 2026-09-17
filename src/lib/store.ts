@@ -163,6 +163,10 @@ export const defaultTicketDesignConfig: TicketDesignConfig = {
 
 export const sessionFromDb = writable(null);
 
+/** Public chrome (1.3): request root layout to open login / signup modals */
+export const requestLoginModal = writable(false);
+export const requestSignupModal = writable(false);
+
 // Wallet store
 export const walletStore = writable({
   connected: false,

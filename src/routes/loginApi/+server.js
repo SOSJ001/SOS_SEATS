@@ -1,11 +1,4 @@
-
-import { json } from "@sveltejs/kit";
-
-export async function POST({ request, cookies }) {
-    const { sessionData } = await request.json();
-    const COOKIE_DATA = sessionData.user
-    const user = JSON.stringify(COOKIE_DATA)
-    cookies.set('userSession', user, { path: '/' });
-        return json({  }, { status: 201 });
-
-}
+/**
+ * Rebuild path (roadmap 0.6 / 2.1). Re-exports hardened login handler.
+ */
+export { POST } from "../api/auth/login/+server.ts";

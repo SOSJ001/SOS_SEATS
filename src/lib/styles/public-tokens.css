@@ -1,0 +1,41 @@
+/* HI-FI public fonts + shell baseline (roadmap 1.3). fileKey r7WJ5vTjJU3Bl4fz4ZQfnV */
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/plus-jakarta-sans/800.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/inter/900.css";
+
+/*
+  Auth / form density (compact).
+  Prefer these over spacious HI-FI defaults (56px inputs, 440 cards, 40px pad).
+  Keep Figma Density Spec — Forms & Auth in sync.
+*/
+:root {
+  --auth-card-max: 400px;
+  --auth-card-radius: 16px;
+  --auth-card-pad-x: 32px;
+  --auth-card-pad-y: 28px;
+  --auth-card-gap: 16px;
+  --auth-field-gap: 6px;
+  --auth-form-gap: 12px;
+  --auth-input-h: 44px;
+  --auth-input-radius: 12px;
+  --auth-input-icon: 16px;
+  --auth-btn-h: 44px;
+  --auth-btn-radius: 10px;
+  --auth-panel-inset: 32px;
+  --auth-title-size: 24px;
+}
+
+.public-shell,
+.authed-shell {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  color: #12041c;
+}
+
+.public-shell a,
+.authed-shell a {
+  text-decoration: none;
+}
