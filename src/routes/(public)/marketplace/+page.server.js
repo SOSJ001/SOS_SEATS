@@ -1,7 +1,6 @@
-import { loadEventToMarketplaceTable } from "$lib/supabase";
+import { loadPublicEvents } from "$lib/supabase";
 
 export async function load() {
-    // load public events to the marketplace 
-    const marketplaceEvent = await loadEventToMarketplaceTable("Public");
-    return { marketplaceEvent } 
+  const marketplaceEvent = await loadPublicEvents();
+  return { marketplaceEvent: marketplaceEvent || [] };
 }

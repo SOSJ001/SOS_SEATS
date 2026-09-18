@@ -3,6 +3,10 @@
  * FREEZE (roadmap 1.2): do not add new Kit-privileged / server-only helpers here.
  * New privileged work goes under $lib/server/<domain>.
  * Existing exports remain for as-built client + transitional /api re-exports.
+ *
+ * FREEZE (roadmap 3.1): no reads/writes to singular legacy tables
+ * (event, guest, image, seat, wallet, orderhistory, userandpublickey).
+ * App I/O uses plural tables only; DROP is 3.3 (blocked).
  */
 import { createClient } from "@supabase/supabase-js";
 import { sessionFromDb } from "$lib/store";
@@ -61,204 +65,6 @@ export async function signOutbtnFunction() {
   const { error } = await supabase.auth.signOut();
   sessionFromDb.set(null);
   return error;
-}
-
-// load event to the user table
-export async function loadEventToTable(user_id) {
-  let { data: events, error } = await supabase
-    .from("event")
-    .select("*")
-    .eq("user_id", user_id);
-
-  if (error) {
-    return [];
-  }
-
-  // Use Promise.all to await all image requests
-  const eventWithImages = await Promise.all(
-    events.map(async (Event, i) => {
-      const Images = await SelectImagePath(Event.imageId);
-      return {
-        Event: Event,
-        // @ts-ignore
-        Image: Images,
-      };
-    })
-  );
-
-  return eventWithImages;
-}
-
-// load event to marketplace table
-export async function loadEventToMarketplaceTable(sth) {
-  let { data: events, error } = await supabase
-    .from("event")
-    .select("*")
-    .eq("audience", sth);
-
-  if (error) {
-    return [];
-  }
-
-  // Use Promise.all to await all image requests
-  const eventWithImages = await Promise.all(
-    events.map(async (Event, i) => {
-      const Images = await SelectImagePath(Event.imageId);
-      return {
-        Event: Event,
-        // @ts-ignore
-        Image: Images,
-      };
-    })
-  );
-
-  return eventWithImages;
-}
-//update event table
-export async function updateEventToTable(user_id, event_Id) {
-  let { data: events, error } = await supabase
-    .from("event")
-    .select("*")
-    .eq("user_id", user_id)
-    .eq("imageId", event_Id);
-
-  if (error) {
-    return [];
-  }
-
-  const Images = await SelectImagePath(events[0].imageId);
-  return {
-    Event: events[0],
-    // @ts-ignore
-    Image: Images,
-  };
-}
-
-// load seat to table function
-// @ts-ignore
-export async function loadSeatsToTable(EventId) {
-  // @ts-ignore
-  let { data: seat, error } = await supabase
-    .from("seat")
-    .select("*")
-
-    // Filters
-    .eq("eventid", EventId);
-
-  if (error) {
-    return null;
-  } else {
-    return seat;
-  }
-}
-
-// SELECT IMAGE PATH FROM image Table
-// @ts-ignore
-async function SelectImagePath(imageId) {
-  let { data: image, error } = await supabase
-    .from("image")
-    .select("*")
-    .eq("id", imageId);
-
-  if (error) {
-    return null; // You should handle errors appropriately
-  } else {
-    // @ts-ignore
-    const images = await GetImageUrl(image[0].fileName);
-    return images;
-  }
-
-  // return image;
-}
-
-// get public url for the Event Image below
-// @ts-ignore
-async function GetImageUrl(fileName) {
-  const { data } = supabase.storage
-    .from("event_image") //Bucket id
-    .getPublicUrl(fileName);
-  return data.publicUrl;
-}
-
-// upload image function
-// @ts-ignore
-async function uploadEventImage(image, userId1) {
-  const avatarFile = image.files[0];
-  let flyerName = `public/${generateUniqueFilename() + avatarFile.name}`;
-  // @ts-ignore
-  //uploading the flyer for the event
-  const { data, error } = await supabase.storage
-    .from("event_image")
-    .upload(`${flyerName}`, avatarFile, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-  if (data) {
-    //if the flyer is uploaded successfully insert the flyer name along side the userid into the image table
-    const { data, error } = await supabase
-      .from("image")
-      .insert([{ fileName: flyerName, userId: userId1 }])
-      .select();
-
-    if (data) {
-      // const imageId = data[0].id;
-      return imageId;
-    } else {
-    }
-  } else {
-    return;
-  }
-}
-
-// insert event function below
-// @ts-ignore
-export async function addEventFunction(
-  eName,
-  eDate,
-  eVenue,
-  Audience,
-  file_input,
-  userId
-) {
-  // upload the image first on success insert the event records
-  const imageId = await uploadEventImage(file_input, userId);
-  // @ts-ignore
-  const response = await supabase
-    .from("event")
-    .insert([
-      {
-        name: eName,
-        date: eDate,
-        venue: eVenue,
-        audience: Audience,
-        imageId: imageId,
-        user_id: userId,
-      },
-    ])
-    .select();
-
-  return response;
-}
-
-// insert into guest table
-export async function insertIntoGuestTable(
-  guestName,
-  inviteCode,
-  event_Id,
-  IsMale
-) {
-  const response = await supabase
-    .from("guest")
-    .insert([
-      {
-        guestName: guestName,
-        inviteCode: inviteCode,
-        event_Id: event_Id,
-        IsMale: IsMale,
-      },
-    ])
-    .select();
-  return response;
 }
 
 //load all guest rows
@@ -379,40 +185,6 @@ export async function loadEventGuestsRows(event_id) {
   }
 }
 
-//get the total gender
-export async function GetGender(IsMale, event_Id) {
-  let response = await supabase
-    .from("guest")
-    .select("*")
-    .eq("IsMale", IsMale)
-    .eq("event_Id", event_Id);
-
-  return response;
-}
-
-//get total Guests attended
-export async function GetTotalAttended(verified, event_Id) {
-  let response = await supabase
-    .from("guest")
-    .select("*")
-    .eq("verified", verified)
-    .eq("event_Id", event_Id);
-
-  return response;
-}
-
-//get Total Gender attended
-export async function GetTotalGenderAttended(IsMale, event_Id, verified) {
-  let response = await supabase
-    .from("guest")
-    .select("*")
-    .eq("IsMale", IsMale)
-    .eq("event_Id", event_Id)
-    .eq("verified", verified);
-
-  return response;
-}
-
 // Load user events for event selector
 export async function loadUserEventsForSelector(userId) {
   try {
@@ -477,98 +249,18 @@ export async function loadUserEventsForSelector(userId) {
     return { data: [], error: error.message };
   }
 }
-//Scan guest invite
-export async function scanGuestInvite(inviteCode, event_Id) {
-  let response = await supabase
-    .from("guest")
-    .select("*")
-    .eq("inviteCode", inviteCode)
-    .eq("event_Id", event_Id);
-  return response;
+// Seats out of v1 (roadmap 3.1): no singular orderhistory reads.
+export async function orderHistory(_user_id) {
+  return { data: [], error: null };
 }
 
-//Update guest invite
-export async function updateGuestInvite(guestId) {
-  let response = await supabase
-    .from("guest")
-    .update({ verifiedTime: new Date(Date.now()), verified: true })
-    .eq("id", guestId)
-    .select();
-
-  if (!response.error) {
-    response;
-    return response;
-  } else {
-    // update time error
-  }
+// Solana custodial keypair persistence deferred (2.6 SKIP / 3.1 freeze).
+export async function storeWallet(_user_id, _wallet, _publicKey) {
+  return { data: [], error: { message: "deferred" } };
 }
 
-//Delete guests
-export async function removeGuest(guest_id) {
-  const { error } = await supabase.from("guest").delete().eq("id", guest_id);
-  return error;
-}
-
-export async function removeEvent(id) {
-  const { error } = await supabase.from("event").delete().eq("id", id);
-  return error;
-}
-
-export async function placeSeatOrder(eventid, Area, maxSeat, ticketPrice) {
-  const response = await supabase
-    .from("seat")
-    .insert([
-      {
-        eventid: eventid,
-        Area: Area,
-        maxSeat: maxSeat,
-        ticketPrice: ticketPrice || 0,
-      },
-    ])
-    .select();
-  return response;
-}
-
-// get order history
-export async function orderHistory(user_id) {
-  let response = await supabase
-    .from("orderhistory")
-    .select("*")
-    .eq("user_id", user_id);
-  return response;
-}
-
-//store wallet
-export async function storeWallet(user_id, wallet, publicKey) {
-  const response = await supabase
-    .from("wallet")
-    .insert([{ user_id: user_id, wallet: wallet, publicKey: publicKey }])
-    .select();
-  return response;
-}
-
-//select specific users and publickey
-export async function usersAndPublickeys(user_id) {
-  const response = await supabase
-    .from("userandpublickey")
-    .select("*")
-    .eq("id", user_id);
-  return response;
-}
-
-//search all the usersname and publickey
-export async function searchWalletAndUserName() {
-  const response = await supabase.from("userandpublickey").select("*");
-  return response;
-}
-
-//call this in the server to get the signature
-export async function signTransactionKey(user_id) {
-  const response = await supabase
-    .from("wallet")
-    .select("*")
-    .eq("user_id", user_id);
-  return response;
+export async function signTransactionKey(_user_id) {
+  return { data: [], error: { message: "deferred" } };
 }
 
 // ===== WEB3 AUTHENTICATION FUNCTIONS =====

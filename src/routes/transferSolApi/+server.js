@@ -1,7 +1,7 @@
 //@ts-nocheck
 import { json } from "@sveltejs/kit";
 import { connection } from "$lib/web3";
-import { searchWalletAndUserName } from "$lib/supabase.js";
+import { listWalletDirectory } from "$lib/server/walletDirectory";
 import { transferSol } from "$lib/web3";
 import { ACTIONS_CORS_HEADERS } from "@solana/actions";
 import { sendAndConfirmTransaction } from "@solana/web3.js";
@@ -15,32 +15,30 @@ export async function POST({ request, locals }) {
     return json({ error: "No valid session found" }, { status: 401 });
   }
 
-  // search for the wallet of that userName
-  const response = await searchWalletAndUserName();
+  const response = await listWalletDirectory();
   if (!response.error) {
-    //check if the user exists
     let userExists = response.data.find(
-      (arr) => arr.username.toLowerCase() === userName.toLowerCase()
+      (arr) =>
+        arr.username &&
+        arr.username.toLowerCase() === userName.toLowerCase()
     );
     if (userExists) {
-      //build the transaction
-      const response = await transferSol(
+      const transferResponse = await transferSol(
         user_Id,
         publickey,
         userExists.publicKey,
         amount
       );
-      if (response !== null) {
+      if (transferResponse !== null) {
         payload = await sendAndConfirmTransaction(
           connection,
-          response.transaction,
-          [response.keypair]
+          transferResponse.transaction,
+          [transferResponse.keypair]
         );
       }
     } else {
       return;
     }
-  } else {
   }
   return json({ payload }, { headers: ACTIONS_CORS_HEADERS, status: 201 });
 }
