@@ -4,9 +4,12 @@
    * Door shell — HI-FI staff/scanner minimal top bar (530:195 / 4:851).
    */
   import AuthedWordmark from "./AuthedWordmark.svelte";
+  import LogoutConfirmModal from "./LogoutConfirmModal.svelte";
   import { authedLogout, initialsFromName } from "./authedLogout.js";
 
   export let userName = "User";
+
+  let showLogoutConfirm = false;
 
   $: initials = initialsFromName(userName);
 </script>
@@ -34,7 +37,7 @@
       <button
         type="button"
         class="text-sm font-semibold text-ink-secondary hover:text-brand bg-transparent border-0 p-0 cursor-pointer ml-1"
-        on:click={authedLogout}
+        on:click={() => (showLogoutConfirm = true)}
       >
         Logout
       </button>
@@ -47,3 +50,8 @@
     </div>
   </main>
 </div>
+
+<LogoutConfirmModal
+  bind:open={showLogoutConfirm}
+  on:confirm={authedLogout}
+/>

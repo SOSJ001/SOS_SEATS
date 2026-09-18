@@ -7,11 +7,13 @@
   import PublicIcon from "$lib/components/public/PublicIcon.svelte";
   import PublicFooter from "$lib/components/public/PublicFooter.svelte";
   import AuthedWordmark from "./AuthedWordmark.svelte";
+  import LogoutConfirmModal from "./LogoutConfirmModal.svelte";
   import { authedLogout, initialsFromName } from "./authedLogout.js";
 
   export let userName = "User";
 
   let menuOpen = false;
+  let showLogoutConfirm = false;
 
   $: path = $page.url.pathname;
   $: onTickets = path.startsWith("/dashboard/my-tickets");
@@ -53,7 +55,7 @@
       <button
         type="button"
         class="text-[15px] font-semibold text-ink-secondary hover:text-brand bg-transparent border-0 p-0 cursor-pointer"
-        on:click={authedLogout}
+        on:click={() => (showLogoutConfirm = true)}
       >
         Logout
       </button>
@@ -206,7 +208,7 @@
         <button
           type="button"
           class="text-sm font-semibold text-[#d92626] bg-transparent border-0 p-0 cursor-pointer"
-          on:click={authedLogout}
+          on:click={() => (showLogoutConfirm = true)}
         >
           Logout
         </button>
@@ -214,3 +216,8 @@
     </div>
   </div>
 {/if}
+
+<LogoutConfirmModal
+  bind:open={showLogoutConfirm}
+  on:confirm={authedLogout}
+/>

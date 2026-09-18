@@ -4,16 +4,31 @@
    * Organiser shell — HI-FI desktop sidebar 55:858 + mobile hamburger 471:86.
    */
   import { page } from "$app/stores";
+  import Wallet from "lucide-svelte/icons/wallet";
   import PublicIcon from "$lib/components/public/PublicIcon.svelte";
   import AuthedWordmark from "./AuthedWordmark.svelte";
+  import LogoutConfirmModal from "./LogoutConfirmModal.svelte";
   import { authedLogout, initialsFromName } from "./authedLogout.js";
 
   export let userName = "User";
+  /** @type {string | null} */
+  export let linkedWalletAddress = null;
 
   let menuOpen = false;
+  let showLogoutConfirm = false;
 
   $: path = $page.url.pathname;
   $: initials = initialsFromName(userName);
+  $: linkedWalletLabel = truncateWallet(linkedWalletAddress);
+
+  /**
+   * @param {string | null | undefined} address
+   */
+  function truncateWallet(address) {
+    if (!address || typeof address !== "string") return null;
+    if (address.length <= 10) return address;
+    return `${address.slice(0, 4)}…${address.slice(-4)}`;
+  }
 
   const primary = [
     {
@@ -108,13 +123,23 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="m-0 text-[13px] font-bold text-white truncate">{userName}</p>
-          <p class="m-0 text-[11px] text-ink-muted truncate">Organiser</p>
+          {#if linkedWalletLabel}
+            <p
+              class="m-0 mt-0.5 text-[10px] text-white/50 truncate flex items-center gap-1"
+              title={linkedWalletAddress}
+            >
+              <Wallet class="size-3 shrink-0 opacity-80" aria-hidden="true" />
+              <span>Linked wallet · {linkedWalletLabel}</span>
+            </p>
+          {:else}
+            <p class="m-0 text-[11px] text-ink-muted truncate">Organiser</p>
+          {/if}
         </div>
       </div>
       <button
         type="button"
         class="text-left text-sm font-semibold text-red-400 hover:text-red-300 bg-transparent border-0 p-0 cursor-pointer px-1"
-        on:click={authedLogout}
+        on:click={() => (showLogoutConfirm = true)}
       >
         Logout
       </button>
@@ -180,6 +205,15 @@
           </div>
           <div class="min-w-0">
             <p class="m-0 text-sm font-bold text-ink truncate">{userName}</p>
+            {#if linkedWalletLabel}
+              <p
+                class="m-0 mt-1 text-[11px] text-ink-secondary truncate flex items-center gap-1"
+                title={linkedWalletAddress}
+              >
+                <Wallet class="size-3 shrink-0 opacity-80" aria-hidden="true" />
+                <span>Linked wallet · {linkedWalletLabel}</span>
+              </p>
+            {/if}
             <span
               class="inline-flex mt-1 px-1.5 py-0.5 rounded-full bg-brand text-white text-[8px] font-extrabold tracking-wide"
             >
@@ -252,7 +286,7 @@
         <button
           type="button"
           class="text-sm font-semibold text-[#d92626] bg-transparent border-0 p-0 cursor-pointer"
-          on:click={authedLogout}
+          on:click={() => (showLogoutConfirm = true)}
         >
           Logout
         </button>
@@ -260,3 +294,8 @@
     </div>
   </div>
 {/if}
+
+<LogoutConfirmModal
+  bind:open={showLogoutConfirm}
+  on:confirm={authedLogout}
+/>

@@ -1,10 +1,10 @@
 import { json } from "@sveltejs/kit";
 import { createEventWithDetails, uploadEventImageNew } from "$lib/supabase.js";
-import { parseSession } from "$lib/sessionUtils.js";
 
-export async function POST({ request, cookies }) {
+export async function POST({ request, locals }) {
   try {
-    const { user_Id, sessionType } = parseSession(cookies);
+    const user_Id = locals.userId;
+    const sessionType = locals.sessionType;
 
     if (!user_Id) {
       return json({ success: false, error: "Unauthorized" }, { status: 401 });

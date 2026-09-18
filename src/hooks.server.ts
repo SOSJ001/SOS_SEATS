@@ -16,11 +16,11 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.userName = session.userName;
   event.locals.sessionType = session.sessionType;
   event.locals.walletAddress = session.walletAddress;
+  event.locals.web3UserId = session.web3UserId;
+  event.locals.linkedWalletAddress = session.linkedWalletAddress;
 
   if (event.url.pathname.startsWith("/dashboard") && !event.locals.userId) {
-    const next = encodeURIComponent(
-      event.url.pathname + event.url.search
-    );
+    const next = encodeURIComponent(event.url.pathname + event.url.search);
     throw redirect(302, `/sign-in?next=${next}`);
   }
 

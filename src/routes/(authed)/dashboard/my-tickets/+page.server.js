@@ -1,15 +1,10 @@
-import { parseSession } from "$lib/sessionUtils.js";
-
-export async function load({ cookies }) {
+export async function load({ locals }) {
   try {
-    // Parse session data to get wallet address
-    const { user_Id, userName, sessionType, walletAddress } =
-      parseSession(cookies);
-
     return {
-      walletAddress,
-      sessionType,
-      userName,
+      walletAddress: locals.walletAddress,
+      sessionType: locals.sessionType,
+      userName: locals.userName,
+      userId: locals.userId,
     };
   } catch (error) {
     console.error("Error in my-tickets server load:", error);
@@ -17,6 +12,7 @@ export async function load({ cookies }) {
       walletAddress: null,
       sessionType: null,
       userName: null,
+      userId: null,
     };
   }
 }

@@ -1,13 +1,29 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import { parseSession } from "$lib/sessionUtils.js";
 import { getAnonSupabase } from "./anon";
+import { resolveLinkedIdentity } from "./linkedIdentity";
 
 export type ResolvedSession = {
   userId: string | null;
   userName: string | null;
   sessionType: string | null;
   walletAddress: string | null;
+  /** Original web3_users.id when sessionType is web3 (before survivor remap). */
+  web3UserId: string | null;
+  /** Linked Solana address when traditional email has an operator-linked wallet. */
+  linkedWalletAddress: string | null;
 };
+
+function emptySession(): ResolvedSession {
+  return {
+    userId: null,
+    userName: null,
+    sessionType: null,
+    walletAddress: null,
+    web3UserId: null,
+    linkedWalletAddress: null,
+  };
+}
 
 /**
  * Bearer product-session resolve (roadmap 2.1).
@@ -23,12 +39,19 @@ export async function resolveBearerSession(
 
     const user = data.user;
     const meta = user.user_metadata ?? {};
-    return {
+    const email = typeof user.email === "string" ? user.email : "";
+    const sessionType =
+      meta.sessionType === "phone" ||
+      email.toLowerCase().endsWith("@phone.sosseats.internal")
+        ? "phone"
+        : "traditional";
+    const base = {
       userId: user.id,
       userName: (meta.userName || meta.name || null) as string | null,
-      sessionType: "traditional",
-      walletAddress: null,
+      sessionType,
+      walletAddress: null as string | null,
     };
+    return resolveLinkedIdentity(base);
   } catch {
     return null;
   }
@@ -36,6 +59,7 @@ export async function resolveBearerSession(
 
 /**
  * Resolve Cookie (primary) or Bearer into the same product session shape.
+ * Roadmap 2.4: applies linked_auth_user_id enrich after parse.
  */
 export async function resolveSession(
   event: RequestEvent
@@ -49,12 +73,12 @@ export async function resolveSession(
   const { user_Id, userName, sessionType, walletAddress } = parsed;
 
   if (user_Id) {
-    return {
+    return resolveLinkedIdentity({
       userId: user_Id,
       userName: userName ?? null,
       sessionType: sessionType ?? null,
       walletAddress: walletAddress ?? null,
-    };
+    });
   }
 
   const authHeader = event.request.headers.get("authorization");
@@ -66,10 +90,5 @@ export async function resolveSession(
     }
   }
 
-  return {
-    userId: null,
-    userName: null,
-    sessionType: null,
-    walletAddress: null,
-  };
+  return emptySession();
 }

@@ -1,14 +1,11 @@
 //@ts-nocheck
 import {
   loadGuestsRows,
-  loadGuestsRowsBypass,
   loadUserEventsForSelector,
-  getUserIdFromCookies,
 } from "$lib/supabase";
 
-export async function load({ cookies }) {
-  // Use the helper function to get user ID
-  const user_Id = getUserIdFromCookies(cookies);
+export async function load({ locals }) {
+  const user_Id = locals.userId;
 
   // If no authenticated user, return empty datasets
   if (!user_Id) {

@@ -164,7 +164,7 @@
       </span>
     </div>
   </div>
-</section>
+    </section>
 
 <!-- Search strip (Figma 55:26 / 33:2) -->
 <section class="px-5 py-6 md:px-20 md:py-8 flex flex-col gap-4">
@@ -206,7 +206,7 @@
       {/each}
     </div>
   </div>
-</section>
+    </section>
 
 <!-- Upcoming (Figma 55:32 filled / 879:1936 empty) -->
 <section class={sectionPad}>
@@ -242,7 +242,7 @@
   {:else}
     <PublicUpcomingEmptyState />
   {/if}
-</section>
+    </section>
 
 <!-- How it works (Figma 55:35 desktop / 4:29 mobile) -->
 <section class="{sectionPad} flex flex-col gap-6 bg-paper">
@@ -365,7 +365,7 @@
       <a href="/marketplace" class={btnGhost}>Learn More</a>
     </div>
   </div>
-</section>
+    </section>
 
 <!-- Trust + fees (Figma 55:53 desktop / 4:50+4:77 mobile) -->
 <section
@@ -485,7 +485,7 @@
           <span class="text-[13px] text-ink-body">no extra fees for free events</span>
         </div>
       </div>
-    </div>
+</div>
 
     <!-- Desktop large fee cards (55:8) -->
     <div

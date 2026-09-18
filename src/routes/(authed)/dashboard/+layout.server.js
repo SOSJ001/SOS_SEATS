@@ -5,6 +5,7 @@ export async function load({ locals }) {
   const user_Id = locals.userId;
   const userName = locals.userName;
   const sessionType = locals.sessionType;
+  const linkedWalletAddress = locals.linkedWalletAddress;
 
   if (!user_Id) {
     return {
@@ -19,6 +20,7 @@ export async function load({ locals }) {
       user_Id: null,
       userName: null,
       sessionType: null,
+      linkedWalletAddress: null,
     };
   }
 
@@ -73,5 +75,6 @@ export async function load({ locals }) {
     user_Id,
     userName,
     sessionType,
+    linkedWalletAddress,
   };
 }

@@ -1,10 +1,10 @@
 import { error } from "@sveltejs/kit";
 import { supabase } from "$lib/supabase.js";
-import { validateSession } from "$lib/sessionUtils.js";
 
-export async function load({ url, cookies, params }) {
+export async function load({ url, locals, params }) {
   try {
-    const { user_Id, sessionType } = validateSession(cookies);
+    const user_Id = locals.userId;
+    const sessionType = locals.sessionType;
     const eventId = params.eventId;
 
     if (!user_Id) {

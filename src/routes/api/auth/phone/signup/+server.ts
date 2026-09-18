@@ -1,33 +1,31 @@
 /**
- * POST /api/auth/signup — email/password create account (roadmap 2.1).
- * Body: { email, password, name, userName }
+ * POST /api/auth/phone/signup — phone+password create account (roadmap 2.2).
+ * Body: { phone, password, name }
  */
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { signUpWithPassword, setUserSessionCookie, AUTH_SERVICE_UNREACHABLE } from "$lib/server/auth";
+import {
+  normalizeSlPhone,
+  signUpWithPhone,
+  setUserSessionCookie,
+  AUTH_SERVICE_UNREACHABLE,
+} from "$lib/server/auth";
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
-  let body: {
-    email?: string;
-    password?: string;
-    name?: string;
-    userName?: string;
-  };
+  let body: { phone?: string; password?: string; name?: string };
   try {
     body = await request.json();
   } catch {
     return json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const phoneRaw = typeof body.phone === "string" ? body.phone : "";
   const password = typeof body.password === "string" ? body.password : "";
   const name = typeof body.name === "string" ? body.name.trim() : "";
-  const userName =
-    typeof body.userName === "string" ? body.userName.trim() : "";
 
-  if (!email || !password || !name || !userName) {
+  if (!phoneRaw || !password || !name) {
     return json(
-      { error: "Full name, username, email, and password are required" },
+      { error: "Full name, phone number, and password are required" },
       { status: 400 },
     );
   }
@@ -39,11 +37,15 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     );
   }
 
-  const { data, error } = await signUpWithPassword(
-    email,
+  const normalized = normalizeSlPhone(phoneRaw);
+  if (!normalized.ok) {
+    return json({ error: normalized.error }, { status: 400 });
+  }
+
+  const { data, error } = await signUpWithPhone(
+    normalized.e164,
     password,
     name,
-    userName,
   );
 
   if (error?.message === AUTH_SERVICE_UNREACHABLE) {

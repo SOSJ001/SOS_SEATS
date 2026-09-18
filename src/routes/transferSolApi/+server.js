@@ -6,31 +6,10 @@ import { transferSol } from "$lib/web3";
 import { ACTIONS_CORS_HEADERS } from "@solana/actions";
 import { sendAndConfirmTransaction } from "@solana/web3.js";
 
-export async function POST({ cookies, request }) {
+export async function POST({ request, locals }) {
   const { publickey, userName, amount } = await request.json();
   let payload;
-  //get the cookie
-  let userSession = cookies.get("userSession");
-  let web3Session = cookies.get("web3Session");
-  let user_Id = null;
-
-  // Check traditional session first
-  if (userSession) {
-    try {
-      const sessionData = JSON.parse(userSession);
-      user_Id = sessionData.id;
-    } catch (error) {}
-  }
-
-  // Check Web3 session if no traditional session
-  if (!user_Id && web3Session) {
-    try {
-      const sessionData = JSON.parse(web3Session);
-      if (sessionData.type === "web3" && sessionData.user) {
-        user_Id = sessionData.user.id;
-      }
-    } catch (error) {}
-  }
+  const user_Id = locals.web3UserId ?? locals.userId;
 
   if (!user_Id) {
     return json({ error: "No valid session found" }, { status: 401 });

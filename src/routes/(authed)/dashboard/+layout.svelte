@@ -2,7 +2,7 @@
   // @ts-nocheck
   /**
    * Path-based HI-FI shells (roadmap 1.4).
-   * my-tickets → Attendee; scanner → Door; else → Organiser.
+   * my-tickets → Attendee; scanner|staff → Door; else → Organiser.
    */
   import { page } from "$app/stores";
   import "$lib/styles/public-tokens.css";
@@ -13,11 +13,12 @@
   export let data;
 
   $: userName = data.userName || "User";
+  $: linkedWalletAddress = data.linkedWalletAddress || null;
   $: path = $page.url.pathname;
   $: shell =
     path.startsWith("/dashboard/my-tickets")
       ? "attendee"
-      : path.startsWith("/dashboard/scanner")
+      : path.startsWith("/dashboard/scanner") || path.startsWith("/dashboard/staff")
         ? "door"
         : "organiser";
 </script>
@@ -31,7 +32,7 @@
     <slot />
   </DoorShell>
 {:else}
-  <OrganiserShell {userName}>
+  <OrganiserShell {userName} {linkedWalletAddress}>
     <slot />
   </OrganiserShell>
 {/if}

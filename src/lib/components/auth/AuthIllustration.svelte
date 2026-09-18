@@ -87,26 +87,26 @@
       alt=""
     />
 
-    <!-- Diagonal lines -->
+    <!-- Diagonal lines (angle on wrappers; scaleY animates inner bars) -->
     <div
-      class="auth-line auth-line-1 absolute left-[80px] top-[49.15px] flex h-[200.233px] w-[94.789px] items-center justify-center"
+      class="auth-line auth-line-1 absolute left-[80px] top-[49.15px] flex h-[200.233px] w-[94.789px] -rotate-[25deg] items-center justify-center"
     >
-      <div class="-rotate-[25deg] h-[220px] w-0.5 rounded-[1px] bg-[rgba(255,90,31,0.4)]"></div>
+      <div class="h-[220px] w-0.5 rounded-[1px] bg-[rgba(255,90,31,0.4)]"></div>
     </div>
     <div
-      class="auth-line auth-line-2 absolute left-[288.44px] top-[100px] flex h-[169.658px] w-[62.973px] items-center justify-center"
+      class="auth-line auth-line-2 absolute left-[288.44px] top-[100px] flex h-[169.658px] w-[62.973px] rotate-[20deg] items-center justify-center"
     >
-      <div class="rotate-[20deg] h-[180px] w-[1.5px] rounded-[1px] bg-white/30"></div>
+      <div class="h-[180px] w-[1.5px] rounded-[1px] bg-white/30"></div>
     </div>
     <div
-      class="auth-line auth-line-3 absolute left-[200px] top-[398.85px] flex h-[164.978px] w-[116.354px] items-center justify-center"
+      class="auth-line auth-line-3 absolute left-[200px] top-[398.85px] flex h-[164.978px] w-[116.354px] -rotate-[35deg] items-center justify-center"
     >
-      <div class="-rotate-[35deg] h-[200px] w-0.5 rounded-[1px] bg-[rgba(255,90,31,0.36)]"></div>
+      <div class="h-[200px] w-0.5 rounded-[1px] bg-[rgba(255,90,31,0.36)]"></div>
     </div>
     <div
-      class="auth-line auth-line-4 absolute left-[408.59px] top-[300px] flex h-[154.936px] w-[42.86px] items-center justify-center"
+      class="auth-line auth-line-4 absolute left-[408.59px] top-[300px] flex h-[154.936px] w-[42.86px] rotate-[15deg] items-center justify-center"
     >
-      <div class="rotate-[15deg] h-[160px] w-[1.5px] rounded-[1px] bg-[rgba(255,255,255,0.24)]"></div>
+      <div class="h-[160px] w-[1.5px] rounded-[1px] bg-[rgba(255,255,255,0.24)]"></div>
     </div>
 
     <!-- Accent dots -->
@@ -392,12 +392,14 @@
   }
 
   .is-idle .auth-ring,
-  .is-idle .auth-line,
   .is-idle .auth-dot,
   .is-idle .auth-cross,
   .is-idle .auth-star {
     opacity: 1;
     transform: none;
+  }
+  .is-idle .auth-line {
+    opacity: 1;
   }
   .is-idle .auth-line > div {
     transform: scaleY(1);
@@ -470,12 +472,15 @@
 
   /* —— Static (reduced motion) —— */
   .is-static .auth-ring,
-  .is-static .auth-line,
   .is-static .auth-dot,
   .is-static .auth-cross,
   .is-static .auth-star {
     opacity: 1;
     transform: none;
+    animation: none !important;
+  }
+  .is-static .auth-line {
+    opacity: 1;
     animation: none !important;
   }
   .is-static .auth-line > div {
@@ -487,7 +492,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .auth-ring,
-    .auth-line,
     .auth-dot,
     .auth-cross,
     .auth-star,
@@ -495,6 +499,10 @@
       animation: none !important;
       opacity: 1 !important;
       transform: none !important;
+    }
+    .auth-line {
+      animation: none !important;
+      opacity: 1 !important;
     }
   }
 </style>

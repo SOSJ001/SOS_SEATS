@@ -10,6 +10,9 @@ export default defineConfig({
     "process.env.BROWSER": true,
     "process.env.NODE_DEBUG": JSON.stringify(""),
   },
+  server: {
+    allowedHosts: ["louise-topographic-unmelancholically.ngrok-free.dev"],
+  },
   build: {
     target: "esnext",
     commonjsOptions: {

@@ -1,18 +1,16 @@
 import { json } from "@sveltejs/kit";
 import { loadUserEvents } from "$lib/supabase.js";
-import { parseSession } from "$lib/sessionUtils.js";
 
-export async function GET({ cookies }) {
+export async function GET({ locals }) {
   try {
-    const sessionData = parseSession(cookies);
-    const user_Id = sessionData.user_Id;
-    const sessionType = sessionData.sessionType;
+    const user_Id = locals.userId;
+    const sessionType = locals.sessionType;
 
     if (!user_Id) {
       return json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const events = await loadUserEvents(user_Id, sessionType || 'traditional');
+    const events = await loadUserEvents(user_Id, sessionType || "traditional");
     return json({
       success: true,
       events: events,

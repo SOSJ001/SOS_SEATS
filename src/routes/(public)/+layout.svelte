@@ -10,7 +10,7 @@
 </script>
 
 {#if isAuthRoute}
-  <div class="public-shell min-h-screen lg:h-screen lg:h-[100dvh] lg:overflow-hidden bg-white">
+  <div class="public-shell min-h-screen bg-white lg:h-screen lg:h-[100dvh] lg:overflow-hidden">
     <slot />
   </div>
 {:else}

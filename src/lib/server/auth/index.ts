@@ -8,8 +8,17 @@ export {
   resolveBearerSession,
   type ResolvedSession,
 } from "./session";
+export { resolveLinkedIdentity } from "./linkedIdentity";
 export { getAnonSupabase } from "./anon";
-export { loginWithPassword, signUpWithPassword } from "./password";
+export { loginWithPassword, signUpWithPassword, AUTH_SERVICE_UNREACHABLE } from "./password";
+export {
+  normalizeSlPhone,
+  toSyntheticEmail,
+  isPhoneSyntheticEmail,
+  loginWithPhone,
+  signUpWithPhone,
+  PHONE_SYNTHETIC_DOMAIN,
+} from "./phone";
 export {
   setUserSessionCookie,
   clearUserSessionCookie,

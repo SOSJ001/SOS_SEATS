@@ -1,9 +1,8 @@
-import { validateSession } from "$lib/sessionUtils.js";
 import { supabase } from "$lib/supabase.js";
 
-export async function load({ params, cookies }) {
+export async function load({ params, locals }) {
   try {
-    const { user_Id } = await validateSession(cookies);
+    const user_Id = locals.userId;
 
     if (!user_Id) {
       return {

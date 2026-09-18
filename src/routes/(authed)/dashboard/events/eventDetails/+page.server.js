@@ -1,7 +1,6 @@
 import { supabase } from "$lib/supabase.js";
-import { validateSession } from "$lib/sessionUtils.js";
 
-export async function load({ url, cookies }) {
+export async function load({ url, locals }) {
   const eventId = url.searchParams.get("id");
 
   if (!eventId) {
@@ -12,10 +11,10 @@ export async function load({ url, cookies }) {
   }
 
   try {
-    // Get the current user from session cookies
-    const { valid, user_Id, sessionType } = validateSession(cookies);
+    const user_Id = locals.userId;
+    const sessionType = locals.sessionType;
 
-    if (!valid || !user_Id) {
+    if (!user_Id) {
       return {
         status: 401,
         error: "Unauthorized",

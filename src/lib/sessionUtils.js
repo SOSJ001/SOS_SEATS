@@ -16,14 +16,24 @@ export function parseSession(cookies) {
   let sessionType = null;
   let walletAddress = null;
 
-  // Check traditional session first
+  // Check traditional / phone session first (same userSession cookie)
   if (userSession) {
     try {
       const sessionData = JSON.parse(userSession);
       user_Id = sessionData.id;
       userName =
         sessionData.user_metadata?.userName || sessionData.user_metadata?.name;
-      sessionType = "traditional";
+      const metaType = sessionData.user_metadata?.sessionType;
+      const email =
+        typeof sessionData.email === "string" ? sessionData.email : "";
+      if (
+        metaType === "phone" ||
+        email.toLowerCase().endsWith("@phone.sosseats.internal")
+      ) {
+        sessionType = "phone";
+      } else {
+        sessionType = "traditional";
+      }
     } catch (error) {
       }
   }

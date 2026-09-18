@@ -1,201 +1,141 @@
 <script>
   // @ts-nocheck
-  import { goto, invalidateAll } from "$app/navigation";
+  /**
+   * Role selector (FR-39 / roadmap 2.5).
+   * Mobile HI-FI 261:60; desktop uses shared AuthHeroPanel + AuthPanelShell chrome.
+   */
   import { page } from "$app/stores";
-  import AuthTextField from "$lib/components/auth/AuthTextField.svelte";
-  import AuthPrimaryButton from "$lib/components/auth/AuthPrimaryButton.svelte";
+  import { authSearchParams } from "$lib/auth/postAuthRedirect.js";
+  import AuthWordmark from "$lib/components/auth/AuthWordmark.svelte";
   import AuthHeroPanel from "$lib/components/auth/AuthHeroPanel.svelte";
   import AuthPanelShell from "$lib/components/auth/AuthPanelShell.svelte";
-  import AuthWordmark from "$lib/components/auth/AuthWordmark.svelte";
+  import RoleCard from "$lib/components/auth/RoleCard.svelte";
 
-  let email = "";
-  let password = "";
-  let errorMessage = null;
-  let loading = false;
-
-  function safeNext(raw) {
-    if (!raw || typeof raw !== "string") return "/dashboard";
-    const path = raw.trim();
-    if (!path.startsWith("/") || path.startsWith("//")) return "/dashboard";
-    return path;
-  }
-
-  async function onSubmit() {
-    errorMessage = null;
-    loading = true;
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        errorMessage = body.error || "Sign in failed";
-        loading = false;
-        return;
-      }
-      await invalidateAll();
-      goto(safeNext($page.url.searchParams.get("next")));
-    } catch {
-      errorMessage = "Something went wrong. Please try again.";
-      loading = false;
-    }
-  }
+  $: next = $page.url.searchParams.get("next");
+  $: attendeeHref = `/sign-in/phone${authSearchParams({ next, role: "attendee" })}`;
+  $: organizerHref = `/sign-in/email${authSearchParams({ next, role: "organizer" })}`;
+  $: staffHref = `/sign-in/email${authSearchParams({ next, role: "staff" })}`;
 </script>
 
-<!-- Mobile Sign In (HI-FI 4:325) -->
-<div class="flex min-h-screen flex-col bg-paper-cream text-ink lg:hidden">
-  <header
-    class="flex w-full flex-col items-start gap-5 bg-gradient-to-b from-brand-soft to-paper-cream p-6"
-  >
-    <AuthWordmark size="mobile" />
-    <div class="flex w-full flex-col items-start gap-2">
-      <h1 class="m-0 text-[28px] font-extrabold leading-none text-ink">Sign In</h1>
-      <p class="m-0 text-sm leading-[1.4] text-ink-secondary opacity-85">
-        Access your digital tickets and event panel securely.
-      </p>
-    </div>
-  </header>
-
-  <form
-    class="flex w-full flex-col gap-6 px-6 pb-10"
-    on:submit|preventDefault={onSubmit}
-  >
-    <div
-      class="flex w-full flex-col gap-4 rounded-2xl border border-paper-border bg-white p-4 shadow-[0px_2px_4px_rgba(18,4,28,0.03),0px_10px_14px_rgba(18,4,28,0.05)]"
+<!-- Mobile role-selector (HI-FI 261:60) -->
+<div class="flex min-h-screen flex-col bg-white text-ink lg:hidden">
+  <div class="flex flex-col">
+    <header
+      class="flex w-full flex-col items-start gap-5 bg-gradient-to-b from-[#fff7ed] to-paper-cream p-6"
     >
-      <AuthTextField
-        id="sign-in-email-mobile"
-        label="Email Address"
-        type="email"
-        bind:value={email}
-        placeholder="name@domain.com"
-        autocomplete="email"
-        variant="mobile"
+      <AuthWordmark size="mobile" />
+      <div class="flex w-full flex-col items-start gap-2">
+        <h1 class="m-0 w-full text-[28px] font-extrabold leading-none text-ink">
+          Welcome to SOS SEATS
+        </h1>
+        <p class="m-0 w-full text-sm font-normal leading-normal text-ink-secondary">
+          Choose how you want to sign in
+        </p>
+      </div>
+    </header>
+
+    <div class="flex w-full flex-col gap-4 px-6 pb-6">
+      <RoleCard
+        role="attendee"
+        href={attendeeHref}
+        title="Attendee"
+        description="Buy tickets, claim free events, show entry QR"
       />
-      <AuthTextField
-        id="sign-in-password-mobile"
-        label="Password"
-        bind:value={password}
-        placeholder="••••••••"
-        autocomplete="current-password"
-        showPasswordToggle={true}
-        variant="mobile"
+      <RoleCard
+        role="organizer"
+        href={organizerHref}
+        title="Organizer"
+        description="Create events, sell tickets, manage & withdraw"
       />
-      {#if errorMessage}
-        <p class="m-0 text-sm text-red-600" role="alert">{errorMessage}</p>
-      {/if}
-    </div>
+      <RoleCard
+        role="staff"
+        href={staffHref}
+        title="Staff"
+        description="Scan tickets at the door for assigned events"
+      />
 
-    <div class="flex w-full flex-col items-start gap-4">
-      <AuthPrimaryButton size="mobile" disabled={loading}>
-        {loading ? "Signing in…" : "Sign In"}
-      </AuthPrimaryButton>
-
-      <div class="flex w-full flex-col items-center gap-3">
-        <div class="flex w-full items-center gap-3">
-          <div class="h-px min-w-0 flex-1 bg-paper-border"></div>
-          <span
-            class="rounded-full border border-paper-border bg-paper-cream px-2.5 py-1 text-xs font-bold uppercase text-ink-secondary"
-            >OR</span
-          >
-          <div class="h-px min-w-0 flex-1 bg-paper-border"></div>
-        </div>
-
-        <button
-          type="button"
-          class="h-11 w-full cursor-default rounded-[10px] border border-brand bg-white text-sm font-bold text-brand opacity-90"
-          disabled
-          title="Coming in roadmap 2.2"
+      <div class="flex w-full items-center gap-3 overflow-hidden">
+        <div class="h-px min-w-0 flex-1 bg-[#e8e3de]"></div>
+        <span
+          class="shrink-0 text-[11px] font-bold uppercase tracking-[0.5px] text-ink-secondary"
+          >OR</span
         >
-          Sign in with Phone
-        </button>
+        <div class="h-px min-w-0 flex-1 bg-[#e8e3de]"></div>
       </div>
 
-      <p class="m-0 w-full text-center text-sm text-ink-secondary">
-        Don't have an account?
-        <a href="/sign-up" class="font-extrabold text-brand hover:underline">Sign Up</a>
-      </p>
-
-      <p class="m-0 w-full text-center text-xs leading-[1.5] text-ink-muted">
-        By signing in, you agree to our
-        <a href="/terms" class="font-semibold text-brand hover:underline">Terms</a>
-        and
-        <a href="/privacy" class="font-semibold text-brand hover:underline">Privacy Policy</a>
-      </p>
+      <div class="flex w-full flex-col items-center gap-3 text-center">
+        <a
+          href="/marketplace"
+          class="w-full text-base font-extrabold leading-none text-brand no-underline hover:underline"
+        >
+          Browse events without signing in
+        </a>
+        <p class="m-0 w-full text-xs font-normal leading-[1.4] text-ink-muted">
+          By signing in, you agree to our
+          <a href="/terms" class="font-semibold text-brand hover:underline">Terms</a>
+          and
+          <a href="/privacy" class="font-semibold text-brand hover:underline"
+            >Privacy Policy</a
+          >
+        </p>
+      </div>
     </div>
-  </form>
+  </div>
 </div>
 
-<!-- Desktop AuthPanel -->
-<div class="hidden min-h-screen bg-white text-ink lg:flex lg:h-screen lg:h-[100dvh] lg:overflow-hidden">
+<!-- Desktop: shared auth chrome (hero + decor via AuthPanelShell) -->
+<div
+  class="hidden min-h-screen bg-white text-ink lg:flex lg:h-screen lg:h-[100dvh] lg:overflow-hidden"
+>
   <AuthHeroPanel />
 
   <AuthPanelShell>
     <div class="flex w-full flex-col items-center gap-[var(--auth-field-gap)] text-center">
-      <h1 class="m-0 w-full text-[length:var(--auth-title-size)] font-extrabold text-ink">Welcome back</h1>
+      <h1 class="m-0 w-full text-[length:var(--auth-title-size)] font-extrabold text-ink">
+        Welcome to SOS SEATS
+      </h1>
       <p class="m-0 w-full text-sm font-normal text-ink-secondary">
-        Sign in with your email address and password.
+        Choose how you want to sign in
       </p>
     </div>
 
-    <form class="flex w-full flex-col gap-[var(--auth-form-gap)]" on:submit|preventDefault={onSubmit}>
-      <AuthTextField
-        id="sign-in-email"
-        label="Email Address"
-        type="email"
-        bind:value={email}
-        placeholder="e.g. musa@kamara.com"
-        autocomplete="email"
-        showLeadingIcon={true}
-        leadingIcon="mail"
+    <div class="flex w-full flex-col gap-4">
+      <RoleCard
+        role="attendee"
+        href={attendeeHref}
+        title="Attendee"
+        description="Buy tickets, claim free events, show entry QR"
       />
-      <AuthTextField
-        id="sign-in-password"
-        label="Password"
-        bind:value={password}
-        placeholder="••••••••"
-        autocomplete="current-password"
-        showLeadingIcon={true}
-        leadingIcon="lock"
-        showPasswordToggle={true}
+      <RoleCard
+        role="organizer"
+        href={organizerHref}
+        title="Organizer"
+        description="Create events, sell tickets, manage & withdraw"
       />
-
-      {#if errorMessage}
-        <p class="m-0 text-sm text-red-600" role="alert">{errorMessage}</p>
-      {/if}
-
-      <AuthPrimaryButton disabled={loading}>
-        {loading ? "Signing in…" : "Sign In"}
-      </AuthPrimaryButton>
-    </form>
+      <RoleCard
+        role="staff"
+        href={staffHref}
+        title="Staff"
+        description="Scan tickets at the door for assigned events"
+      />
+    </div>
 
     <div class="flex w-full flex-col items-center gap-3 text-center">
-      <p class="m-0 w-full text-sm text-ink-secondary">
-        New to SOS SEATS?
-        <a href="/sign-up" class="font-bold text-brand hover:underline">Create an account</a>
-      </p>
-
-      <div class="flex w-full flex-col items-center gap-3">
-        <div class="flex w-full items-center gap-3">
-          <div class="h-px min-w-0 flex-1 bg-paper-border"></div>
-          <span
-            class="rounded-full bg-white px-2.5 py-1 text-xs font-bold uppercase tracking-[0.02em] text-ink-secondary"
-            >or</span
-          >
-          <div class="h-px min-w-0 flex-1 bg-paper-border"></div>
-        </div>
-
-        <button
-          type="button"
-          class="h-10 w-full cursor-default rounded-[10px] border border-brand bg-white text-sm font-bold text-brand opacity-90"
-          disabled
-          title="Coming in roadmap 2.2"
+      <div class="flex w-full items-center gap-3">
+        <div class="h-px min-w-0 flex-1 bg-paper-border"></div>
+        <span
+          class="rounded-full bg-white px-2.5 py-1 text-xs font-bold uppercase tracking-[0.02em] text-ink-secondary"
+          >or</span
         >
-          Sign in with Phone
-        </button>
+        <div class="h-px min-w-0 flex-1 bg-paper-border"></div>
       </div>
+
+      <a
+        href="/marketplace"
+        class="w-full text-base font-extrabold leading-none text-brand no-underline hover:underline"
+      >
+        Browse events without signing in
+      </a>
 
       <p class="m-0 w-full text-center text-xs leading-[1.5] text-ink-muted">
         By signing in, you agree to our

@@ -4,11 +4,11 @@ import {
   uploadEventImageNew,
   supabase,
 } from "$lib/supabase.js";
-import { parseSession } from "$lib/sessionUtils.js";
 
-export async function PUT({ request, cookies, params }) {
+export async function PUT({ request, locals, params }) {
   try {
-    const { user_Id, sessionType } = parseSession(cookies);
+    const user_Id = locals.userId;
+    const sessionType = locals.sessionType;
     const eventId = params.eventId;
 
     if (!user_Id) {

@@ -8,6 +8,8 @@ declare global {
       userName: string | null;
       sessionType: string | null;
       walletAddress: string | null;
+      web3UserId: string | null;
+      linkedWalletAddress: string | null;
     }
     // interface PageData {}
     // interface PageState {}
