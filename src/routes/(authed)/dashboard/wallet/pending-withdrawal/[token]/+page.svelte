@@ -5,6 +5,7 @@
   import { getActiveWalletAddress, signMessageWithWallet } from "$lib/web3";
   import { showToast } from "$lib/store";
   import { goto } from "$app/navigation";
+  import { walletDataGet } from "$lib/client/walletData";
 
   export let data: any;
 
@@ -103,19 +104,16 @@
   });
 
   async function reloadWithdrawal() {
-    if (!withdrawal?.pending_token) return;
+    if (!withdrawal?.id && !withdrawal?.pending_token) return;
 
     try {
-      // Load withdrawal without filtering by status to get the latest state
-      const { data: updated, error } = await supabase
-        .from("wallet_transactions")
-        .select("*")
-        .eq("pending_token", withdrawal.pending_token)
-        .maybeSingle();
-
-      if (error && error.code !== "PGRST116") {
-        // Error other than "not found" - log but continue
-        return;
+      // Prefer id lookup via Kit API (works for primary + signers)
+      let updated: any = null;
+      if (withdrawal.id) {
+        const result = await walletDataGet("transaction", { id: withdrawal.id });
+        if (result?.success && result.data) {
+          updated = result.data;
+        }
       }
 
       if (!updated) {
@@ -322,13 +320,12 @@
       isLoading = true;
 
       // Verify threshold is still met before executing (safety check)
-      const { data: currentWithdrawal, error: fetchError } = await supabase
-        .from("wallet_transactions")
-        .select("collected_signatures, required_signatures, status")
-        .eq("id", withdrawal.id)
-        .single();
+      const verifyResult = await walletDataGet("transaction", {
+        id: withdrawal.id,
+      });
+      const currentWithdrawal = verifyResult?.success ? verifyResult.data : null;
 
-      if (fetchError || !currentWithdrawal) {
+      if (!currentWithdrawal) {
         showToast(
           "error",
           "Error",
@@ -404,11 +401,10 @@
       await reloadWithdrawal();
 
       // Double-check status after reload and redirect if needed
-      const { data: finalCheck } = await supabase
-        .from("wallet_transactions")
-        .select("status")
-        .eq("id", withdrawal.id)
-        .maybeSingle();
+      const finalResult = await walletDataGet("transaction", {
+        id: withdrawal.id,
+      });
+      const finalCheck = finalResult?.success ? finalResult.data : null;
 
       if (finalCheck && finalCheck.status !== "pending_approval") {
         // Status has changed - redirect to wallet page

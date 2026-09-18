@@ -5,6 +5,7 @@
   import { onMount } from "svelte";
   import { getActiveWalletAddress } from "$lib/web3";
   import { goto } from "$app/navigation";
+  import { walletDataGet } from "$lib/client/walletData";
 
   export let onClose = undefined; // Optional close handler for mobile
   export let userName = "User"; // User name for mobile display
@@ -61,19 +62,14 @@
       }
       const primaryWallets = (signerConfigs || []).map((c: any) => c.primary_wallet_address);
 
-      // Find pending withdrawals for these primary wallets
-      const { data: pendingWithdrawals, error: withdrawalError } = await supabase
-        .from("wallet_transactions")
-        .select("*")
-        .in("wallet_address", primaryWallets)
-        .eq("type", "withdrawal")
-        .eq("status", "pending_approval")
-        .eq("multisig_enabled", true);
-
-      if (withdrawalError) {
-        console.error("Error fetching pending withdrawals:", withdrawalError);
+      const pendingResult = await walletDataGet("signer-pending", {
+        wallets: primaryWallets.join(","),
+      });
+      if (!pendingResult?.success) {
+        console.error("Error fetching pending withdrawals:", pendingResult?.error);
         return;
       }
+      const pendingWithdrawals = pendingResult.data || [];
 
       if (!pendingWithdrawals || pendingWithdrawals.length === 0) {
         return;

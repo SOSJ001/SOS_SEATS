@@ -1,10 +1,9 @@
 <script lang="ts">
   import { fade, fly, slide } from "svelte/transition";
-  import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import ShareEventModal from "$lib/components/ShareEventModal.svelte";
   import { page } from "$app/stores";
-  import { deleteEvent, supabase } from "$lib/supabase.js";
+  import { deleteEvent } from "$lib/supabase.js";
 
   // Get the event data from the server
   export let data;
@@ -20,9 +19,9 @@
   let editWarningExpanded = false;
   let cancelWarningExpanded = false;
 
-  // Payment method analytics
-  let solanaRevenue = 0;
-  let mobileMoneyRevenue = 0;
+  // Payment method analytics (from server load)
+  let solanaRevenue = eventData?.solanaRevenue || 0;
+  let mobileMoneyRevenue = eventData?.mobileMoneyRevenue || 0;
   let isLoadingPaymentBreakdown = false;
 
   function formatCurrency(amount: number) {
@@ -121,53 +120,6 @@
   $: hasSales = eventData
     ? (eventData.ticketsSold || 0) > 0 || (eventData.totalRevenue || 0) > 0
     : false;
-
-  // Load payment method breakdown
-  async function loadPaymentBreakdown() {
-    if (!eventData?.id) return;
-
-    isLoadingPaymentBreakdown = true;
-    try {
-      const { data: orders, error } = await supabase
-        .from("orders")
-        .select("total_amount, payment_method")
-        .eq("event_id", eventData.id)
-        .in("payment_status", ["paid", "completed"]);
-
-      if (error) {
-        console.error("Error loading payment breakdown:", error);
-        return;
-      }
-
-      solanaRevenue = 0;
-      mobileMoneyRevenue = 0;
-
-      (orders || []).forEach((order: any) => {
-        const amount =
-          typeof order.total_amount === "string"
-            ? parseFloat(order.total_amount)
-            : order.total_amount || 0;
-
-        if (order.payment_method === "solana") {
-          solanaRevenue += isFinite(amount) ? amount : 0;
-        } else if (
-          order.payment_method === "orange_money" ||
-          order.payment_method === "afrimoney"
-        ) {
-          mobileMoneyRevenue += isFinite(amount) ? amount : 0;
-        }
-      });
-    } catch (err) {
-      console.error("Error loading payment breakdown:", err);
-    } finally {
-      isLoadingPaymentBreakdown = false;
-    }
-  }
-
-  // Load payment breakdown on mount
-  onMount(() => {
-    loadPaymentBreakdown();
-  });
 
   function openCancelModal() {
     // Prevent opening modal if event has sales

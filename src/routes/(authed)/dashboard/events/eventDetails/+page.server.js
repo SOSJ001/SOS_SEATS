@@ -1,4 +1,6 @@
-import { supabase } from "$lib/supabase.js";
+import { getServerSupabase } from "$lib/server/db";
+
+const supabase = getServerSupabase();
 
 export async function load({ url, locals }) {
   const eventId = url.searchParams.get("id");
@@ -96,6 +98,31 @@ export async function load({ url, locals }) {
       };
     }
 
+    // Payment method breakdown for revenue charts (service role; owner-scoped event)
+    let solanaRevenue = 0;
+    let mobileMoneyRevenue = 0;
+    const { data: paidOrders } = await supabase
+      .from("orders")
+      .select("total_amount, payment_method")
+      .eq("event_id", eventId)
+      .in("payment_status", ["paid", "completed"]);
+
+    (paidOrders || []).forEach((order) => {
+      const amount =
+        typeof order.total_amount === "string"
+          ? parseFloat(order.total_amount)
+          : order.total_amount || 0;
+      if (!isFinite(amount)) return;
+      if (order.payment_method === "solana") {
+        solanaRevenue += amount;
+      } else if (
+        order.payment_method === "orange_money" ||
+        order.payment_method === "afrimoney"
+      ) {
+        mobileMoneyRevenue += amount;
+      }
+    });
+
     // Get real-time ticket type statistics
     const { data: ticketTypeStats, error: ticketStatsError } =
       await supabase.rpc("get_ticket_type_statistics", {
@@ -126,6 +153,8 @@ export async function load({ url, locals }) {
       ticketsSold: eventStats.totalTicketsSold,
       totalCapacity: totalCapacity,
       totalRevenue: eventStats.totalRevenue,
+      solanaRevenue,
+      mobileMoneyRevenue,
       attendeesCheckedIn: eventStats.attendeesCheckedIn,
       remainingTickets: eventStats.remainingTickets,
       ticketTypes:

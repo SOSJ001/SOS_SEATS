@@ -1,11 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import {
-    supabase,
-    validateAndCheckInTicket,
-    checkInGuest,
-    loadScanHistory,
-  } from "$lib/supabase";
   import { showToast } from "$lib/store";
   import EventSelector from "$lib/components/EventSelector.svelte";
   import QRScanner from "$lib/components/Qrscanner.svelte";
@@ -13,13 +7,15 @@
   import ScanHistory from "$lib/components/ScanHistory.svelte";
   import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
 
-  // Real events data from database
-  let events: any[] = [];
+  export let data;
+
+  // Real events data from database (Kit service-role load)
+  let events: any[] = data.events || [];
   let selectedEvent = "";
   let isScanning = false;
   let currentScanResult: any = null;
   let scanHistory: any[] = [];
-  let loading = true;
+  let loading = false;
   let error: string | null = null;
 
   // Confirmation dialog state
@@ -55,6 +51,15 @@
   let showManualInput = false;
   let manualWalletAddress = "";
 
+  async function scannerApi(payload: Record<string, any>) {
+    const response = await fetch("/api/scanner", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  }
+
   // React to event changes when bound value updates
   let __prevSelectedEvent = "";
   $: if (selectedEvent !== __prevSelectedEvent) {
@@ -65,7 +70,7 @@
   }
 
   onMount(async () => {
-    await loadEvents();
+    events = data.events || [];
 
     // Load scan history for selected event if available
     if (selectedEvent) {
@@ -87,31 +92,8 @@
   });
 
   async function loadEvents() {
-    try {
-      loading = true;
-      error = null;
-
-      // Load events from database
-      const { data: eventsData, error: eventsError } = await supabase
-        .from("events")
-        .select("id, name, date, location, status")
-        .in("status", ["published", "live"])
-        .order("date", { ascending: true });
-
-      if (eventsError) {
-        throw new Error(`Failed to load events: ${eventsError.message}`);
-      }
-
-      events = eventsData || [];
-
-      // Don't auto-select - let user explicitly choose an event
-    } catch (err) {
-      console.error("Error loading events:", err);
-      error = err instanceof Error ? err.message : "Failed to load events";
-      showToast("error", "Error", error);
-    } finally {
-      loading = false;
-    }
+    events = data.events || [];
+    loading = false;
   }
 
   async function handleEventChange(eventId: string) {
@@ -128,11 +110,13 @@
 
   async function loadScanHistoryForEvent(eventId: string) {
     try {
-      const history = await loadScanHistory(eventId, 50);
-      scanHistory = history;
+      const response = await fetch(
+        `/api/scanner?eventId=${encodeURIComponent(eventId)}&action=history`
+      );
+      const result = await response.json();
+      scanHistory = result.history || [];
     } catch (err) {
       console.error("Error loading scan history:", err);
-      // Don't show error toast, just log it
     }
   }
 
@@ -148,7 +132,11 @@
   }
 
   async function processWalletScan(walletAddress: string) {
-    const res = await validateAndCheckInTicket(walletAddress, selectedEvent);
+    const res = await scannerApi({
+      action: "validate-wallet",
+      eventId: selectedEvent,
+      walletAddress,
+    });
     return {
       route: "wallet" as const,
       result: res,
@@ -178,29 +166,15 @@
       if (isUuid(scannedValue)) {
         // Guest ID path
         route = "guest";
-        // Enforce selected event: ensure guest belongs to selectedEvent before check-in
-        const { data: guestRow, error: guestErr } = await supabase
-          .from("guests")
-          .select(
-            "id, event_id, status, check_in_time, first_name, last_name, ticket_type_id"
-          )
-          .eq("id", scannedValue)
-          .maybeSingle();
+        const lookup = await scannerApi({
+          action: "lookup-guest",
+          eventId: selectedEvent,
+          guestId: scannedValue,
+        });
+        const guestRow = lookup.guest;
+        const ticketTypeName = lookup.ticketTypeName || "Ticket";
 
-        // Get ticket type name separately if needed
-        let ticketTypeName = "Ticket";
-        if (guestRow && guestRow.ticket_type_id) {
-          const { data: ticketType } = await supabase
-            .from("ticket_types")
-            .select("name")
-            .eq("id", guestRow.ticket_type_id)
-            .maybeSingle();
-          if (ticketType) {
-            ticketTypeName = ticketType.name;
-          }
-        }
-
-        if (guestErr || !guestRow) {
+        if (!lookup.success || !guestRow) {
           result = {
             success: false,
             message:
@@ -212,7 +186,6 @@
             message: "This ticket is not valid.",
           };
         } else if (guestRow.check_in_time) {
-          // Already checked in
           const checkInDate = new Date(guestRow.check_in_time);
           const formattedDate = checkInDate.toLocaleString([], {
             month: "short",
@@ -231,7 +204,6 @@
             message: `This ticket cannot be checked in. Current status: ${guestRow.status}. Only confirmed tickets can be checked in.`,
           };
         } else {
-          // Valid ticket - show result card with check-in button
           validTicketInfo = {
             type: "guest",
             guestId: scannedValue,
@@ -239,7 +211,7 @@
             ticketType: ticketTypeName,
           };
           currentScanResult = {
-            success: true, // Use success to show valid ticket UI
+            success: true,
             message: "Ticket is valid and ready to check in",
             guestName: validTicketInfo.guestName,
             ticketType: validTicketInfo.ticketType,
@@ -248,49 +220,22 @@
               hour: "2-digit",
               minute: "2-digit",
             }),
-            isPending: true, // Flag to indicate this is before check-in
+            isPending: true,
           };
           isScanning = false;
           return;
         }
       } else if (isLikelySolanaAddress(scannedValue)) {
-        // Wallet path (Web3) — if multiple unscanned tickets exist, confirm before consuming one
-        const { data: orderRows } = await supabase
-          .from("orders")
-          .select("id")
-          .eq("event_id", selectedEvent);
-        const orderIds = orderRows?.map((o: any) => o.id) || [];
+        const preview = await scannerApi({
+          action: "wallet-preview",
+          eventId: selectedEvent,
+          walletAddress: scannedValue,
+        });
+        const unscannedCount = preview.unscannedCount || 0;
 
-        let unscannedCount = 0;
-        if (orderIds.length > 0) {
-          const { count } = await supabase
-            .from("order_items")
-            .select("id", { count: "exact", head: true })
-            .eq("current_owner", scannedValue)
-            .is("check_in_time", null)
-            .in("order_id", orderIds);
-          unscannedCount = count || 0;
-        }
-
-        // Check if tickets exist but are all checked in
-        if ((unscannedCount || 0) < 1) {
-          // Check if there are any tickets for this wallet (to show better error)
-          const { data: checkedInTickets } = await supabase
-            .from("order_items")
-            .select("check_in_time, orders(buyer_name)")
-            .eq("current_owner", scannedValue)
-            .in("order_id", orderIds)
-            .not("check_in_time", "is", null)
-            .order("check_in_time", { ascending: false })
-            .limit(1);
-
-          if (
-            checkedInTickets &&
-            checkedInTickets.length > 0 &&
-            checkedInTickets[0].check_in_time
-          ) {
-            // All tickets checked in
-            const checkInDate = new Date(checkedInTickets[0].check_in_time);
+        if (unscannedCount < 1) {
+          if (preview.alreadyCheckedIn && preview.lastCheckIn) {
+            const checkInDate = new Date(preview.lastCheckIn);
             const formattedDate = checkInDate.toLocaleString([], {
               month: "short",
               day: "numeric",
@@ -311,56 +256,15 @@
             };
           }
         } else {
-          // Valid ticket - show result card with check-in button
-          // Get buyer name and ticket type for display
-          const { data: ticketItems } = await supabase
-            .from("order_items")
-            .select("order_id, ticket_type_id")
-            .eq("current_owner", scannedValue)
-            .is("check_in_time", null)
-            .in("order_id", orderIds)
-            .limit(1);
-
-          let buyerName = "Ticket Holder";
-          let ticketTypeName = "Ticket";
-
-          if (ticketItems && ticketItems.length > 0) {
-            const ticketItem = ticketItems[0];
-
-            // Get buyer name from order
-            if (ticketItem.order_id) {
-              const { data: order } = await supabase
-                .from("orders")
-                .select("buyer_name")
-                .eq("id", ticketItem.order_id)
-                .maybeSingle();
-              if (order?.buyer_name) {
-                buyerName = order.buyer_name;
-              }
-            }
-
-            // Get ticket type name
-            if (ticketItem.ticket_type_id) {
-              const { data: ticketType } = await supabase
-                .from("ticket_types")
-                .select("name")
-                .eq("id", ticketItem.ticket_type_id)
-                .maybeSingle();
-              if (ticketType?.name) {
-                ticketTypeName = ticketType.name;
-              }
-            }
-          }
-
           validTicketInfo = {
             type: "wallet",
             walletAddress: scannedValue,
-            guestName: buyerName,
-            ticketType: ticketTypeName,
+            guestName: preview.buyerName || "Ticket Holder",
+            ticketType: preview.ticketTypeName || "Ticket",
             unscannedCount: unscannedCount,
           };
           currentScanResult = {
-            success: true, // Use success to show valid ticket UI
+            success: true,
             message:
               unscannedCount > 1
                 ? `${unscannedCount} unscanned tickets available`
@@ -372,7 +276,8 @@
               hour: "2-digit",
               minute: "2-digit",
             }),
-            isPending: true, // Flag to indicate this is before check-in
+            isPending: true,
+            unscannedCount,
           };
           isScanning = false;
           return;
@@ -382,70 +287,30 @@
         result = {
           success: false,
           message:
-            "Invalid invite code . Please scan a valid ticket or invite code.",
+            "Unrecognized QR code format. Expected a guest invite UUID or wallet address.",
         };
       }
 
-      if (result.success) {
-        // Success - ticket checked in
-        const ticketInfo = result.ticketInfo;
-
-        currentScanResult = {
-          success: true,
-          message: result.message,
-          guestName: ticketInfo.original_buyer_name || "Unknown",
-          ticketType: ticketInfo.ticket_type_name || "Standard Ticket",
-          section: "General Admission",
-          timestamp: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          ticketInfo: ticketInfo,
-        };
-
-        // Reload scan history from database
-        if (selectedEvent) {
-          await loadScanHistoryForEvent(selectedEvent);
-        }
-
-        showToast(
-          "success",
-          "Ticket Validated",
-          `${ticketInfo.original_buyer_name} checked in successfully`
-        );
-      } else {
-        // Error - ticket invalid or already checked in
-        currentScanResult = {
-          success: false,
-          message: result.message,
-          timestamp: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        };
-
-        // Don't add failed scans to history (only successful check-ins are stored)
-
-        showToast("error", "Validation Failed", result.message);
-      }
-    } catch (err) {
-      console.error("Error processing scan result:", err);
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
-
+      // Failed / invalid path
       currentScanResult = {
         success: false,
-        message: errorMessage,
+        message: result?.message || "Scan failed",
         timestamp: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         }),
+        route,
       };
-
-      showToast("error", "Scan Error", errorMessage);
+      isScanning = false;
+    } catch (err) {
+      console.error("Scan error:", err);
+      showToast(
+        "error",
+        "Scan Error",
+        err instanceof Error ? err.message : "Failed to process scan"
+      );
+      isScanning = false;
     }
-
-    // Stop scanning after result
-    isScanning = false;
   }
 
   function startScanning() {
@@ -583,7 +448,11 @@
         });
     } else if (confirmMode === "guest" && pendingGuestId) {
       // Proceed with guest check-in after confirmation
-      checkInGuest(pendingGuestId)
+      scannerApi({
+        action: "check-in-guest",
+        eventId: selectedEvent,
+        guestId: pendingGuestId,
+      })
         .then(async (check) => {
           if (check.success) {
             const ticketInfo: any = {

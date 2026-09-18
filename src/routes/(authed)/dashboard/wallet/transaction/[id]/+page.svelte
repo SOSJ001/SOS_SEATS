@@ -2,10 +2,11 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import { supabase, verifyWeb3Session } from "$lib/supabase";
+  import { verifyWeb3Session } from "$lib/supabase";
   import { getActiveWalletAddress } from "$lib/web3";
   import { showToast } from "$lib/store";
   import { monimeService } from "$lib/monime";
+  import { walletDataGet } from "$lib/client/walletData";
 
   let transaction: any = null;
   let loading = true;
@@ -39,15 +40,9 @@
         return;
       }
 
-      // Fetch transaction
-      const { data, error: fetchError } = await supabase
-        .from("wallet_transactions")
-        .select("*")
-        .eq("id", transactionId)
-        .eq("wallet_address", wallet)
-        .single();
-
-      if (fetchError || !data) {
+      const result = await walletDataGet("transaction", { id: transactionId });
+      const data = result?.data;
+      if (!result?.success || !data || data.wallet_address !== wallet) {
         error = "Transaction not found";
         loading = false;
         return;

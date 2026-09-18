@@ -1,13 +1,9 @@
 //@ts-nocheck
-import {
-  loadGuestsRows,
-  loadUserEventsForSelector,
-} from "$lib/supabase";
+import { loadGuestsRows, loadUserEventsForSelector } from "$lib/server/events";
 
 export async function load({ locals }) {
   const user_Id = locals.userId;
 
-  // If no authenticated user, return empty datasets
   if (!user_Id) {
     return {
       guestsData: { data: [], error: null },
@@ -15,7 +11,6 @@ export async function load({ locals }) {
     };
   }
 
-  // Load both events and guests data
   try {
     const [guestsData, eventsData] = await Promise.all([
       loadGuestsRows(user_Id),

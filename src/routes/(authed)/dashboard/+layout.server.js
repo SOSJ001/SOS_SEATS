@@ -1,5 +1,5 @@
 //@ts-nocheck
-import { loadUserEvents, getRecentActivities } from "$lib/supabase";
+import { loadUserEvents, getRecentActivities } from "$lib/server/events";
 
 export async function load({ locals }) {
   const user_Id = locals.userId;
@@ -24,10 +24,8 @@ export async function load({ locals }) {
     };
   }
 
-  // Use the new loadUserEvents function instead of the old loadEventToTable
-  const events = await loadUserEvents(user_Id, sessionType);
+  const events = await loadUserEvents(user_Id);
 
-  // Transform the data to match the expected format for backward compatibility
   const EventTableResult = events.map((event) => ({
     Event: {
       id: event.id,
@@ -37,12 +35,10 @@ export async function load({ locals }) {
       audience: event.audience_type,
       imageId: event.image_id,
       status: event.status,
-      // Add other fields as needed
     },
     Image: event.image || null,
   }));
 
-  // Calculate aggregate dashboard statistics from all events
   const dashboardStats = {
     liveEvents: events.filter(
       (e) => e.status === "published" || e.status === "live"
@@ -58,7 +54,6 @@ export async function load({ locals }) {
     }, 0),
   };
 
-  // Get recent activities data
   let recentActivities = [];
   try {
     recentActivities = (await getRecentActivities(user_Id)) || [];
@@ -69,7 +64,7 @@ export async function load({ locals }) {
 
   return {
     EventTableResult,
-    events, // Include full events data for stats
+    events,
     dashboardStats,
     recentActivities,
     user_Id,

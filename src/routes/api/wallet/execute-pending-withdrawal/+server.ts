@@ -1,10 +1,15 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "@sveltejs/kit";
-import { supabase } from "$lib/supabase";
+import { getServerSupabase } from "$lib/server/db";
+import { getPendingWithdrawalById } from "$lib/server/wallet";
 import { monimeService } from "$lib/monime";
 
-export const POST: RequestHandler = async ({ request, fetch: eventFetch }) => {
+export const POST: RequestHandler = async ({ request, fetch: eventFetch, locals }) => {
   try {
+    if (!locals.userId && !locals.web3UserId) {
+      return json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
     const { withdrawal_id } = await request.json();
 
     if (!withdrawal_id) {
@@ -14,14 +19,8 @@ export const POST: RequestHandler = async ({ request, fetch: eventFetch }) => {
       );
     }
 
-    // Fetch the pending withdrawal
-    const { data: withdrawal, error: fetchError } = await supabase
-      .from("wallet_transactions")
-      .select("*")
-      .eq("id", withdrawal_id)
-      .eq("status", "pending_approval")
-      .eq("multisig_enabled", true)
-      .single();
+    const { data: withdrawal, error: fetchError } =
+      await getPendingWithdrawalById(withdrawal_id);
 
     if (fetchError || !withdrawal) {
       return json(
@@ -202,7 +201,8 @@ export const POST: RequestHandler = async ({ request, fetch: eventFetch }) => {
       last_status_check: new Date().toISOString(),
     };
 
-    const { data: updateResult, error: updateError } = await supabase.rpc(
+    const db = getServerSupabase();
+    const { data: updateResult, error: updateError } = await db.rpc(
       "update_withdrawal_status",
       {
         p_withdrawal_id: withdrawal_id,

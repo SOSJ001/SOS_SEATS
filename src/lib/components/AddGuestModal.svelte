@@ -4,7 +4,6 @@
   import {
     addGuestToEvent,
     loadEventTicketTypes,
-    supabase,
   } from "$lib/supabase";
   import {
     generateTicketPreview,
@@ -76,18 +75,15 @@
   async function fetchEventMeta(eventId: string) {
     try {
       loadingEventMeta = true;
-      const { data, error } = await supabase
-        .from("events")
-        .select("is_free_event, event_visibility")
-        .eq("id", eventId)
-        .limit(1)
-        .maybeSingle();
-      if (!error && data) {
+      const fromList = events.find((e) => e.id === eventId);
+      if (fromList && typeof fromList.is_free_event === "boolean") {
         selectedEventMeta = {
-          is_free_event: data.is_free_event,
-          event_visibility: data.event_visibility,
+          is_free_event: fromList.is_free_event,
+          event_visibility: fromList.event_visibility,
         };
+        return;
       }
+      selectedEventMeta = {};
     } catch (e) {
       // ignore fetch meta errors; fallback will handle
     } finally {

@@ -1,5 +1,7 @@
 import { error } from "@sveltejs/kit";
-import { supabase } from "$lib/supabase.js";
+import { getServerSupabase } from "$lib/server/db";
+
+const supabase = getServerSupabase();
 
 export async function load({ url, locals, params }) {
   try {

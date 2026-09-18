@@ -3,10 +3,7 @@
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import {
-    loadUserOrders,
     verifyWeb3Session,
-    supabase,
-    listAllOrders,
     getEventById,
   } from "$lib/supabase.js";
   import {
@@ -22,6 +19,7 @@
   import GradientButton from "$lib/components/GradientButton.svelte";
   import Spinner from "$lib/components/Spinner.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
+  import { ordersFulfill } from "$lib/client/walletData";
 
   // Get order ID from URL params
   $: orderId = $page.params.orderId;
@@ -87,292 +85,92 @@
           userId = $sessionFromDb;
         }
 
-        // Try to get the specific order by ID using the database function
-        const { data: orderData, error: orderError } = await supabase.rpc(
-          "get_order_with_items_by_id",
-          { p_order_id: orderId }
-        );
+        // Load order + items via Kit fulfill API (service role)
+        const orderWithItems = await ordersFulfill({
+          action: "get-order-with-items",
+          orderId,
+        });
+        const orderData = orderWithItems?.success ? orderWithItems.data : null;
 
-        if (!orderError && orderData && orderData.length > 0) {
+        if (orderData && orderData.length > 0) {
           const orderResult = orderData[0];
 
-          // Count total tickets from the function result (one row per order item)
-          const totalTicketsFromFunction = orderData.length;
-
-          // Get all order items for this order to calculate totals (this query is likely failing due to RLS)
-          const { data: orderItemsData, error: itemsError } = await supabase
-            .from("order_items")
-            .select(
-              `
-              *,
-              ticket_types (
-                name,
-                price
-              ),
-              guests (
-                id,
-                ticket_number
-              )
-            `
-            )
-            .eq("order_id", orderId);
-
-          // Try a direct query without joins to see if order items exist
-          const { data: simpleOrderItems, error: simpleItemsError } =
-            await supabase
-              .from("order_items")
-              .select("*")
-              .eq("order_id", orderId);
+          const itemsResult = await ordersFulfill({
+            action: "list-order-items",
+            orderId,
+          });
+          const actualOrderItems = itemsResult?.success
+            ? itemsResult.data || []
+            : [];
 
           let totalTickets = 0;
           let ticketTypes: any = {};
           let orderItems: any = [];
 
-          // Use the function result to determine total tickets
-          if (totalTicketsFromFunction > 0) {
-            // Get the actual order items to check quantities
-            const { data: actualOrderItems, error: actualItemsError } =
-              await supabase
-                .from("order_items")
-                .select("id, quantity, unit_price, ticket_type_id, guest_id")
-                .eq("order_id", orderId);
+          const ticketTypeCache: Record<string, any> = {};
+          async function resolveTicketType(ticketTypeId: string | null) {
+            if (!ticketTypeId) return null;
+            if (ticketTypeCache[ticketTypeId]) return ticketTypeCache[ticketTypeId];
+            const tt = await ordersFulfill({
+              action: "get-ticket-type",
+              ticketTypeId,
+            });
+            ticketTypeCache[ticketTypeId] = tt?.success ? tt.data : null;
+            return ticketTypeCache[ticketTypeId];
+          }
 
-            if (
-              !actualItemsError &&
-              actualOrderItems &&
-              actualOrderItems.length > 0
-            ) {
-              // Calculate total tickets from quantity field
-              totalTickets = actualOrderItems.reduce(
-                (sum: number, item: any) => sum + (item.quantity || 1),
-                0
-              );
-              ticketTypes = { "General Admission": totalTickets };
-
-              // Create order items based on actual quantities
-              orderItems = [];
-              actualOrderItems.forEach((item: any) => {
-                const quantity = item.quantity || 1;
-                for (let i = 0; i < quantity; i++) {
-                  orderItems.push({
-                    id: `${item.id}-${i + 1}`,
-                    guest_id: item.guest_id || null,
-                    ticket_types: {
-                      name:
-                        orderData[0]?.ticket_type_name || "General Admission",
-                      price:
-                        item.unit_price || orderData[0]?.ticket_type_price || 0,
-                    },
-                    ticket_number: `TIX-${item.id}-${i + 1}`,
-                  });
-                }
-              });
-            } else {
-              // Calculate quantity from total amount and unit price since we can't query order_items directly
-              const totalAmount = parseFloat(orderResult.total_amount);
-              const unitPrice = parseFloat(orderResult.ticket_type_price);
-
-              if (unitPrice > 0) {
-                totalTickets = Math.floor(totalAmount / unitPrice);
-              } else {
-                totalTickets = totalTicketsFromFunction;
-              }
-
-              ticketTypes = { "General Admission": totalTickets };
-
-              // Try to resolve actual order_items with guest_id for this order
-              const { data: simpleItemsForOrder } = await supabase
-                .from("order_items")
-                .select("id, guest_id, quantity, unit_price, ticket_type_id")
-                .eq("order_id", orderId);
-
-              orderItems = [];
-              if (simpleItemsForOrder && simpleItemsForOrder.length > 0) {
-                simpleItemsForOrder.forEach((it: any) => {
-                  const qty = it.quantity || 1;
-                  for (let i = 0; i < qty; i++) {
-                    orderItems.push({
-                      id: `${it.id}-${i + 1}`,
-                      guest_id: it.guest_id || null,
-                      ticket_types: {
-                        name:
-                          orderResult.ticket_type_name || "General Admission",
-                        price:
-                          it.unit_price ||
-                          orderResult.ticket_type_price ||
-                          unitPrice,
-                      },
-                      ticket_number: `TIX-${it.id}-${i + 1}`,
-                    });
-                  }
+          if (actualOrderItems.length > 0) {
+            for (const item of actualOrderItems) {
+              const quantity = item.quantity || 1;
+              totalTickets += quantity;
+              const tt = await resolveTicketType(item.ticket_type_id);
+              const typeName =
+                tt?.name ||
+                orderResult.ticket_type_name ||
+                "General Admission";
+              const typePrice =
+                tt?.price ??
+                item.unit_price ??
+                orderResult.ticket_type_price ??
+                0;
+              ticketTypes[typeName] = (ticketTypes[typeName] || 0) + quantity;
+              for (let i = 0; i < quantity; i++) {
+                orderItems.push({
+                  id: `${item.id}-${i + 1}`,
+                  guest_id: item.guest_id || null,
+                  ticket_types: { name: typeName, price: typePrice },
+                  ticket_number: `TIX-${item.id}-${i + 1}`,
                 });
-              } else {
-                // Fallback to synthetic rows without guest_id (last resort)
-                const orderItemsIds = orderResult.order_items_ids || [];
-                const orderItemId = orderItemsIds[0] || `function-${orderId}`;
-                for (let i = 0; i < totalTickets; i++) {
-                  orderItems.push({
-                    id: `${orderItemId}-${i + 1}`,
-                    guest_id: null,
-                    ticket_types: {
-                      name: orderResult.ticket_type_name || "General Admission",
-                      price: orderResult.ticket_type_price || unitPrice,
-                    },
-                    ticket_number: `TIX-${orderItemId}-${i + 1}`,
-                  });
-                }
               }
             }
           } else {
-            // Fallback logic if function doesn't return data
-            if (!itemsError && orderItemsData && orderItemsData.length > 0) {
-              // Calculate total tickets from quantity field, not just order items count
-              totalTickets = orderItemsData.reduce(
-                (sum: number, item: any) => sum + (item.quantity || 1),
-                0
-              );
-
-              // Create order items based on quantity
-              orderItems = [];
-              orderItemsData.forEach((item: any) => {
-                const quantity = item.quantity || 1;
-                for (let i = 0; i < quantity; i++) {
-                  orderItems.push({
-                    id: `${item.id}-${i + 1}`,
-                    guest_id: item.guests?.id || item.guest_id || null,
-                    ticket_types: {
-                      name: item.ticket_types?.name || "General Admission",
-                      price: item.ticket_types?.price || item.unit_price || 0,
-                    },
-                    ticket_number:
-                      item.guests?.ticket_number || `TIX-${item.id}-${i + 1}`,
-                  });
-                }
-              });
-
-              // Group tickets by type
-              orderItemsData.forEach((item: any) => {
-                const typeName = item.ticket_types?.name || "General Admission";
-                const quantity = item.quantity || 1;
-                ticketTypes[typeName] = (ticketTypes[typeName] || 0) + quantity;
-              });
+            // Fallback from RPC row when items list is empty
+            const totalAmount = parseFloat(orderResult.total_amount);
+            const unitPrice = parseFloat(orderResult.ticket_type_price);
+            if (unitPrice > 0) {
+              totalTickets = Math.floor(totalAmount / unitPrice);
             } else {
-              // If no order items found, try to get from guests table directly
-              const { data: guestsData, error: guestsError } = await supabase
-                .from("guests")
-                .select(
-                  `
-                  *,
-                  ticket_types (
-                    name,
-                    price
-                  )
-                `
-                )
-                .eq("event_id", orderResult.event_id)
-                .eq("wallet_address", orderResult.buyer_wallet_address)
-                .limit(5);
-
-              if (!guestsError && guestsData && guestsData.length > 0) {
-                totalTickets = guestsData.length;
-                orderItems = guestsData.map((guest: any) => ({
-                  id: guest.id,
-                  guest_id: guest.id,
-                  ticket_types: {
-                    name: guest.ticket_types?.name || "General Admission",
-                    price: guest.ticket_types?.price || 0,
-                  },
-                  ticket_number:
-                    guest.ticket_number ||
-                    `TIX-${guest.id.toString().substring(0, 8)}`,
-                }));
-
-                // Group tickets by type
-                guestsData.forEach((guest: any) => {
-                  const typeName =
-                    guest.ticket_types?.name || "General Admission";
-                  ticketTypes[typeName] = (ticketTypes[typeName] || 0) + 1;
-                });
-              } else {
-                // Final fallback: Calculate tickets from order amount
-                if (
-                  (orderResult.payment_method === "solana" ||
-                    orderResult.payment_method === "mobile_money") &&
-                  orderResult.total_amount
-                ) {
-                  // For paid payments (Solana/Mobile Money), try to get ticket types for this event to calculate proper ticket count
-                  const { data: eventTicketTypes, error: ticketTypesError } =
-                    await supabase
-                      .from("ticket_types")
-                      .select("*")
-                      .eq("event_id", orderResult.event_id);
-
-                  if (
-                    !ticketTypesError &&
-                    eventTicketTypes &&
-                    eventTicketTypes.length > 0
-                  ) {
-                    // Find the most likely ticket type based on total amount
-                    const likelyTicketType =
-                      eventTicketTypes.find(
-                        (type) => orderResult.total_amount % type.price === 0
-                      ) || eventTicketTypes[0]; // Fallback to first ticket type
-
-                    // Calculate number of tickets based on total amount and ticket price
-                    const ticketPrice = likelyTicketType.price;
-                    totalTickets = Math.floor(
-                      orderResult.total_amount / ticketPrice
-                    );
-
-                    // Ensure we have at least 1 ticket
-                    if (totalTickets < 1) {
-                      totalTickets = 1;
-                    }
-
-                    ticketTypes = { [likelyTicketType.name]: totalTickets };
-
-                    // Create order items for each ticket
-                    for (let i = 1; i <= totalTickets; i++) {
-                      orderItems.push({
-                        id: `dummy-${i}`,
-                        ticket_types: {
-                          name: likelyTicketType.name,
-                          price: ticketPrice,
-                        },
-                        ticket_number: `TIX-${orderResult.order_id?.toString().substring(0, 8) || "DUMMY"}-${i}`,
-                      });
-                    }
-                  } else {
-                    // Fallback: assume single ticket if we can't get ticket types
-                    totalTickets = 1;
-                    ticketTypes = { "General Admission": 1 };
-                    orderItems = [
-                      {
-                        id: `dummy-1`,
-                        ticket_types: {
-                          name: "General Admission",
-                          price: orderResult.total_amount,
-                        },
-                        ticket_number: `TIX-${orderResult.order_id?.toString().substring(0, 8) || "DUMMY"}-1`,
-                      },
-                    ];
-                  }
-                } else if (orderResult.payment_method === "free") {
-                  // For free tickets, assume 1 ticket if no order items found
-                  totalTickets = 1;
-                  ticketTypes = { "Free Ticket": 1 };
-                  orderItems = [
-                    {
-                      id: "dummy-1",
-                      ticket_types: {
-                        name: "Free Ticket",
-                        price: 0,
-                      },
-                      ticket_number: `TIX-${orderResult.order_id?.toString().substring(0, 8) || "FREE"}-1`,
-                    },
-                  ];
-                }
-              }
+              totalTickets = orderData.length || 1;
+            }
+            if (totalTickets < 1) totalTickets = 1;
+            const typeName =
+              orderResult.ticket_type_name ||
+              (orderResult.payment_method === "free"
+                ? "Free Ticket"
+                : "General Admission");
+            ticketTypes = { [typeName]: totalTickets };
+            const orderItemsIds = orderResult.order_items_ids || [];
+            const orderItemId = orderItemsIds[0] || `function-${orderId}`;
+            for (let i = 0; i < totalTickets; i++) {
+              orderItems.push({
+                id: `${orderItemId}-${i + 1}`,
+                guest_id: null,
+                ticket_types: {
+                  name: typeName,
+                  price: orderResult.ticket_type_price || unitPrice || 0,
+                },
+                ticket_number: `TIX-${orderItemId}-${i + 1}`,
+              });
             }
           }
 
@@ -402,33 +200,38 @@
           };
         } else {
           // If order not found in database, check if it's a temporary order
-          const tempOrders = JSON.parse(
+          const tempOrdersRetry = JSON.parse(
             localStorage.getItem("tempFreeTicketOrders") || "[]"
           );
-          const tempOrder = tempOrders.find((o: any) => o.id === orderId);
+          const tempOrderRetry = tempOrdersRetry.find(
+            (o: any) => o.id === orderId
+          );
 
-          if (tempOrder) {
+          if (tempOrderRetry) {
             order = {
-              ...tempOrder,
+              ...tempOrderRetry,
               events: {
                 name: "Event",
                 date: new Date().toISOString(),
                 location: "Event Location",
               },
-              order_items: tempOrder.tickets.map((ticket: any) => ({
+              order_items: tempOrderRetry.tickets.map((ticket: any) => ({
                 ticket_types: { name: ticket.ticket_type_name },
                 ticket_number: ticket.ticket_number,
               })),
             };
 
-            // Calculate ticket summary for temporary orders
             ticketSummary = {
-              totalTickets: tempOrder.tickets.length,
-              ticketTypes: tempOrder.tickets.reduce((acc: any, ticket: any) => {
-                const typeName = ticket.ticket_type_name || "General Admission";
-                acc[typeName] = (acc[typeName] || 0) + 1;
-                return acc;
-              }, {}),
+              totalTickets: tempOrderRetry.tickets.length,
+              ticketTypes: tempOrderRetry.tickets.reduce(
+                (acc: any, ticket: any) => {
+                  const typeName =
+                    ticket.ticket_type_name || "General Admission";
+                  acc[typeName] = (acc[typeName] || 0) + 1;
+                  return acc;
+                },
+                {}
+              ),
             };
           } else {
             error = "Order not found";
@@ -441,11 +244,12 @@
       // Prefetch guest ids for this order to drive QR payloads
       if (order && order.event_id) {
         try {
-          const { data: guestIds } = await supabase.rpc("get_order_guest_ids", {
-            p_order_id: orderId,
+          const guestIdsResult = await ordersFulfill({
+            action: "get-order-guest-ids",
+            orderId,
           });
-          if (Array.isArray(guestIds)) {
-            orderGuestIds = guestIds as string[];
+          if (guestIdsResult?.success && Array.isArray(guestIdsResult.data)) {
+            orderGuestIds = guestIdsResult.data as string[];
           }
         } catch (e) {
           // ignore

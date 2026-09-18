@@ -2,8 +2,9 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import { supabase, loadUserEvents } from "$lib/supabase";
+  import { loadUserEvents } from "$lib/supabase";
   import { sessionFromDb, showToast } from "$lib/store";
+  import { walletDataGet, ordersFulfill } from "$lib/client/walletData";
 
   let order: any = null;
   let loading = true;
@@ -36,23 +37,54 @@
         return;
       }
 
-      // Fetch order
-      const { data, error: fetchError } = await supabase
-        .from("orders")
-        .select(
-          "*, events(name, date, location), order_items(*, ticket_types(name, price))"
-        )
-        .eq("id", orderId)
-        .in("event_id", eventIds)
-        .single();
-
-      if (fetchError || !data) {
+      const orderResult = await walletDataGet("order", { id: orderId });
+      const data = orderResult?.data;
+      if (!orderResult?.success || !data || !eventIds.includes(data.event_id)) {
         error = "Order not found";
         loading = false;
         return;
       }
 
-      order = data;
+      const eventMeta = userEvents.find((e: any) => e.id === data.event_id);
+      const itemsResult = await ordersFulfill({
+        action: "list-order-items",
+        orderId,
+      });
+      const rawItems = itemsResult?.success ? itemsResult.data || [] : [];
+
+      const ticketTypeCache: Record<string, any> = {};
+      const order_items = [];
+      for (const item of rawItems) {
+        let ticketType = null;
+        if (item.ticket_type_id) {
+          if (!ticketTypeCache[item.ticket_type_id]) {
+            const tt = await ordersFulfill({
+              action: "get-ticket-type",
+              ticketTypeId: item.ticket_type_id,
+            });
+            ticketTypeCache[item.ticket_type_id] = tt?.success ? tt.data : null;
+          }
+          ticketType = ticketTypeCache[item.ticket_type_id];
+        }
+        order_items.push({
+          ...item,
+          ticket_types: ticketType
+            ? { name: ticketType.name, price: ticketType.price }
+            : null,
+        });
+      }
+
+      order = {
+        ...data,
+        events: eventMeta
+          ? {
+              name: eventMeta.name,
+              date: eventMeta.date,
+              location: eventMeta.location,
+            }
+          : null,
+        order_items,
+      };
     } catch (err: any) {
       error = err.message || "Failed to load order";
     } finally {

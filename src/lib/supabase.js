@@ -791,10 +791,18 @@ export async function loadPublicEvents() {
   }
 }
 
-// Load events for a user using the new schema
+// Load events for a user (Kit service-role path after 3.2 RLS harden)
 export async function loadUserEvents(userId, sessionType = "traditional") {
   try {
-    // Query events for the user directly
+    // Browser / shared callers: cookie session is not auth.uid(), so use Kit API
+    if (typeof window !== "undefined") {
+      const response = await fetch("/loadUserEventsApi");
+      const result = await response.json();
+      if (!result.success) return [];
+      return result.events || [];
+    }
+
+    // Server transitional fallback (prefer $lib/server/events in Kit loads)
     const { data: events, error } = await supabase
       .from("events")
       .select(
@@ -1043,44 +1051,15 @@ export async function updateEventStatus(eventId, status) {
   }
 }
 
-// Add guest to event
+// Add guest to event (Kit service-role path after 3.2 RLS harden)
 export async function addGuestToEvent(eventId, guestData) {
   try {
-    // Generate a unique ticket number
-    const { data: ticketNumberData, error: ticketNumberError } =
-      await supabase.rpc("generate_ticket_number");
-
-    if (ticketNumberError) {
-      return { success: false, error: "Failed to generate ticket number" };
-    }
-
-    const ticketNumber = ticketNumberData;
-
-    const { data, error } = await supabase
-      .from("guests")
-      .insert([
-        {
-          event_id: eventId,
-          ticket_type_id: guestData.ticket_type_id,
-          venue_section_id: guestData.venue_section_id,
-          first_name: guestData.first_name,
-          last_name: guestData.last_name,
-          email: guestData.email,
-          phone: guestData.phone,
-          wallet_address: guestData.wallet_address,
-          ticket_number: ticketNumber,
-          seat_number: guestData.seat_number,
-          status: guestData.status || "pending",
-          special_requirements: guestData.special_requirements,
-        },
-      ])
-      .select();
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data: data[0] };
+    const response = await fetch("/api/guests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventId, guestData }),
+    });
+    return await response.json();
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -1301,23 +1280,15 @@ export async function addOrderItems(orderId, items) {
   }
 }
 
-// Load ticket types for a specific event
+// Load ticket types for a specific event (Kit path for organizer dashboard)
 export async function loadEventTicketTypes(eventId) {
   try {
-    const { data: ticketTypes, error } = await supabase
-      .from("ticket_types")
-      .select(
-        "id, name, description, price, quantity, sold_quantity, is_active"
-      )
-      .eq("event_id", eventId)
-      .eq("is_active", true)
-      .order("price", { ascending: true });
-
-    if (error) {
-      return { success: false, error: error.message };
+    const response = await fetch(`/api/guests?eventId=${encodeURIComponent(eventId)}`);
+    const result = await response.json();
+    if (!result.success) {
+      return { success: false, error: result.error || "Failed to load ticket types" };
     }
-
-    return { success: true, data: ticketTypes };
+    return { success: true, data: result.data };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -1566,68 +1537,13 @@ export async function updateEvent(eventId, updateData) {
   }
 }
 
-// Delete event and all related data
+// Delete event (Kit service-role path after 3.2 RLS harden)
 export async function deleteEvent(eventId) {
   try {
-    // First, get the event to find the image_id
-    const { data: eventData, error: eventError } = await supabase
-      .from("events")
-      .select("image_id")
-      .eq("id", eventId)
-      .single();
-
-    if (eventError) {
-      return { success: false, error: "Event not found" };
-    }
-
-    // Delete the event (this will cascade delete related records due to ON DELETE CASCADE)
-    const { error: deleteError } = await supabase
-      .from("events")
-      .delete()
-      .eq("id", eventId);
-
-    if (deleteError) {
-      return { success: false, error: deleteError.message };
-    }
-
-    // If there's an associated image, delete it from storage and database
-    if (eventData.image_id) {
-      // Get image details from database
-      const { data: imageData, error: imageError } = await supabase
-        .from("images")
-        .select("file_name")
-        .eq("id", eventData.image_id)
-        .single();
-
-      if (!imageError && imageData) {
-        // Delete from storage
-        const { error: storageError } = await supabase.storage
-          .from("event_images")
-          .remove([imageData.file_name]);
-
-        if (storageError) {
-          console.warn(
-            "Failed to delete image from storage:",
-            storageError.message
-          );
-        }
-
-        // Delete from images table
-        const { error: imageDeleteError } = await supabase
-          .from("images")
-          .delete()
-          .eq("id", eventData.image_id);
-
-        if (imageDeleteError) {
-          console.warn(
-            "Failed to delete image record:",
-            imageDeleteError.message
-          );
-        }
-      }
-    }
-
-    return { success: true };
+    const response = await fetch(`/api/events/${eventId}`, {
+      method: "DELETE",
+    });
+    return await response.json();
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -1874,7 +1790,7 @@ export async function createPaidTicketOrder(
   }
 }
 
-// Claim free tickets or paid tickets
+// Claim free/paid tickets (Kit service-role path after 3.2 RLS harden)
 export async function claimFreeTickets(
   eventId,
   selectedTickets,
@@ -1882,206 +1798,17 @@ export async function claimFreeTickets(
   paymentInfo = null
 ) {
   try {
-    // Generate a unique order number
-    const orderNumber = `${
-      paymentInfo ? "PAID" : "FREE"
-    }-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    // Calculate total amount and get ticket type details
-    let totalAmount = 0;
-    let ticketTypeDetails = [];
-
-    for (const [selectedTicketTypeId, quantity] of Object.entries(
-      selectedTickets
-    )) {
-      if (quantity > 0) {
-        const ticketTypeIdToUse =
-          typeof selectedTicketTypeId === "string"
-            ? selectedTicketTypeId
-            : selectedTicketTypeId.toString();
-
-        let { data: ticketType, error: ticketError } = await supabase
-          .from("ticket_types")
-          .select("*")
-          .eq("id", ticketTypeIdToUse)
-          .single();
-
-        if (ticketError) {
-          return {
-            success: false,
-            error: "Failed to get ticket type details",
-          };
-        }
-
-        // Use actual price from database, convert to number if it's a string
-        const ticketPrice =
-          typeof ticketType.price === "string"
-            ? parseFloat(ticketType.price)
-            : ticketType.price;
-
-        totalAmount += ticketPrice * quantity;
-        ticketTypeDetails.push({
-          id: ticketType.id,
-          name: ticketType.name,
-          price: ticketPrice,
-          quantity: quantity,
-        });
-      }
-    }
-
-    // Create the order with Web3 user data
-    const orderData = {
-      event_id: eventId,
-      buyer_id: userData.id || null,
-      buyer_wallet_address: userData.wallet_address || null,
-      buyer_email: userData.email || null,
-      buyer_name: userData.name || userData.display_name || "Anonymous",
-      order_number: orderNumber,
-      total_amount: totalAmount, // Always use calculated total from ticket details
-      currency: paymentInfo ? paymentInfo.currency || "USDC" : "NLe", // Use payment currency or default to USDC for paid tickets
-      payment_method: paymentInfo ? paymentInfo.paymentMethod : "free",
-      payment_status: paymentInfo ? "completed" : "completed",
-      transaction_hash: paymentInfo ? paymentInfo.transactionSignature : null,
-      order_status: "confirmed",
-    };
-
-    // Try to authenticate user for database operations
-    const authResult = await authenticateUserForDatabase(userData);
-    if (authResult.success) {
-      orderData.buyer_id = authResult.user.id;
-      orderData.buyer_wallet_address = authResult.user.wallet_address;
-      orderData.buyer_name =
-        authResult.user.display_name || authResult.user.username;
-    } else {
-      // If authentication fails, use the provided user data directly
-      // Use fallback data if available, otherwise use original userData
-      const fallbackData = authResult.fallbackData || userData;
-      orderData.buyer_wallet_address = fallbackData.wallet_address;
-      orderData.buyer_name =
-        fallbackData.name || fallbackData.display_name || "Anonymous";
-    }
-
-    // For mobile money payments, use the buyerWallet from paymentInfo if available
-    if (paymentInfo && paymentInfo.buyerWallet) {
-      orderData.buyer_wallet_address = paymentInfo.buyerWallet;
-    }
-
-    // Create one order with multiple order items
-    let orderId = null;
-    let totalTicketsClaimed = 0;
-
-    if (paymentInfo) {
-      // Now try the RPC call with explicit parameter order
-      const { data: rpcResult, error: rpcError } = await supabase.rpc(
-        "create_paid_ticket_order_with_items",
-        {
-          p_event_id: eventId,
-          p_buyer_wallet_address:
-            orderData.buyer_wallet_address || ANONYMOUS_KEY,
-          p_buyer_name: orderData.buyer_name,
-          p_order_number: orderNumber,
-          p_ticket_details: ticketTypeDetails,
-          p_total_amount: totalAmount,
-          p_currency: paymentInfo.currency || "USDC",
-          p_transaction_hash: paymentInfo.transactionSignature,
-          p_payment_method: paymentInfo.paymentMethod || "solana",
-        }
-      );
-      if (rpcError) {
-        console.error("Function call error:", rpcError);
-        return {
-          success: false,
-          error: `Database function error: ${rpcError.message}`,
-        };
-      }
-
-      const paidResult = rpcResult;
-      const paidError = rpcError;
-
-      if (
-        paidError ||
-        !paidResult ||
-        paidResult.length === 0 ||
-        !paidResult[0].success
-      ) {
-        console.error("Paid ticket order creation failed:", {
-          paidError,
-          paidResult,
-          orderData,
-          ticketTypeDetails,
-        });
-
-        // Check if it's a quantity error
-        const errorMessage =
-          paidResult?.[0]?.error_message ||
-          paidError?.message ||
-          "Failed to create paid ticket order";
-        if (errorMessage.includes("Not enough tickets available")) {
-          return {
-            success: false,
-            error:
-              "Sorry, some tickets are no longer available. Please refresh the page and try again.",
-          };
-        }
-
-        return {
-          success: false,
-          error: errorMessage,
-        };
-      }
-      orderId = paidResult[0].order_id;
-      totalTicketsClaimed = paidResult[0].tickets_claimed;
-    } else {
-      // Use create_free_ticket_order for free tickets - create one order with multiple items
-      const { data: freeResult, error: freeError } = await supabase.rpc(
-        "create_free_ticket_order_with_items",
-        {
-          p_event_id: eventId,
-          p_buyer_wallet_address: orderData.buyer_wallet_address,
-          p_buyer_name: orderData.buyer_name,
-          p_order_number: orderNumber,
-          p_ticket_details: ticketTypeDetails,
-        }
-      );
-
-      if (
-        freeError ||
-        !freeResult ||
-        freeResult.length === 0 ||
-        !freeResult[0].success
-      ) {
-        // Check if it's a quantity error
-        const errorMessage =
-          freeResult?.[0]?.error_message ||
-          freeError?.message ||
-          "Failed to create free ticket order";
-        if (errorMessage.includes("Not enough tickets available")) {
-          throw new Error(
-            "Sorry, some tickets are no longer available. Please refresh the page and try again."
-          );
-        }
-
-        throw new Error(errorMessage);
-      }
-      orderId = freeResult[0].order_id;
-      totalTicketsClaimed = freeResult[0].tickets_claimed;
-    }
-
-    // If we successfully created the order
-    if (orderId && totalTicketsClaimed > 0) {
-      return {
-        success: true,
-        orderId: orderId,
-        orderNumber: orderNumber,
-        ticketsClaimed: totalTicketsClaimed,
-        message: `Successfully claimed ${totalTicketsClaimed} ticket(s)`,
-      };
-    } else {
-      return {
-        success: false,
-        error: "Failed to create order",
-      };
-    }
+    const response = await fetch("/api/tickets/claim", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventId,
+        selectedTickets,
+        userData,
+        paymentInfo,
+      }),
+    });
+    return await response.json();
   } catch (error) {
     console.error("Error claiming tickets:", error);
     return {

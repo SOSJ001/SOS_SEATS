@@ -1,14 +1,13 @@
 import { json } from "@sveltejs/kit";
 import {
   updateEventWithDetails,
-  uploadEventImageNew,
-  supabase,
-} from "$lib/supabase.js";
+  uploadEventImage,
+  getEventImageId,
+} from "$lib/server/events";
 
 export async function PUT({ request, locals, params }) {
   try {
     const user_Id = locals.userId;
-    const sessionType = locals.sessionType;
     const eventId = params.eventId;
 
     if (!user_Id) {
@@ -22,12 +21,10 @@ export async function PUT({ request, locals, params }) {
       );
     }
 
-    // Handle JSON request
     const eventData = await request.json();
     let imageId = null;
     let imageBase64 = null;
 
-    // Extract base64 image if present
     if (
       eventData.image &&
       typeof eventData.image === "string" &&
@@ -36,15 +33,13 @@ export async function PUT({ request, locals, params }) {
       imageBase64 = eventData.image;
     }
 
-    // Handle image upload if provided
     if (imageBase64) {
       try {
-        // Convert base64 to File object
         const base64Response = await fetch(imageBase64);
         const blob = await base64Response.blob();
         const file = new File([blob], "event-image.jpg", { type: blob.type });
 
-        const uploadResult = await uploadEventImageNew(file, user_Id);
+        const uploadResult = await uploadEventImage(file, user_Id);
         if (uploadResult.success) {
           imageId = uploadResult.image_id;
         } else {
@@ -53,33 +48,19 @@ export async function PUT({ request, locals, params }) {
             { status: 400 }
           );
         }
-      } catch (error) {
+      } catch {
         return json(
           { success: false, error: "Failed to process image" },
           { status: 400 }
         );
       }
     } else {
-      // If no new image is uploaded, preserve the existing image_id
-      // We need to get the current event data to preserve the existing image_id
-      const { data: currentEvent, error: fetchError } = await supabase
-        .from("events")
-        .select("image_id")
-        .eq("id", eventId)
-        .eq("user_id", user_Id)
-        .single();
-
-      if (fetchError) {
-        return json(
-          { success: false, error: "Failed to fetch current event data" },
-          { status: 400 }
-        );
+      imageId = await getEventImageId(eventId, user_Id);
+      if (imageId === null && eventData.image_id) {
+        imageId = eventData.image_id;
       }
-
-      imageId = currentEvent.image_id;
     }
 
-    // Prepare event data for database update
     const eventPayload = {
       name: eventData.name,
       description: eventData.description,
@@ -99,13 +80,12 @@ export async function PUT({ request, locals, params }) {
       total_capacity: parseInt(eventData.total_capacity) || 0,
       audience_type: eventData.audience_type || "all-ages",
       event_visibility: eventData.event_visibility || "public",
-      status: eventData.status, // Include status field
-      published_at: eventData.published_at, // Include published_at field
-      ticket_design_config: eventData.ticket_design_config || null, // Include ticket design config
+      status: eventData.status,
+      published_at: eventData.published_at,
+      ticket_design_config: eventData.ticket_design_config || null,
       updated_at: new Date().toISOString(),
     };
 
-    // Update the event in the database
     const updateResult = await updateEventWithDetails(
       eventId,
       eventPayload,
@@ -119,13 +99,12 @@ export async function PUT({ request, locals, params }) {
         event_id: updateResult.event_id,
         message: "Event updated successfully",
       });
-    } else {
-      return json(
-        { success: false, error: updateResult.error },
-        { status: 400 }
-      );
     }
-  } catch (error) {
+    return json(
+      { success: false, error: updateResult.error },
+      { status: 400 }
+    );
+  } catch {
     return json(
       { success: false, error: "Internal server error" },
       { status: 500 }

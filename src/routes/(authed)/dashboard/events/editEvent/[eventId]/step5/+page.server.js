@@ -1,4 +1,6 @@
-import { supabase } from "$lib/supabase.js";
+import { getServerSupabase } from "$lib/server/db";
+
+const supabase = getServerSupabase();
 
 export async function load({ params, locals }) {
   const eventId = params.eventId;

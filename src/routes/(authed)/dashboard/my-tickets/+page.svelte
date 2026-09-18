@@ -143,33 +143,46 @@
           fetchError.message.includes("function") &&
           fetchError.message.includes("does not exist")
         ) {
-          // Try to load orders directly from the orders table
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from("orders")
-            .select(
-              `
-              *,
-              events(name, description, date, location),
-              order_items(
-                *,
-                ticket_types(name, price)
-              )
-            `
-            )
-            .eq("buyer_wallet_address", userWalletAddress)
-            .order("created_at", { ascending: false });
+          // Fallback: buyer orders via Kit wallet data API (no direct table access)
+          const { walletDataGet } = await import("$lib/client/walletData");
+          const fallbackResult = await walletDataGet("orders", {
+            wallet: userWalletAddress,
+          });
 
-          if (fallbackError) {
-            throw new Error(`Fallback query failed: ${fallbackError.message}`);
+          if (!fallbackResult?.success) {
+            throw new Error(
+              `Fallback query failed: ${fallbackResult?.error || "Unknown error"}`
+            );
           }
 
-          // Transform fallback data to match expected format
-          // Handle multiple order items per order
+          const fallbackData = fallbackResult.data || [];
           const ticketArray = [];
-          fallbackData?.forEach((order) => {
-            if (order.order_items && order.order_items.length > 0) {
-              // Create a ticket for each order item
-              order.order_items.forEach((orderItem, index) => {
+          for (const order of fallbackData) {
+            const itemsResult = await (
+              await import("$lib/client/walletData")
+            ).ordersFulfill({
+              action: "list-order-items",
+              orderId: order.id,
+            });
+            const orderItems = itemsResult?.success ? itemsResult.data || [] : [];
+
+            if (orderItems.length > 0) {
+              for (let index = 0; index < orderItems.length; index++) {
+                const orderItem = orderItems[index];
+                let ticketTypeName = "Standard";
+                let ticketTypePrice = 0;
+                if (orderItem.ticket_type_id) {
+                  const tt = await (
+                    await import("$lib/client/walletData")
+                  ).ordersFulfill({
+                    action: "get-ticket-type",
+                    ticketTypeId: orderItem.ticket_type_id,
+                  });
+                  if (tt?.success && tt.data) {
+                    ticketTypeName = tt.data.name || ticketTypeName;
+                    ticketTypePrice = tt.data.price || 0;
+                  }
+                }
                 ticketArray.push({
                   id: `ticket-${order.id}-${orderItem.id || `item-${index}`}`,
                   event_id: order.event_id,
@@ -187,21 +200,19 @@
                   paymentMethod: order.payment_method,
                   paymentStatus: order.payment_status,
                   buyerName: order.buyer_name,
-                  ticketType: orderItem.ticket_types?.name || "Standard",
-                  price: orderItem.ticket_types?.price || 0,
+                  ticketType: ticketTypeName,
+                  price: ticketTypePrice,
                   source: order.payment_method === "free" ? "free" : "paid",
                   isTransferred: false,
                   events: {
-                    title: order.events?.name,
-                    description:
-                      order.events?.description || "Event details available",
-                    date: order.events?.date,
-                    location: order.events?.location,
+                    title: "Event",
+                    description: "Event details available",
+                    date: order.created_at,
+                    location: "",
                   },
                 });
-              });
+              }
             } else {
-              // Fallback for orders without order items
               ticketArray.push({
                 id: `ticket-${order.id}`,
                 event_id: order.event_id,
@@ -224,15 +235,14 @@
                 source: order.payment_method === "free" ? "free" : "paid",
                 isTransferred: false,
                 events: {
-                  title: order.events?.name,
-                  description:
-                    order.events?.description || "Event details available",
-                  date: order.events?.date,
-                  location: order.events?.location,
+                  title: "Event",
+                  description: "Event details available",
+                  date: order.created_at,
+                  location: "",
                 },
               });
             }
-          });
+          }
           tickets = ticketArray;
 
           return; // Exit early since we handled the fallback

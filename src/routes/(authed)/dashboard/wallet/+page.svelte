@@ -16,6 +16,10 @@
   import { calculateWithdrawalFee } from "$lib/orangeMoneyPayment";
   import MultisigSettings from "$lib/components/MultisigSettings.svelte";
   import PendingWithdrawalCard from "$lib/components/PendingWithdrawalCard.svelte";
+  import {
+    walletDataGet,
+    walletDataPost,
+  } from "$lib/client/walletData";
 
   // Function to check and update withdrawal status from Monime
   async function checkAndUpdateWithdrawalStatus() {
@@ -33,16 +37,17 @@
       if (!wallet) return;
 
       // Find pending withdrawals with external_id (Monime payout ID)
-      // Check both "pending" and "pending_approval" withdrawals that have been executed
-      const { data: pendingWithdrawals, error } = await supabase
-        .from("wallet_transactions")
-        .select("id, external_id, metadata, status")
-        .eq("wallet_address", wallet)
-        .eq("type", "withdrawal")
-        .in("status", ["pending", "pending_approval"])
-        .not("external_id", "is", null);
+      const txResult = await walletDataGet("transactions", {
+        wallet,
+        type: "withdrawal",
+        limit: 100,
+      });
+      const pendingWithdrawals = (txResult?.success ? txResult.data || [] : []).filter(
+        (w: any) =>
+          ["pending", "pending_approval"].includes(w.status) && w.external_id
+      );
 
-      if (error || !pendingWithdrawals || pendingWithdrawals.length === 0) {
+      if (!pendingWithdrawals || pendingWithdrawals.length === 0) {
         return;
       }
 
@@ -289,15 +294,12 @@
       const eventIds = userEvents.map((e: any) => e.id);
 
       if (eventIds.length > 0) {
-        const { data: mmOrder } = await supabase
-          .from("orders")
-          .select("currency")
-          .in("event_id", eventIds)
-          .in("payment_method", ["orange_money", "afrimoney"])
-          .in("payment_status", ["paid", "completed"])
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const mmResult = await walletDataGet("organizer-orders", {
+          payment_methods: "orange_money,afrimoney",
+          payment_statuses: "paid,completed",
+          limit: 1,
+        });
+        const mmOrder = mmResult?.success ? mmResult.data?.[0] : null;
         if (mmOrder?.currency) currency = mmOrder.currency;
       }
 
@@ -362,56 +364,57 @@
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
         // Create pending withdrawal record
-        const { data: pendingWithdrawal, error: pendingError } = await supabase
-          .from("wallet_transactions")
-          .insert([
-            {
-              wallet_address: wallet,
-              type: "withdrawal",
-              source: "mobile_money",
-              amount: -Number(mobileMoneyTotal || 0),
-              currency: currency,
-              status: "pending_approval",
-              multisig_enabled: true,
-              required_signatures: multisigConfig[0].required_signatures,
-              collected_signatures: [
-                {
-                  wallet: wallet,
-                  signature: signatureBase64Encoded,
-                  public_key: signResult.publicKey || wallet,
-                  signed_at: new Date().toISOString(),
-                },
-              ],
-              pending_token: pendingToken,
-              expires_at: expiresAt.toISOString(),
-              metadata: {
-                note: "Multi-signature withdrawal pending approval",
-                provider: withdrawalProvider,
-                phone_number: formattedPhone,
-                gross_amount: String(mobileMoneyTotal.toFixed(2)),
+        const insertResult = await walletDataPost({
+          action: "insert",
+          row: {
+            wallet_address: wallet,
+            type: "withdrawal",
+            source: "mobile_money",
+            amount: -Number(mobileMoneyTotal || 0),
+            currency: currency,
+            status: "pending_approval",
+            multisig_enabled: true,
+            required_signatures: multisigConfig[0].required_signatures,
+            collected_signatures: [
+              {
+                wallet: wallet,
+                signature: signatureBase64Encoded,
+                public_key: signResult.publicKey || wallet,
+                signed_at: new Date().toISOString(),
+              },
+            ],
+            pending_token: pendingToken,
+            expires_at: expiresAt.toISOString(),
+            metadata: {
+              note: "Multi-signature withdrawal pending approval",
+              provider: withdrawalProvider,
+              phone_number: formattedPhone,
+              gross_amount: String(mobileMoneyTotal.toFixed(2)),
+              platform_fee: String(platformFee.toFixed(2)),
+              estimated_monime_fee: String(monimeFee.toFixed(2)),
+              net_amount_after_platform_fee: String(
+                netAmountAfterPlatformFee.toFixed(2)
+              ),
+              final_net_amount: String(finalNetAmount.toFixed(2)),
+              fees_breakdown: {
                 platform_fee: String(platformFee.toFixed(2)),
                 estimated_monime_fee: String(monimeFee.toFixed(2)),
-                net_amount_after_platform_fee: String(
-                  netAmountAfterPlatformFee.toFixed(2)
-                ),
-                final_net_amount: String(finalNetAmount.toFixed(2)),
-                fees_breakdown: {
-                  platform_fee: String(platformFee.toFixed(2)),
-                  estimated_monime_fee: String(monimeFee.toFixed(2)),
-                  total_fees: String((platformFee + monimeFee).toFixed(2)),
-                },
-                wallet_signature: {
-                  message: withdrawalMessage,
-                  signature: signatureBase64Encoded,
-                  public_key: signResult.publicKey,
-                  signed_at: new Date().toISOString(),
-                },
-                user_id: userId,
+                total_fees: String((platformFee + monimeFee).toFixed(2)),
               },
+              wallet_signature: {
+                message: withdrawalMessage,
+                signature: signatureBase64Encoded,
+                public_key: signResult.publicKey,
+                signed_at: new Date().toISOString(),
+              },
+              user_id: userId,
             },
-          ])
-          .select()
-          .single();
+          },
+        });
+
+        const pendingError = insertResult?.success
+          ? null
+          : insertResult?.error || "Insert failed";
 
         if (pendingError) {
           showToast(
@@ -544,8 +547,9 @@
         }, 0) || 0;
 
       // Create withdrawal record in wallet_transactions with payout details
-      const { error } = await supabase.from("wallet_transactions").insert([
-        {
+      const insertResult = await walletDataPost({
+        action: "insert",
+        row: {
           wallet_address: wallet,
           type: "withdrawal",
           source: "mobile_money",
@@ -584,7 +588,11 @@
             monime_response: payout,
           },
         },
-      ]);
+      });
+
+      const error = insertResult?.success
+        ? null
+        : insertResult?.error || "Insert failed";
 
       if (error) {
         console.error("Error creating withdrawal record:", error);
@@ -668,12 +676,14 @@
       }
 
       // Step 1: Calculate total deposits from completed mobile money orders
-      const { data: rows, error } = await supabase
-        .from("orders")
-        .select("total_amount,payment_status,payment_method")
-        .in("event_id", eventIds)
-        .in("payment_method", ["orange_money", "afrimoney"])
-        .in("payment_status", ["paid", "completed"]);
+      const ordersResult = await walletDataGet("organizer-orders", {
+        payment_methods: "orange_money,afrimoney",
+        payment_statuses: "paid,completed",
+      });
+      const rows = ordersResult?.success ? ordersResult.data : null;
+      const error = ordersResult?.success
+        ? null
+        : ordersResult?.error || "Failed to load orders";
 
       if (error) {
         console.error("Error loading mobile money orders:", error);
@@ -697,13 +707,19 @@
       // because the money hasn't actually been withdrawn yet
       let totalWithdrawals = 0;
       if (wallet) {
-        const { data: withdrawals, error: withdrawalsError } = await supabase
-          .from("wallet_transactions")
-          .select("amount, source, type, status")
-          .eq("wallet_address", wallet)
-          .in("source", ["mobile_money", "orange_money", "afrimoney"])
-          .eq("type", "withdrawal")
-          .in("status", ["completed", "paid"]); // Only count completed/paid withdrawals, NOT pending
+        const wdResult = await walletDataGet("transactions", {
+          wallet,
+          type: "withdrawal",
+          limit: 500,
+        });
+        const withdrawals = (wdResult?.success ? wdResult.data || [] : []).filter(
+          (t: any) =>
+            ["mobile_money", "orange_money", "afrimoney"].includes(t.source) &&
+            ["completed", "paid"].includes(t.status)
+        );
+        const withdrawalsError = wdResult?.success
+          ? null
+          : wdResult?.error || "Failed";
 
         if (withdrawalsError) {
           console.error("Error loading withdrawals:", withdrawalsError);
@@ -766,11 +782,13 @@
       }
 
       // Query orders for events created by this user
-      const { data: rows, error } = await supabase
-        .from("orders")
-        .select("total_amount, payment_method, payment_status")
-        .in("event_id", eventIds)
-        .in("payment_status", ["paid", "completed"]);
+      const totalsResult = await walletDataGet("organizer-orders", {
+        payment_statuses: "paid,completed",
+      });
+      const rows = totalsResult?.success ? totalsResult.data : null;
+      const error = totalsResult?.success
+        ? null
+        : totalsResult?.error || "Failed to load orders";
 
       if (error) {
         console.error("Error loading order totals:", error);
@@ -850,15 +868,14 @@
       // Query revenue orders (orders for events created by this user)
       let fromOrders: any[] = [];
       if (eventIds.length > 0) {
-        const { data: orders, error: ordersError } = await supabase
-          .from("orders")
-          .select(
-            "id, created_at, total_amount, currency, payment_method, payment_status, order_number, events(name)"
-          )
-          .in("event_id", eventIds)
-          .in("payment_status", ["paid", "completed"])
-          .order("created_at", { ascending: false })
-          .limit(10);
+        const ordersResult = await walletDataGet("organizer-orders", {
+          payment_statuses: "paid,completed",
+          limit: 10,
+        });
+        const orders = ordersResult?.success ? ordersResult.data : null;
+        const ordersError = ordersResult?.success
+          ? null
+          : ordersResult?.error || "Failed";
 
         if (ordersError) {
           console.error("Error loading revenue orders:", ordersError);
@@ -893,14 +910,14 @@
       // Query wallet_transactions (withdrawals, deposits)
       let fromLedger: any[] = [];
       if (wallet) {
-        const { data: ledger, error: ledgerError } = await supabase
-          .from("wallet_transactions")
-          .select(
-            "id, created_at, amount, currency, type, source, status, external_id"
-          )
-          .eq("wallet_address", wallet)
-          .order("created_at", { ascending: false })
-          .limit(10);
+        const ledgerResult = await walletDataGet("transactions", {
+          wallet,
+          limit: 10,
+        });
+        const ledger = ledgerResult?.success ? ledgerResult.data : null;
+        const ledgerError = ledgerResult?.success
+          ? null
+          : ledgerResult?.error || "Failed";
 
         if (ledgerError) {
           console.error("Error loading wallet transactions:", ledgerError);
@@ -1095,15 +1112,17 @@
       // Load pending withdrawals for this wallet
       // Include both multisig (pending_approval) and standard (pending) withdrawals
       // Exclude cancelled withdrawals
-      const { data: pending, error } = await supabase
-        .from("wallet_transactions")
-        .select("*")
-        .eq("wallet_address", wallet)
-        .eq("type", "withdrawal")
-        .in("status", ["pending_approval", "pending"])
-        .neq("status", "cancelled") // Explicitly exclude cancelled
-        .neq("status", "completed") // Explicitly exclude completed
-        .order("created_at", { ascending: false });
+      const pendingResult = await walletDataGet("transactions", {
+        wallet,
+        type: "withdrawal",
+        limit: 100,
+      });
+      const pending = (pendingResult?.success ? pendingResult.data || [] : []).filter(
+        (w: any) => ["pending_approval", "pending"].includes(w.status)
+      );
+      const error = pendingResult?.success
+        ? null
+        : pendingResult?.error || "Failed";
 
       if (error) {
         console.error("Error loading pending withdrawals:", error);
@@ -1154,14 +1173,15 @@
       );
 
       // Find pending withdrawals for these primary wallets
-      const { data: pendingWithdrawals, error: withdrawalError } =
-        await supabase
-          .from("wallet_transactions")
-          .select("*")
-          .in("wallet_address", primaryWallets)
-          .eq("type", "withdrawal")
-          .eq("status", "pending_approval")
-          .eq("multisig_enabled", true);
+      const pendingResult = await walletDataGet("signer-pending", {
+        wallets: primaryWallets.join(","),
+      });
+      const pendingWithdrawals = pendingResult?.success
+        ? pendingResult.data || []
+        : [];
+      const withdrawalError = pendingResult?.success
+        ? null
+        : pendingResult?.error || "Failed";
 
       if (withdrawalError) {
         return;
