@@ -283,7 +283,7 @@
     </div>
 
     <!-- Filter Buttons -->
-    <div class="flex gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <button
         on:click={() => (activeFilter = "upcoming")}
         class="px-4 py-2 rounded-lg transition-all duration-200 {activeFilter ===
@@ -311,6 +311,12 @@
       >
         Drafts
       </button>
+      <a
+        href="/dashboard/events/createEvent"
+        class="hidden h-10 items-center rounded-lg bg-teal-500 px-4 text-sm font-semibold text-white transition hover:bg-teal-600 lg:inline-flex"
+      >
+        + Create Event
+      </a>
     </div>
   </div>
 
@@ -471,14 +477,14 @@
   {/if}
 </div>
 
-<!-- Floating Action Button -->
+<!-- Floating Action Button (mobile only; FR-5) -->
 <a
   href="/dashboard/events/createEvent"
-  class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-teal-500 to-teal-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center justify-center group"
+  class="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-teal-500 to-teal-600 shadow-lg transition-all duration-200 hover:shadow-xl lg:hidden"
   title="Create New Event"
 >
   <svg
-    class="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-200"
+    class="h-6 w-6 text-white transition-transform duration-200"
     fill="none"
     stroke="currentColor"
     viewBox="0 0 24 24"

@@ -1,414 +1,351 @@
 <script>
+  // @ts-nocheck
+  /** FR-8a Step 2: Ticket types (HI-FI 506:238 desktop / 506:107 mobile free). */
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
   import { onMount } from "svelte";
-  import StepperProgress from "$lib/components/StepperProgress.svelte";
+  import WizardNav from "$lib/components/organizer/WizardNav.svelte";
+  import { loadEventDraft, saveEventDraft } from "$lib/client/eventDraft";
+  import Plus from "lucide-svelte/icons/plus";
+
+  function emptyTicket(isFree) {
+    return {
+      name: "",
+      description: "",
+      price: isFree ? 0 : 10,
+      quantity: null,
+      benefits: [],
+    };
+  }
 
   let eventData = {
-    // Event details for database
-    category: "", // Database: TEXT
-    tags: [], // Database: TEXT[]
-    image: null, // Will be handled separately for storage
-    organizer: "", // Database: TEXT
-    contact_email: null, // Database: TEXT - set to null for privacy
-    website: "", // Database: TEXT
-    social_media: {
-      // Database: JSONB
-      facebook: "",
-      twitter: "",
-      instagram: "",
-    },
+    is_free_event: true,
+    total_capacity: null,
+    ticket_types: [emptyTicket(true)],
   };
 
   let errors = {};
-  let newTag = "";
-  let imagePreview = null;
-
-  const categories = [
-    "Music & Concerts",
-    "Sports & Fitness",
-    "Business & Professional",
-    "Technology",
-    "Arts & Culture",
-    "Food & Drink",
-    "Education",
-    "Health & Wellness",
-    "Entertainment",
-    "Other",
-  ];
 
   onMount(() => {
-    // Load data from previous step
-    const savedData = localStorage.getItem("eventCreationData");
-    if (savedData) {
-      const parsed = JSON.parse(savedData);
-      eventData = { ...eventData, ...parsed };
-      // If there's a saved image, create preview (note: File objects can't be serialized to JSON)
-      // So we'll need to handle this differently - the image will need to be re-uploaded
-      if (parsed.imagePreview) {
-        imagePreview = parsed.imagePreview;
-      }
+    const loaded = loadEventDraft(eventData);
+    eventData = {
+      ...loaded,
+      is_free_event:
+        loaded.is_free_event !== undefined ? !!loaded.is_free_event : true,
+    };
+    if (!Array.isArray(eventData.ticket_types) || eventData.ticket_types.length === 0) {
+      eventData.ticket_types = [emptyTicket(eventData.is_free_event)];
     }
   });
 
-  function addTag() {
-    if (newTag.trim() && !eventData.tags.includes(newTag.trim())) {
-      eventData.tags = [...eventData.tags, newTag.trim()];
-      newTag = "";
+  function tierTitle(ticket, index) {
+    const name = ticket.name?.trim();
+    if (!name) return `TIER ${index + 1} (NEW)`;
+    return `TIER ${index + 1} (${name.toUpperCase()})`;
+  }
+
+  function isEmptyTicket(ticket) {
+    return !ticket.name?.trim();
+  }
+
+  function toggleFree() {
+    eventData.is_free_event = !eventData.is_free_event;
+    if (eventData.is_free_event) {
+      eventData.ticket_types = eventData.ticket_types.map((t) => ({
+        ...t,
+        price: 0,
+      }));
     }
   }
 
-  function removeTag(tagToRemove) {
-    eventData.tags = eventData.tags.filter((tag) => tag !== tagToRemove);
+  function addTicketType() {
+    eventData.ticket_types = [
+      ...eventData.ticket_types,
+      emptyTicket(eventData.is_free_event),
+    ];
   }
 
-  function handleImageUpload(event) {
-    const file = event.target.files[0];
-    if (file) {
-      eventData.image = file;
-
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        imagePreview = e.target.result;
-      };
-      reader.readAsDataURL(file);
+  function removeTicketType(index) {
+    if (eventData.ticket_types.length > 1) {
+      eventData.ticket_types = eventData.ticket_types.filter((_, i) => i !== index);
     }
   }
 
-  function validateStep() {
+  function persistableTickets() {
+    return eventData.ticket_types.filter((t) => t.name?.trim());
+  }
+
+  function validateTickets(tickets) {
     errors = {};
-
-    if (!eventData.category) {
-      errors.category = "Please select a category";
+    if (tickets.length === 0) {
+      errors.general = "Add at least one ticket type with a name";
+      return false;
     }
-    if (!eventData.organizer.trim()) {
-      errors.organizer = "Organizer name is required";
-    }
-
+    tickets.forEach((ticket, index) => {
+      if (!eventData.is_free_event && (ticket.price === null || ticket.price <= 0)) {
+        errors[`ticket${index}Price`] = "Price must be greater than 0";
+      }
+      if (ticket.quantity === null || ticket.quantity === "" || Number(ticket.quantity) <= 0) {
+        errors[`ticket${index}Quantity`] = "Valid quantity is required";
+      }
+    });
     return Object.keys(errors).length === 0;
   }
 
+  function buildDraft(tickets) {
+    const total = tickets.reduce((sum, t) => sum + (Number(t.quantity) || 0), 0);
+    return {
+      ...eventData,
+      ticket_types: tickets.map((t) => ({
+        ...t,
+        price: eventData.is_free_event ? 0 : t.price || 0,
+      })),
+      total_capacity: total,
+    };
+  }
+
   function nextStep() {
-    if (validateStep()) {
-      // Save to localStorage (including image preview)
-      const dataToSave = {
-        ...eventData,
-        imagePreview: imagePreview,
-      };
-      localStorage.setItem("eventCreationData", JSON.stringify(dataToSave));
-      goto("/dashboard/events/createEvent/step3");
+    const tickets = persistableTickets();
+    if (tickets.length === 0) {
+      errors = { general: "Add at least one ticket type with a name" };
+      return;
     }
+    // Drop blank NEW cards so capacity and validation match named tiers
+    eventData.ticket_types = tickets;
+    if (!validateTickets(tickets)) return;
+    eventData = buildDraft(tickets);
+    saveEventDraft(eventData);
+    goto("/dashboard/events/createEvent/step3");
   }
 
   function prevStep() {
-    // Save to localStorage (including image preview)
-    const dataToSave = {
-      ...eventData,
-      imagePreview: imagePreview,
-    };
-    localStorage.setItem("eventCreationData", JSON.stringify(dataToSave));
+    saveEventDraft(eventData);
     goto("/dashboard/events/createEvent/step1");
   }
 </script>
 
-<div class="max-w-4xl mx-auto p-4 sm:p-6" in:fade={{ duration: 300 }}>
-  <!-- Title -->
-  <div class="text-center mb-6 sm:mb-8">
-    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">
-      Create New Event
-    </h1>
-  </div>
-
-  <!-- Stepper Progress -->
-  <StepperProgress currentStep={2} />
-
-  <!-- Step Title -->
-  <div class="mb-6 sm:mb-8">
-    <h2 class="text-xl sm:text-3xl font-bold text-white mb-2">Event Details</h2>
-    <p class="text-gray-400 text-sm sm:text-base">
-      Add more details to help people discover your event.
+<div class="flex flex-col gap-4 lg:gap-6" in:fade={{ duration: 200 }}>
+  <div class="flex flex-col gap-1.5">
+    <h2
+      class="m-0 font-display text-[20px] font-bold text-ink lg:hidden"
+    >
+      2. Ticket Types
+    </h2>
+    <h2 class="m-0 hidden text-lg font-extrabold text-ink lg:block">
+      Event Ticket Types
+    </h2>
+    <p class="m-0 hidden text-[13px] text-ink-secondary lg:block">
+      Create different ticket options for your attendees (e.g. VIP, Early Bird, General
+      Admission).
     </p>
   </div>
 
-  <!-- Form -->
-  <div class="bg-gray-800 rounded-xl p-4 sm:p-8 space-y-4 sm:space-y-6">
-    <!-- Category -->
-    <div>
-      <label
-        for="category"
-        class="block text-sm font-medium text-gray-300 mb-2"
-      >
-        Event Category *
-      </label>
-      <select
-        id="category"
-        bind:value={eventData.category}
-        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.category
-          ? 'border-red-500'
-          : ''}"
-      >
-        <option value="">Select a category</option>
-        {#each categories as category}
-          <option value={category}>{category}</option>
-        {/each}
-      </select>
-      {#if errors.category}
-        <p class="text-red-400 text-sm mt-1">{errors.category}</p>
-      {/if}
+  <div
+    class="flex items-center justify-between gap-4 rounded-xl border border-paper-border bg-white px-4 py-3"
+  >
+    <div class="min-w-0 flex-1">
+      <p class="m-0 text-[13px] font-bold text-ink lg:text-[15px]">Free event</p>
+      <p class="m-0 mt-0.5 text-[11px] text-ink-secondary lg:mt-1 lg:text-[13px]">
+        All tickets will be free and quantities will be hidden.
+      </p>
     </div>
-
-    <!-- Tags -->
-    <div>
-      <label
-        for="event-tags"
-        class="block text-sm font-medium text-gray-300 mb-2"
-      >
-        Event Tags
-      </label>
-      <div class="flex flex-col sm:flex-row gap-2 mb-2">
-        <input
-          id="event-tags"
-          type="text"
-          bind:value={newTag}
-          on:keydown={(e) => e.key === "Enter" && addTag()}
-          class="flex-1 px-3 sm:px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm sm:text-base"
-          placeholder="Add a tag and press Enter"
-        />
-        <button
-          on:click={addTag}
-          class="w-full sm:w-auto px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors duration-200 text-sm sm:text-base font-medium"
-        >
-          Add Tag
-        </button>
-      </div>
-      {#if eventData.tags.length > 0}
-        <div class="flex flex-wrap gap-2 mt-3">
-          {#each eventData.tags as tag}
-            <span
-              class="inline-flex items-center px-2 sm:px-3 py-1 bg-teal-500 text-white text-xs sm:text-sm rounded-full"
-            >
-              {tag}
-              <button
-                on:click={() => removeTag(tag)}
-                class="ml-1 sm:ml-2 text-teal-200 hover:text-white text-sm sm:text-base"
-                aria-label="Remove tag {tag}"
-              >
-                ×
-              </button>
-            </span>
-          {/each}
-        </div>
-      {/if}
-    </div>
-
-    <!-- Image Upload -->
-    <div>
-      <label
-        for="image-upload"
-        class="block text-sm font-medium text-gray-300 mb-2"
-      >
-        Event Image
-      </label>
-
-      {#if imagePreview}
-        <!-- Image Preview -->
-        <div class="mb-4">
-          <div class="relative inline-block">
-            <img
-              src={imagePreview}
-              alt=""
-              class="max-w-full h-64 object-cover rounded-lg border border-gray-600"
-            />
-            <button
-              on:click={() => {
-                eventData.image = null;
-                imagePreview = null;
-              }}
-              class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-colors"
-              title="Remove image"
-            >
-              ×
-            </button>
-          </div>
-          <p class="text-sm text-gray-400 mt-2">
-            {eventData.image?.name || "Image uploaded"}
-          </p>
-        </div>
-      {/if}
-
-      {#if !imagePreview}
-        <!-- Upload Area -->
-        <div
-          class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center"
-        >
-          <input
-            type="file"
-            accept="image/*"
-            on:change={handleImageUpload}
-            class="hidden"
-            id="image-upload"
-          />
-          <label for="image-upload" class="cursor-pointer">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              stroke="currentColor"
-              fill="none"
-              viewBox="0 0 48 48"
-            >
-              <path
-                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <p class="mt-2 text-sm text-gray-400">
-              Click to upload an image or drag and drop
-            </p>
-            <p class="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 10MB</p>
-          </label>
-        </div>
-      {:else}
-        <!-- Change Image Button -->
-        <div class="text-center">
-          <input
-            type="file"
-            accept="image/*"
-            on:change={handleImageUpload}
-            class="hidden"
-            id="change-image-upload"
-          />
-          <label
-            for="change-image-upload"
-            class="inline-flex items-center px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors cursor-pointer"
-          >
-            <svg
-              class="w-4 h-4 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            Change Image
-          </label>
-        </div>
-      {/if}
-    </div>
-
-    <!-- Organizer Information -->
-    <div>
-      <label
-        for="organizer"
-        class="block text-sm font-medium text-gray-300 mb-2"
-      >
-        Organizer Name *
-      </label>
-      <input
-        id="organizer"
-        type="text"
-        bind:value={eventData.organizer}
-        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.organizer
-          ? 'border-red-500'
-          : ''}"
-        placeholder="Enter organizer name"
-      />
-      {#if errors.organizer}
-        <p class="text-red-400 text-sm mt-1">{errors.organizer}</p>
-      {/if}
-    </div>
-
-    <!-- Website -->
-    <div>
-      <label for="website" class="block text-sm font-medium text-gray-300 mb-2">
-        Website
-      </label>
-      <input
-        id="website"
-        type="url"
-        bind:value={eventData.website}
-        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
-        placeholder="https://example.com"
-      />
-    </div>
-
-    <!-- Social Media -->
-    <div>
-      <h3 class="block text-sm font-medium text-gray-300 mb-4">
-        Social Media Links
-      </h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div>
-          <label
-            for="facebook"
-            class="block text-xs font-medium text-gray-400 mb-1"
-          >
-            Facebook
-          </label>
-          <input
-            id="facebook"
-            type="url"
-            bind:value={eventData.social_media.facebook}
-            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"
-            placeholder="Facebook URL"
-          />
-        </div>
-        <div>
-          <label
-            for="twitter"
-            class="block text-xs font-medium text-gray-400 mb-1"
-          >
-            Twitter
-          </label>
-          <input
-            id="twitter"
-            type="url"
-            bind:value={eventData.social_media.twitter}
-            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"
-            placeholder="Twitter URL"
-          />
-        </div>
-        <div>
-          <label
-            for="instagram"
-            class="block text-xs font-medium text-gray-400 mb-1"
-          >
-            Instagram
-          </label>
-          <input
-            id="instagram"
-            type="url"
-            bind:value={eventData.social_media.instagram}
-            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-sm"
-            placeholder="Instagram URL"
-          />
-        </div>
-      </div>
-    </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={eventData.is_free_event}
+      aria-label="Free event"
+      class="relative h-6 w-11 shrink-0 rounded-xl p-0.5 transition-colors border-0 cursor-pointer
+        {eventData.is_free_event ? 'bg-brand' : 'bg-paper-border'}"
+      on:click={toggleFree}
+    >
+      <span
+        class="block size-5 rounded-[10px] bg-white shadow transition-transform
+          {eventData.is_free_event ? 'translate-x-5' : 'translate-x-0'}"
+        aria-hidden="true"
+      ></span>
+    </button>
   </div>
 
-  <!-- Navigation Buttons -->
-  <div
-    class="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6 mt-6 sm:mt-8"
-  >
-    <button
-      on:click={prevStep}
-      class="w-full sm:w-auto px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 text-sm sm:text-base"
-    >
-      Previous
-    </button>
+  {#if errors.general}
+    <p class="text-sm text-red-600">{errors.general}</p>
+  {/if}
 
+  <div class="flex flex-wrap gap-4">
+    {#each eventData.ticket_types as ticket, ticketIndex}
+      {@const empty = isEmptyTicket(ticket)}
+      <div
+        class="flex w-full flex-col gap-3 rounded-xl border border-paper-border bg-white p-4 lg:w-[calc(50%-0.5rem)]
+          {empty ? 'opacity-60' : ''}"
+      >
+        <div class="flex items-center justify-between gap-2">
+          <p
+            class="m-0 text-[11px] font-extrabold tracking-[1px]
+              {empty ? 'text-ink-muted' : 'text-brand'}"
+          >
+            {tierTitle(ticket, ticketIndex)}
+          </p>
+          {#if eventData.ticket_types.length > 1 && !empty}
+            <button
+              type="button"
+              class="rounded border-0 bg-[#fee2e2] px-2.5 py-1 text-[11px] font-bold text-[#ef4444] cursor-pointer"
+              on:click={() => removeTicketType(ticketIndex)}
+            >
+              Remove
+            </button>
+          {/if}
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="ticket-name-{ticketIndex}"
+            class="text-[13px] font-bold text-ink"
+          >
+            Ticket Name
+          </label>
+          <input
+            id="ticket-name-{ticketIndex}"
+            type="text"
+            bind:value={ticket.name}
+            placeholder="e.g. VIP Backstage Pass"
+            class="h-11 w-full rounded-lg border border-paper-border bg-white px-4 text-base text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="ticket-desc-{ticketIndex}"
+            class="text-[13px] font-bold text-ink"
+          >
+            Description
+          </label>
+          <input
+            id="ticket-desc-{ticketIndex}"
+            type="text"
+            bind:value={ticket.description}
+            placeholder="e.g. Brief description"
+            class="h-11 w-full rounded-lg border border-paper-border bg-white px-4 text-base text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+          />
+        </div>
+
+        {#if !eventData.is_free_event}
+          <div class="flex gap-3">
+            <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+              <label
+                for="ticket-price-{ticketIndex}"
+                class="text-[13px] font-bold text-ink"
+              >
+                Price (NLe)
+              </label>
+              <input
+                id="ticket-price-{ticketIndex}"
+                type="number"
+                min="0.01"
+                step="0.01"
+                bind:value={ticket.price}
+                placeholder="e.g. 500"
+                class="h-11 w-full rounded-lg border bg-white px-4 text-base text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20
+                  {errors[`ticket${ticketIndex}Price`] ? 'border-red-500' : 'border-paper-border'}"
+              />
+              {#if errors[`ticket${ticketIndex}Price`]}
+                <p class="text-sm text-red-600">{errors[`ticket${ticketIndex}Price`]}</p>
+              {/if}
+            </div>
+            <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+              <label
+                for="ticket-qty-{ticketIndex}"
+                class="text-[13px] font-bold text-ink"
+              >
+                Quantity Available
+              </label>
+              <input
+                id="ticket-qty-{ticketIndex}"
+                type="number"
+                min="1"
+                bind:value={ticket.quantity}
+                placeholder="e.g. 20"
+                class="h-11 w-full rounded-lg border bg-white px-4 text-base text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20
+                  {errors[`ticket${ticketIndex}Quantity`] ? 'border-red-500' : 'border-paper-border'}"
+              />
+              {#if errors[`ticket${ticketIndex}Quantity`]}
+                <p class="text-sm text-red-600">{errors[`ticket${ticketIndex}Quantity`]}</p>
+              {/if}
+            </div>
+          </div>
+        {:else}
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="ticket-qty-{ticketIndex}"
+              class="text-[13px] font-bold text-ink"
+            >
+              Quantity Available
+            </label>
+            <input
+              id="ticket-qty-{ticketIndex}"
+              type="number"
+              min="1"
+              bind:value={ticket.quantity}
+              placeholder="e.g. 20"
+              class="h-11 w-full rounded-lg border bg-white px-4 text-base text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20
+                {errors[`ticket${ticketIndex}Quantity`] ? 'border-red-500' : 'border-paper-border'}"
+            />
+            {#if errors[`ticket${ticketIndex}Quantity`]}
+              <p class="text-sm text-red-600">{errors[`ticket${ticketIndex}Quantity`]}</p>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/each}
+  </div>
+
+  <!-- Mobile: text + Plus -->
+  <div class="lg:hidden">
     <button
-      on:click={nextStep}
-      class="w-full sm:w-auto px-8 py-3 sm:py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 font-medium text-sm sm:text-base"
+      type="button"
+      on:click={addTicketType}
+      class="inline-flex items-center gap-2 border-0 bg-transparent p-0 py-2 text-[15px] font-bold text-brand cursor-pointer"
     >
-      Next Step
+      <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
+      Add Another Ticket Type
     </button>
+  </div>
+
+  <!-- Desktop: filled pill -->
+  <div class="hidden lg:block">
+    <button
+      type="button"
+      on:click={addTicketType}
+      class="inline-flex items-center gap-1.5 rounded-lg border-0 bg-brand px-[18px] py-2.5 text-[13px] font-bold text-white cursor-pointer hover:opacity-90"
+    >
+      <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
+      Add Ticket Type
+    </button>
+  </div>
+
+  <!-- Mobile: Back outline + Next solid -->
+  <div class="grid grid-cols-2 gap-3 pt-1 lg:hidden">
+    <button
+      type="button"
+      class="flex h-12 items-center justify-center rounded-lg border-[1.5px] border-brand bg-white text-[15px] font-bold text-brand cursor-pointer"
+      on:click={prevStep}
+    >
+      Back
+    </button>
+    <button
+      type="button"
+      class="flex h-12 items-center justify-center rounded-lg border-0 bg-brand text-[15px] font-bold text-white cursor-pointer hover:opacity-90"
+      on:click={nextStep}
+    >
+      Next: Ticket Design
+    </button>
+  </div>
+
+  <!-- Desktop WizardNav -->
+  <div class="hidden lg:block">
+    <WizardNav
+      backLabel="← Back"
+      nextLabel="Next Step: Ticket Design →"
+      onBack={prevStep}
+      onNext={nextStep}
+    />
   </div>
 </div>

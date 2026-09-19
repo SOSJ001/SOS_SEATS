@@ -1,221 +1,290 @@
 <script>
+  // @ts-nocheck
+  /** FR-8a Step 1: Event Information (desktop 55:1131 / mobile 4:724). */
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
   import { onMount } from "svelte";
-  import StepperProgress from "$lib/components/StepperProgress.svelte";
+  import { page } from "$app/stores";
+  import WizardField from "$lib/components/organizer/WizardField.svelte";
+  import WizardNav from "$lib/components/organizer/WizardNav.svelte";
+  import { loadEventDraft, saveEventDraft } from "$lib/client/eventDraft";
+  import Image from "lucide-svelte/icons/image";
+
+  export let data;
+
+  const MAX_COVER_BYTES = 5 * 1024 * 1024;
 
   let eventData = {
-    // Basic event information for database
-    name: "", // Database: TEXT NOT NULL
-    date: "", // Database: DATE NOT NULL
-    time: "", // Database: TIME NOT NULL
-    location: "", // Database: TEXT NOT NULL
-    venue_address: "", // Database: TEXT (optional)
-    description: "", // Database: TEXT (optional)
+    name: "",
+    category: "",
+    date: "",
+    time: "",
+    location: "",
+    description: "",
+    imagePreview: null,
+    organizer: "",
   };
 
   let errors = {};
+  let imagePreview = null;
+  let imageError = "";
 
   onMount(() => {
-    // Load data from localStorage if returning from other steps
-    const savedData = localStorage.getItem("eventCreationData");
-    if (savedData) {
-      const parsed = JSON.parse(savedData);
-      // Merge saved data with current eventData, preserving existing structure
-      eventData = { ...eventData, ...parsed };
-      }
+    const userName = $page.data?.userName || data?.userName || "";
+    eventData = loadEventDraft({
+      ...eventData,
+      organizer: userName || "Organizer",
+    });
+    if (eventData.imagePreview) {
+      imagePreview = eventData.imagePreview;
+    }
+    if (!eventData.organizer && userName) {
+      eventData.organizer = userName;
+    }
   });
+
+  function handleImageUpload(event) {
+    const file = event.target.files?.[0];
+    imageError = "";
+    if (!file) return;
+    if (file.size > MAX_COVER_BYTES) {
+      imageError = "Image must be 5MB or smaller";
+      event.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      imagePreview = e.target.result;
+      eventData.imagePreview = imagePreview;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function withCategoryDefaults(data) {
+    return {
+      ...data,
+      category: data.category?.trim() ? data.category : "Other",
+    };
+  }
 
   function validateStep() {
     errors = {};
-
-    if (!eventData.name.trim()) {
-      errors.name = "Event name is required";
-    }
-    if (!eventData.date) {
-      errors.date = "Event date is required";
-    }
-    if (!eventData.time) {
-      errors.time = "Event time is required";
-    }
-    if (!eventData.location.trim()) {
-      errors.location = "Event location is required";
-    }
-
+    if (!eventData.name?.trim()) errors.name = "Event name is required";
+    if (!eventData.date) errors.date = "Event date is required";
+    if (!eventData.time) errors.time = "Event time is required";
+    if (!eventData.location?.trim()) errors.location = "Venue location is required";
     return Object.keys(errors).length === 0;
   }
 
+  function saveDraft() {
+    const userName = $page.data?.userName || data?.userName || "";
+    saveEventDraft(
+      withCategoryDefaults({
+        ...eventData,
+        imagePreview,
+        organizer: eventData.organizer || userName || "Organizer",
+      }),
+    );
+  }
+
   function nextStep() {
-    if (validateStep()) {
-      // Save to localStorage before navigating
-      localStorage.setItem("eventCreationData", JSON.stringify(eventData));
-      goto("/dashboard/events/createEvent/step2");
-    }
-  }
-
-  function prevStep() {
-    // Save current data before going back
-    localStorage.setItem("eventCreationData", JSON.stringify(eventData));
-    goto("/dashboard/events");
-  }
-
-  function goBack() {
-    goto("/dashboard/events");
+    if (!validateStep()) return;
+    const userName = $page.data?.userName || data?.userName || "";
+    saveEventDraft(
+      withCategoryDefaults({
+        ...eventData,
+        imagePreview,
+        organizer: eventData.organizer || userName || "Organizer",
+      }),
+    );
+    goto("/dashboard/events/createEvent/step2");
   }
 </script>
 
-<div class="max-w-4xl mx-auto p-4 sm:p-6" in:fade={{ duration: 300 }}>
-  <!-- Title -->
-  <div class="text-center mb-6 sm:mb-8">
-    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">
-      Create New Event
-    </h1>
-  </div>
+<div class="flex flex-col gap-4 lg:gap-6" in:fade={{ duration: 200 }}>
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-8">
+    <!-- Event Information fields -->
+    <div class="flex min-w-0 flex-1 flex-col gap-4">
+      <h2
+        class="m-0 font-display text-[20px] font-bold text-ink lg:font-sans lg:text-lg lg:font-extrabold"
+      >
+        1. Event Information
+      </h2>
 
-  <!-- Stepper Progress -->
-  <StepperProgress currentStep={1} />
+      <div class="flex flex-col gap-3 lg:gap-4">
+        <WizardField
+          id="name"
+          label="Event Name"
+          bind:value={eventData.name}
+          placeholder="e.g. Freetown Music Festival"
+          error={errors.name || ""}
+        />
 
-  <!-- Step Title -->
-  <div class="mb-6 sm:mb-8">
-    <h2 class="text-xl sm:text-3xl font-bold text-white mb-2">
-      Basic Event Information
-    </h2>
-    <p class="text-gray-400 text-sm sm:text-base">
-      Let's start with the essential details about your event.
-    </p>
-  </div>
+        <WizardField
+          id="organizer"
+          label="Organiser"
+          bind:value={eventData.organizer}
+          placeholder="e.g. Freetown Events"
+        />
 
-  <!-- Form -->
-  <div class="bg-gray-800 rounded-xl p-4 sm:p-8 space-y-4 sm:space-y-6">
-    <!-- Event Name -->
-    <div>
-      <label for="name" class="block text-sm font-medium text-gray-300 mb-2">
-        Event Name *
+        <WizardField
+          id="description"
+          label="Description"
+          type="textarea"
+          rows={4}
+          bind:value={eventData.description}
+          placeholder="Provide basic schedules, artist lineups, or custom notices here..."
+        />
+
+        <div class="grid grid-cols-2 gap-3">
+          <WizardField
+            id="date"
+            label="Date"
+            type="date"
+            bind:value={eventData.date}
+            error={errors.date || ""}
+          />
+          <WizardField
+            id="time"
+            label="Time"
+            type="time"
+            bind:value={eventData.time}
+            error={errors.time || ""}
+          />
+        </div>
+
+        <WizardField
+          id="location"
+          label="Venue Location"
+          bind:value={eventData.location}
+          placeholder="e.g. Bintumani Complex, Freetown"
+          error={errors.location || ""}
+        />
+
+        <!-- Mobile cover: under Venue (HI-FI 4:724) -->
+        <div class="flex flex-col gap-1.5 lg:hidden">
+          <p class="m-0 text-[13px] font-bold text-ink">Cover Media Upload</p>
+          <label
+            class="flex min-h-[120px] cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-[1.5px] border-dashed border-paper-border bg-white transition hover:bg-brand-wash
+              {imagePreview ? 'p-0' : 'p-5'}"
+          >
+            {#if imagePreview}
+              <div class="relative h-[160px] w-full overflow-hidden">
+                <img
+                  src={imagePreview}
+                  alt=""
+                  aria-hidden="true"
+                  class="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-xl"
+                />
+                <img
+                  src={imagePreview}
+                  alt="Cover preview"
+                  class="relative z-10 h-full w-full object-contain"
+                />
+              </div>
+              <span
+                class="w-full bg-white py-2 text-center text-[13px] font-semibold text-brand"
+                >Replace image</span
+              >
+            {:else}
+              <Image
+                class="text-brand"
+                size={24}
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
+              <span class="text-center text-[13px] font-semibold text-brand">
+                Click to upload event flyer
+              </span>
+              <span class="text-center text-[11px] text-ink-secondary">
+                Recommended ratio: 16:9 (Max 5MB)
+              </span>
+            {/if}
+            <input
+              type="file"
+              accept="image/*"
+              class="sr-only"
+              on:change={handleImageUpload}
+            />
+          </label>
+          {#if imageError}
+            <p class="text-sm text-red-600">{imageError}</p>
+          {/if}
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop cover: side panel -->
+    <div class="hidden w-full flex-col gap-4 lg:flex lg:w-[420px] lg:shrink-0">
+      <h2 class="m-0 text-lg font-extrabold text-ink">Cover Media Upload</h2>
+
+      <label
+        class="flex min-h-[280px] flex-1 cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-xl border-[1.5px] border-dashed border-brand bg-white transition hover:bg-brand-wash lg:min-h-[464px]
+          {imagePreview ? 'p-0' : 'p-8'}"
+      >
+        {#if imagePreview}
+          <div class="relative min-h-[280px] w-full flex-1 overflow-hidden lg:min-h-[400px]">
+            <img
+              src={imagePreview}
+              alt=""
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-xl"
+            />
+            <img
+              src={imagePreview}
+              alt="Cover preview"
+              class="relative z-10 h-full w-full object-contain"
+            />
+          </div>
+          <span
+            class="w-full bg-white py-3 text-center text-[15px] font-bold text-brand"
+            >Replace image</span
+          >
+        {:else}
+          <Image
+            class="text-brand"
+            size={36}
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
+          <span class="text-center text-[15px] font-bold text-brand">
+            Click to upload event flyer
+          </span>
+          <span class="text-center text-xs text-ink-secondary">
+            Recommended aspect ratio: 16:9 (Max size 5MB)
+          </span>
+        {/if}
+        <input
+          type="file"
+          accept="image/*"
+          class="sr-only"
+          on:change={handleImageUpload}
+        />
       </label>
-      <input
-        id="name"
-        type="text"
-        bind:value={eventData.name}
-        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.name
-          ? 'border-red-500'
-          : ''}"
-        placeholder="Enter event name"
-      />
-      {#if errors.name}
-        <p class="text-red-400 text-sm mt-1">{errors.name}</p>
+      {#if imageError}
+        <p class="text-sm text-red-600">{imageError}</p>
       {/if}
     </div>
-
-    <!-- Date and Time -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-      <div>
-        <label for="date" class="block text-sm font-medium text-gray-300 mb-2">
-          Event Date *
-        </label>
-        <input
-          id="date"
-          type="date"
-          bind:value={eventData.date}
-          class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.date
-            ? 'border-red-500'
-            : ''}"
-        />
-        {#if errors.date}
-          <p class="text-red-400 text-sm mt-1">{errors.date}</p>
-        {/if}
-      </div>
-
-      <div>
-        <label for="time" class="block text-sm font-medium text-gray-300 mb-2">
-          Event Time *
-        </label>
-        <input
-          id="time"
-          type="time"
-          bind:value={eventData.time}
-          class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.time
-            ? 'border-red-500'
-            : ''}"
-        />
-        {#if errors.time}
-          <p class="text-red-400 text-sm mt-1">{errors.time}</p>
-        {/if}
-      </div>
-    </div>
-
-    <!-- Location -->
-    <div>
-      <label
-        for="location"
-        class="block text-sm font-medium text-gray-300 mb-2"
-      >
-        Event Location *
-      </label>
-      <input
-        id="location"
-        type="text"
-        bind:value={eventData.location}
-        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent {errors.location
-          ? 'border-red-500'
-          : ''}"
-        placeholder="Enter event location"
-      />
-      {#if errors.location}
-        <p class="text-red-400 text-sm mt-1">{errors.location}</p>
-      {/if}
-    </div>
-
-    <!-- Venue Address -->
-    <div>
-      <label
-        for="venue_address"
-        class="block text-sm font-medium text-gray-300 mb-2"
-      >
-        Venue Address
-      </label>
-      <input
-        id="venue_address"
-        type="text"
-        bind:value={eventData.venue_address}
-        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
-        placeholder="Enter full venue address (optional)"
-      />
-    </div>
-
-    <!-- Description -->
-    <div>
-      <label
-        for="description"
-        class="block text-sm font-medium text-gray-300 mb-2"
-      >
-        Event Description
-      </label>
-      <textarea
-        id="description"
-        bind:value={eventData.description}
-        rows="4"
-        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
-        placeholder="Describe your event..."
-      ></textarea>
-    </div>
   </div>
 
-  <!-- Navigation Buttons -->
-  <div
-    class="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6 mt-6 sm:mt-8"
-  >
+  <!-- Mobile: full-width Next only -->
+  <div class="pt-1 lg:hidden">
     <button
-      on:click={prevStep}
-      class="w-full sm:w-auto px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 text-sm sm:text-base"
-    >
-      Cancel
-    </button>
-
-    <button
+      type="button"
+      class="flex h-12 w-full items-center justify-center rounded-lg bg-brand text-[15px] font-bold text-white transition hover:opacity-90"
       on:click={nextStep}
-      class="w-full sm:w-auto px-8 py-3 sm:py-4 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-lg hover:from-teal-500 hover:to-blue-600 transition-all duration-200 font-medium text-sm sm:text-base"
     >
-      Next Step
+      Next: Ticket Types
     </button>
+  </div>
+
+  <!-- Desktop: Save Draft + Next -->
+  <div class="hidden lg:block">
+    <WizardNav
+      backLabel="Save Draft"
+      nextLabel="Next: Ticket Types →"
+      onBack={saveDraft}
+      onNext={nextStep}
+    />
   </div>
 </div>

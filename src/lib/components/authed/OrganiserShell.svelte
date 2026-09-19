@@ -1,7 +1,7 @@
 <script>
   // @ts-nocheck
   /**
-   * Organiser shell — HI-FI desktop sidebar 55:858 + mobile hamburger 471:86.
+   * Organiser shell — HI-FI sidebar 55:858 + content topbar 55:896 + mobile 471:86.
    */
   import { page } from "$app/stores";
   import Wallet from "lucide-svelte/icons/wallet";
@@ -20,6 +20,8 @@
   $: path = $page.url.pathname;
   $: initials = initialsFromName(userName);
   $: linkedWalletLabel = truncateWallet(linkedWalletAddress);
+  $: topbarTitle = titleForPath(path);
+  $: isCreateEvent = path.startsWith("/dashboard/events/createEvent");
 
   /**
    * @param {string | null | undefined} address
@@ -28,6 +30,26 @@
     if (!address || typeof address !== "string") return null;
     if (address.length <= 10) return address;
     return `${address.slice(0, 4)}…${address.slice(-4)}`;
+  }
+
+  /** HI-FI main-column topbar titles (55:896+). */
+  function titleForPath(p) {
+    if (p.startsWith("/dashboard/events/createEvent/step2")) return "Ticket Configuration";
+    if (p.startsWith("/dashboard/events/createEvent/step3")) return "Customize Ticket Layout";
+    if (p.startsWith("/dashboard/events/createEvent/step4")) return "Publish Settings";
+    if (p.startsWith("/dashboard/events/createEvent/step5")) return "Status";
+    if (p.startsWith("/dashboard/events/createEvent")) return "Create New Event";
+    if (p.startsWith("/dashboard/events/editEvent")) return "Edit Event";
+    if (p.startsWith("/dashboard/events/eventDetails")) return "Event Details";
+    if (p.startsWith("/dashboard/events")) return "Events";
+    if (p.startsWith("/dashboard/invite-staff")) return "Invite Door Staff & Scanner Accounts";
+    if (p.startsWith("/dashboard/guests")) return "Guest List Management";
+    if (p.startsWith("/dashboard/wallet/multisig")) return "Multi-Sig Approval Queue";
+    if (p.includes("/pending-withdrawal") || p.includes("/withdraw")) return "Withdraw Funds";
+    if (p.startsWith("/dashboard/wallet")) return "Wallet & Proceeds";
+    if (p.startsWith("/dashboard/settings")) return "Settings";
+    if (p === "/dashboard" || p === "/dashboard/") return "Dashboard Overview";
+    return "Organiser";
   }
 
   const primary = [
@@ -136,29 +158,45 @@
           {/if}
         </div>
       </div>
-      <button
-        type="button"
-        class="text-left text-sm font-semibold text-red-400 hover:text-red-300 bg-transparent border-0 p-0 cursor-pointer px-1"
-        on:click={() => (showLogoutConfirm = true)}
-      >
-        Logout
-      </button>
     </div>
   </aside>
 
   <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-    <!-- Mobile top bar -->
+    <!-- Mobile: wordmark + hamburger (HI-FI 471:86); hidden on create-event (4:724 Exit chrome) -->
+    {#if !isCreateEvent}
+      <header
+        class="lg:hidden sticky top-0 z-30 flex items-center justify-between bg-paper border-b border-paper-border px-5 py-3.5"
+      >
+        <AuthedWordmark variant="light" />
+        <button
+          type="button"
+          class="size-10 rounded-full bg-paper-border/40 flex items-center justify-center text-ink border-0 cursor-pointer"
+          aria-label="Open menu"
+          on:click={openMenu}
+        >
+          <PublicIcon name="menu" size={22} />
+        </button>
+      </header>
+    {/if}
+
+    <!-- Desktop: content topbar (HI-FI 55:896 / 55:1123) -->
     <header
-      class="lg:hidden sticky top-0 z-30 flex items-center justify-between bg-paper border-b border-paper-border px-5 py-3.5"
+      class="hidden lg:flex sticky top-0 z-30 h-[68px] shrink-0 items-center justify-between bg-paper border-b border-paper-border px-8"
     >
-      <AuthedWordmark variant="light" />
+      <div class="flex items-center gap-3 min-w-0">
+        <h1 class="m-0 text-[22px] font-bold leading-7 text-ink truncate">{topbarTitle}</h1>
+        <span
+          class="shrink-0 rounded-md bg-[#fff5f1] px-2.5 py-1 text-[10px] font-extrabold tracking-wide text-brand"
+        >
+          ORGANISER PORTAL
+        </span>
+      </div>
       <button
         type="button"
-        class="size-10 rounded-full bg-paper-border/40 flex items-center justify-center text-ink border-0 cursor-pointer"
-        aria-label="Open menu"
-        on:click={openMenu}
+        class="shrink-0 rounded-lg border border-paper-border bg-paper px-4 py-2 text-sm font-semibold text-ink hover:bg-paper-cream cursor-pointer"
+        on:click={() => (showLogoutConfirm = true)}
       >
-        <PublicIcon name="menu" size={22} />
+        Logout
       </button>
     </header>
 

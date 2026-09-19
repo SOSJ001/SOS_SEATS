@@ -12,11 +12,22 @@
 
 html {
     scroll-behavior: smooth;
+    background-color: #faf8f5;
+    color-scheme: light;
 }
 
-html body{
-    background-color: black;
-    color: white;
+html body {
+    background-color: #faf8f5;
+    color: #12041c;
+}
+
+/* iOS Safari zooms focused controls under 16px; keep inputs readable without zoom. */
+@media screen and (max-width: 1024px) {
+    input,
+    textarea,
+    select {
+        font-size: 16px !important;
+    }
 }
 
 /* scroll bar style */
