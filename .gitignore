@@ -11,4 +11,6 @@ vite.config.ts.timestamp-*
 
 
 .cursor/mcp.json
+.cursor/rules/hifi-density.mdc
+.cursor/rules/event-image-blur-contain.mdc
 supabase-backup

@@ -16,14 +16,20 @@
   $: linkedWalletAddress = data.linkedWalletAddress || null;
   $: path = $page.url.pathname;
   $: shell =
-    path.startsWith("/dashboard/my-tickets")
-      ? "attendee"
-      : path.startsWith("/dashboard/scanner") || path.startsWith("/dashboard/staff")
-        ? "door"
-        : "organiser";
+    path.includes("/eventDetails/pay-now") ||
+    path.includes("/eventDetails/confirm-issue") ||
+    path.includes("/eventDetails/issue-success")
+      ? "none"
+      : path.startsWith("/dashboard/my-tickets")
+        ? "attendee"
+        : path.startsWith("/dashboard/scanner") || path.startsWith("/dashboard/staff")
+          ? "door"
+          : "organiser";
 </script>
 
-{#if shell === "attendee"}
+{#if shell === "none"}
+  <slot />
+{:else if shell === "attendee"}
   <AttendeeShell {userName}>
     <slot />
   </AttendeeShell>

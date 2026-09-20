@@ -9,6 +9,7 @@
   import AuthedWordmark from "./AuthedWordmark.svelte";
   import LogoutConfirmModal from "./LogoutConfirmModal.svelte";
   import { authedLogout, initialsFromName } from "./authedLogout.js";
+  import { organiserTopbarTitle } from "$lib/client/organiserUi";
 
   export let userName = "User";
   /** @type {string | null} */
@@ -20,7 +21,7 @@
   $: path = $page.url.pathname;
   $: initials = initialsFromName(userName);
   $: linkedWalletLabel = truncateWallet(linkedWalletAddress);
-  $: topbarTitle = titleForPath(path);
+  $: topbarTitle = $organiserTopbarTitle || titleForPath(path);
   $: isCreateEvent = path.startsWith("/dashboard/events/createEvent");
 
   /**
@@ -162,15 +163,23 @@
   </aside>
 
   <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-    <!-- Mobile: wordmark + hamburger (HI-FI 471:86); hidden on create-event (4:724 Exit chrome) -->
+    <!-- Mobile: event title when set (hub 208:58), else wordmark (471:86); hidden on create-event -->
     {#if !isCreateEvent}
       <header
-        class="lg:hidden sticky top-0 z-30 flex items-center justify-between bg-paper border-b border-paper-border px-5 py-3.5"
+        class="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-3 bg-paper border-b border-paper-border px-5 py-3.5"
       >
-        <AuthedWordmark variant="light" />
+        {#if $organiserTopbarTitle}
+          <h1
+            class="m-0 min-w-0 flex-1 truncate text-[22px] font-bold leading-7 text-ink"
+          >
+            {$organiserTopbarTitle}
+          </h1>
+        {:else}
+          <AuthedWordmark variant="light" />
+        {/if}
         <button
           type="button"
-          class="size-10 rounded-full bg-paper-border/40 flex items-center justify-center text-ink border-0 cursor-pointer"
+          class="size-10 shrink-0 rounded-full bg-paper-border/40 flex items-center justify-center text-ink border-0 cursor-pointer"
           aria-label="Open menu"
           on:click={openMenu}
         >
