@@ -6,7 +6,11 @@
   import PublicFooter from "$lib/components/public/PublicFooter.svelte";
 
   $: path = $page.url.pathname;
-  $: isAuthRoute = path.startsWith("/sign-in") || path.startsWith("/sign-up");
+  $: isAuthRoute =
+    path.startsWith("/sign-in") ||
+    path.startsWith("/sign-up") ||
+    (path.includes("/marketplace/eventDetails/") &&
+      (path.endsWith("/checkout") || path.endsWith("/claim")));
 </script>
 
 {#if isAuthRoute}

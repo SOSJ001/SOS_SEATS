@@ -5,6 +5,10 @@
   import BadgeCheck from "lucide-svelte/icons/badge-check";
   import Ticket from "lucide-svelte/icons/ticket";
   import Info from "lucide-svelte/icons/info";
+  import {
+    calculateOrganiserPlatformFee,
+    formatPlatformFeePercent,
+  } from "$lib/fees";
 
   /** @type {any} */
   export let event = null;
@@ -34,8 +38,9 @@
   ).filter((t) => String(t.name || "").toLowerCase() !== "private invite");
 
   $: totalRevenue = Number(event?.totalRevenue) || 0;
-  $: platformFee = Math.round(totalRevenue * 0.05 * 100) / 100;
+  $: platformFee = calculateOrganiserPlatformFee(totalRevenue);
   $: netProceeds = Math.round((totalRevenue - platformFee) * 100) / 100;
+  $: platformFeeLabel = formatPlatformFeePercent();
 
   function formatNle(amount) {
     const n = Number(amount) || 0;
@@ -236,7 +241,7 @@
           <div class="h-px w-full bg-paper-border"></div>
           <div class="flex items-center justify-between gap-3 text-[13px]">
             <span class="font-medium text-ink-secondary"
-              >Platform Organiser Fee (5%)</span
+              >Platform Organiser Fee ({platformFeeLabel})</span
             >
             <span class="font-bold text-ink">{formatNle(platformFee)}</span>
           </div>

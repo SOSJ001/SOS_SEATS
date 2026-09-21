@@ -14,6 +14,10 @@
   import MaintenanceWrapper from "$lib/components/MaintenanceWrapper.svelte";
   import { monimeService } from "$lib/monime";
   import { calculateWithdrawalFee } from "$lib/orangeMoneyPayment";
+  import {
+    formatPlatformFeePercent,
+    formatWithdrawalMonimeFeePercent,
+  } from "$lib/fees";
   import MultisigSettings from "$lib/components/MultisigSettings.svelte";
   import PendingWithdrawalCard from "$lib/components/PendingWithdrawalCard.svelte";
   import {
@@ -1631,7 +1635,7 @@
                 <div
                   class="flex items-center justify-between text-xs text-gray-400"
                 >
-                  <span>Platform Fee (5%):</span>
+                  <span>Platform Fee ({formatPlatformFeePercent()}):</span>
                   <span
                     >-NLe {withdrawalPlatformFee.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
@@ -1646,7 +1650,7 @@
                 <div
                   class="flex items-center justify-between text-xs text-gray-400"
                 >
-                  <span>Processing Fee (1%):</span>
+                  <span>Processing Fee ({formatWithdrawalMonimeFeePercent()}):</span>
                   <span
                     >-NLe {estimatedMonimeFee.toLocaleString(undefined, {
                       minimumFractionDigits: 2,

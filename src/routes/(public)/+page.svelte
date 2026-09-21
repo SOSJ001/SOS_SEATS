@@ -8,6 +8,10 @@
   import PublicUpcomingEmptyState from "$lib/components/public/PublicUpcomingEmptyState.svelte";
   import { sessionFromDb } from "$lib/store";
   import { goto } from "$app/navigation";
+  import {
+    formatBookingFeePercent,
+    formatPlatformFeePercent,
+  } from "$lib/fees";
 
   export let data;
 
@@ -23,6 +27,8 @@
   $: events = normalizeEvents(data?.events || []);
   $: upcoming = events.slice(0, 3);
   $: isLoggedIn = !!$sessionFromDb;
+  $: platformFeeLabel = formatPlatformFeePercent();
+  $: bookingFeeLabel = formatBookingFeePercent();
 
   function normalizeEvents(raw) {
     return (raw || []).map((row) => {
@@ -457,7 +463,7 @@
         </div>
         <span class="text-sm font-bold text-ink shrink-0">Organiser</span>
         <div class="ml-auto flex items-center gap-1 whitespace-nowrap">
-          <span class="text-base font-extrabold text-brand">5%</span>
+          <span class="text-base font-extrabold text-brand">{platformFeeLabel}</span>
           <span class="text-[13px] text-ink-body">of face value at sale</span>
         </div>
       </div>
@@ -469,7 +475,7 @@
         </div>
         <span class="text-sm font-bold text-ink shrink-0">Buyer</span>
         <div class="ml-auto flex items-center gap-1 whitespace-nowrap">
-          <span class="text-base font-extrabold text-brand">0.99%</span>
+          <span class="text-base font-extrabold text-brand">{bookingFeeLabel}</span>
           <span class="text-[13px] text-ink-body">booking fee on face value</span>
         </div>
       </div>
@@ -500,11 +506,16 @@
           </div>
           <div class="flex flex-col gap-1.5">
             <strong class="text-[15px] font-extrabold">Organiser</strong>
-            <span class="text-sm text-ink-body">5% of face value at sale</span>
+            <span class="text-sm text-ink-body"
+              >{platformFeeLabel} of face value at sale</span
+            >
           </div>
         </div>
         <div class="text-[40px] font-extrabold text-right leading-[44px] text-brand">
-          5%<small class="block text-[13px] font-normal leading-tight text-ink-secondary">fee</small>
+          {platformFeeLabel}<small
+            class="block text-[13px] font-normal leading-tight text-ink-secondary"
+            >fee</small
+          >
         </div>
       </div>
       <div
@@ -518,11 +529,14 @@
           </div>
           <div class="flex flex-col gap-1.5">
             <strong class="text-[15px] font-extrabold">Buyer</strong>
-            <span class="text-sm text-ink-body">0.99% booking fee on ticket</span>
+            <span class="text-sm text-ink-body"
+              >{bookingFeeLabel} booking fee on ticket</span
+            >
           </div>
         </div>
         <div class="text-[40px] font-extrabold text-right leading-[44px] text-brand">
-          0.99%<small class="block text-[13px] font-normal leading-tight text-ink-secondary"
+          {bookingFeeLabel}<small
+            class="block text-[13px] font-normal leading-tight text-ink-secondary"
             >fee</small
           >
         </div>

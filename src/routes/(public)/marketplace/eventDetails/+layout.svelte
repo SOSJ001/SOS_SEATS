@@ -1,4 +1,4 @@
-<!-- Public event detail shell (1.3): daylight under public chrome; buy column unchanged for 5.1 -->
+<!-- Public event detail shell — HI-FI daylight under public chrome (5.1) -->
 <div class="event-detail-shell">
   <slot />
 </div>

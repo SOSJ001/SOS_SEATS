@@ -1,10 +1,12 @@
 // Orange Money payment handler using Monime API
 import { monimeService } from "./monime.js";
-
-// Platform fee configuration (disabled)
-const PLATFORM_FEE_PERCENTAGE = 0; // disabled
-const PLATFORM_FEE_MIN = 0; // disabled
-const PLATFORM_FEE_MAX = 0; // disabled
+import {
+  calculateBookingFee,
+  getPlatformFeeRate,
+  getWithdrawalFeeMax,
+  getWithdrawalFeeMin,
+  getWithdrawalMonimeFeeRate,
+} from "./fees.js";
 
 /**
  * Calculate platform service fee
@@ -15,7 +17,7 @@ export function calculatePlatformFee(ticketPrice: number): number {
 }
 
 /**
- * Calculate platform withdrawal fee
+ * Calculate platform withdrawal fee (rates from PUBLIC_WITHDRAWAL_* env)
  */
 export function calculateWithdrawalFee(withdrawalAmount: number): {
   platformFee: number;
@@ -24,16 +26,13 @@ export function calculateWithdrawalFee(withdrawalAmount: number): {
   netAmountAfterPlatformFee: number;
   netAmount: number;
 } {
-  // Withdrawal fee configuration
-  const WITHDRAWAL_FEE_PERCENTAGE = 0.05; // 5% platform fee
-  const MONIME_FEE_PERCENTAGE = 0.01; // 1% Monime processing fee (calculated on amount after platform fee)
-  const WITHDRAWAL_FEE_MIN = 0; // Minimum fee (disabled)
-  const WITHDRAWAL_FEE_MAX = 0; // Maximum fee (disabled)
+  const WITHDRAWAL_FEE_PERCENTAGE = getPlatformFeeRate();
+  const MONIME_FEE_PERCENTAGE = getWithdrawalMonimeFeeRate();
+  const WITHDRAWAL_FEE_MIN = getWithdrawalFeeMin();
+  const WITHDRAWAL_FEE_MAX = getWithdrawalFeeMax();
 
-  // Calculate platform fee (5% of withdrawal amount)
   let platformFee = withdrawalAmount * WITHDRAWAL_FEE_PERCENTAGE;
 
-  // Apply min/max constraints if fee is enabled
   if (WITHDRAWAL_FEE_PERCENTAGE > 0) {
     if (WITHDRAWAL_FEE_MIN > 0 && platformFee < WITHDRAWAL_FEE_MIN) {
       platformFee = WITHDRAWAL_FEE_MIN;
@@ -43,10 +42,8 @@ export function calculateWithdrawalFee(withdrawalAmount: number): {
     }
   }
 
-  // Calculate net amount after platform fee (x)
   const netAmountAfterPlatformFee = Math.max(0, withdrawalAmount - platformFee);
 
-  // Calculate Monime processing fee (1% of amount after platform fee)
   const monimeFee = netAmountAfterPlatformFee * MONIME_FEE_PERCENTAGE;
 
   // Calculate total fees (platform fee + Monime fee)
@@ -78,6 +75,7 @@ interface TicketPurchaseData {
   buyerInfo: {
     wallet_address?: string;
     name: string;
+    phone?: string;
   };
 }
 
@@ -105,9 +103,8 @@ export async function handleMobileMoneyPaymentWithCode(
     // Calculate base total (ticket price only; no platform fee)
     const baseTotal = purchaseData.totalAmount;
 
-    // Add Monime's 1% processing fee to the customer's total
-    // This ensures we receive the full amount after Monime deducts their fee
-    const monimeFee = baseTotal * 0.01;
+    // Buyer booking fee from PUBLIC_BOOKING_FEE_PERCENT (covers gateway cut)
+    const monimeFee = calculateBookingFee(baseTotal);
     const totalAmountWithFee = baseTotal + monimeFee;
 
     // Map payment method to Monime provider IDs
@@ -139,6 +136,9 @@ export async function handleMobileMoneyPaymentWithCode(
         buyer_name: purchaseData.buyerInfo.name,
         buyer_wallet: purchaseData.buyerInfo.wallet_address || "guest",
         payment_method: paymentMethod,
+        ...(purchaseData.buyerInfo.phone
+          ? { phone: purchaseData.buyerInfo.phone }
+          : {}),
         total_tickets: purchaseData.ticketDetails.length.toString(),
         total_amount: purchaseData.totalAmount.toString(),
         platform_fee: totalPlatformFee.toString(),

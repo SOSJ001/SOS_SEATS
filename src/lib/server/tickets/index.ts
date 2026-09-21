@@ -167,7 +167,8 @@ export async function claimTickets(
         "create_free_ticket_order_with_items",
         {
           p_event_id: eventId,
-          p_buyer_wallet_address: orderData.buyer_wallet_address,
+          p_buyer_wallet_address:
+            orderData.buyer_wallet_address || ANONYMOUS_KEY,
           p_buyer_name: orderData.buyer_name,
           p_order_number: orderNumber,
           p_ticket_details: ticketTypeDetails,
