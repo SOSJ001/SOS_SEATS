@@ -5,6 +5,7 @@
    */
   import Minus from "lucide-svelte/icons/minus";
   import Plus from "lucide-svelte/icons/plus";
+  import MmProviderLogo from "$lib/components/public/MmProviderLogo.svelte";
   import { formatBookingFeePercent } from "$lib/fees";
 
   /** @type {Array<{ id: string, name: string, price: number, description?: string, available_quantity?: number }>} */
@@ -153,17 +154,27 @@
         type="button"
         class="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-brand/40 bg-paper py-3 text-sm font-bold text-brand disabled:opacity-50"
         disabled={processingOrangeMoney || loading}
+        aria-label="Orange Money"
         on:click={onOrangeMoney}
       >
-        {processingOrangeMoney ? "Setting up…" : "Orange Money"}
+        {#if processingOrangeMoney}
+          Setting up…
+        {:else}
+          <MmProviderLogo provider="orange_money" class="h-6" />
+        {/if}
       </button>
       <button
         type="button"
         class="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-ink/20 bg-paper py-3 text-sm font-bold text-ink disabled:opacity-50"
         disabled={processingAfrimoney || loading}
+        aria-label="Afrimoney"
         on:click={onAfrimoney}
       >
-        {processingAfrimoney ? "Setting up…" : "Afrimoney"}
+        {#if processingAfrimoney}
+          Setting up…
+        {:else}
+          <MmProviderLogo provider="afrimoney" class="h-6" />
+        {/if}
       </button>
     </div>
   {/if}

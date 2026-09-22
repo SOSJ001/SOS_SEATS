@@ -5,20 +5,34 @@ import {
 } from "$lib/server/tickets";
 
 /**
- * Public marketplace / payment fulfill path.
- * Auth optional (guest checkout); ownership of ticket types enforced by public event + DEFINER RPCs via service role.
+ * Marketplace claim path (FR-17). Auth required.
+ * Webhook fulfill calls claimTickets in-process, not this HTTP route.
  * @type {import('./$types').RequestHandler}
  */
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
   try {
+    if (!locals.userId) {
+      return json(
+        { success: false, error: "Sign in required" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const { eventId, selectedTickets, userData, paymentInfo } = body;
+    const { eventId, selectedTickets, paymentInfo } = body;
+    let { userData } = body;
 
     if (!eventId || !selectedTickets || !userData) {
       return json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
       );
+    }
+
+    userData = { ...userData, id: locals.userId };
+    if (locals.walletAddress) {
+      userData.wallet_address =
+        userData.wallet_address || locals.walletAddress;
     }
 
     if (paymentInfo?.transactionSignature) {

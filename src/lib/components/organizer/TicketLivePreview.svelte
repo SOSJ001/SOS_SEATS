@@ -15,6 +15,8 @@
   export let eventTime = "";
   export let eventLocation = "";
   export let ticketTypes = [];
+  /** Shown under Ticket No. Defaults to organizer wizard placeholder. */
+  export let ticketNumber = "#SOS-2026-0042";
 
   $: branding =
     layout.brandingLabel?.trim() || eventName?.trim() || "Event name";
@@ -25,6 +27,9 @@
   $: isSide =
     layout.qrPlacement === "left" || layout.qrPlacement === "right";
   $: isRight = layout.qrPlacement === "right";
+  $: ticketNoDisplay = ticketNumber?.startsWith("#")
+    ? ticketNumber
+    : `#${ticketNumber || "SOS-2026-0042"}`;
 
   const barcodeWidths = [
     2, 1, 3, 1, 2, 1, 3, 1, 2, 1, 2, 3, 1, 2, 1, 3, 2, 1, 2, 1, 3, 1, 2, 1,
@@ -196,7 +201,7 @@
       </div>
       <div class="text-right">
         <p class="m-0 text-[8px] uppercase tracking-wide text-white/50">Ticket No.</p>
-        <p class="m-0 text-[11px] font-bold text-white">#SOS-2026-0042</p>
+        <p class="m-0 text-[11px] font-bold text-white">{ticketNoDisplay}</p>
       </div>
     </div>
   </div>

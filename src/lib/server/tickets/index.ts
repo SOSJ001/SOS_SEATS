@@ -196,6 +196,20 @@ export async function claimTickets(
       }
       orderId = freeResult[0].order_id;
       totalTicketsClaimed = freeResult[0].tickets_claimed;
+
+      // Mirror paid attachBuyerId: write session id, not resolveBuyer web3 id
+      const sessionBuyerId = userData?.id ? String(userData.id) : "";
+      if (orderId && sessionBuyerId) {
+        await db
+          .from("orders")
+          .update({
+            buyer_id: sessionBuyerId,
+            ...(orderData.buyer_email
+              ? { buyer_email: orderData.buyer_email }
+              : {}),
+          })
+          .eq("id", orderId);
+      }
     }
 
     if (orderId && totalTicketsClaimed > 0) {

@@ -41,3 +41,14 @@ export function getMonimeCredentials(opts?: {
 
   return { apiKey, spaceId, environment };
 }
+
+/**
+ * Private webhook signing secret (roadmap 5.4). No PUBLIC_* fallback.
+ */
+export function getMonimeWebhookSecret(): string | null {
+  const secret = privateEnv.MONIME_WEBHOOK_SECRET;
+  if (typeof secret !== "string" || secret.length < 32) {
+    return null;
+  }
+  return secret;
+}

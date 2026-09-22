@@ -90,7 +90,7 @@
   }
 
   function goDashboard() {
-    goto("/dashboard/events");
+          goto("/dashboard/events");
   }
 
   function inviteStaff() {
@@ -118,13 +118,13 @@
       <p class="mt-2 text-sm text-ink-secondary">
         Publish or save a draft from Review to see status here.
       </p>
-      <button
+        <button
         type="button"
         class="mt-6 w-full rounded-lg bg-brand px-6 py-3.5 text-sm font-extrabold text-white transition hover:opacity-90 cursor-pointer"
         on:click={goDashboard}
-      >
+        >
         Go to Dashboard
-      </button>
+        </button>
     </div>
   {:else}
     <div class="flex flex-col items-center gap-1.5 pt-1 text-center lg:gap-3 lg:pt-2">
@@ -143,10 +143,10 @@
           class="m-0 font-display text-[18px] font-bold uppercase tracking-tight text-ink lg:font-sans lg:text-2xl lg:font-extrabold"
         >
           {headline}
-        </h2>
+          </h2>
         <p class="m-0 text-[12px] text-ink-secondary lg:text-sm">{subcopy}</p>
-      </div>
-    </div>
+            </div>
+          </div>
 
     <section
       class="flex flex-col gap-1 overflow-hidden rounded-xl border border-paper-border bg-white px-4 py-2.5 lg:gap-4 lg:p-5"
@@ -213,14 +213,14 @@
       <p class="m-0 min-w-0 flex-1 truncate text-[11px] text-ink-muted">
         {shareUrl || "—"}
       </p>
-      <button
+          <button
         type="button"
         class="shrink-0 rounded-lg bg-brand px-3.5 py-1.5 text-[11px] font-semibold text-white transition hover:opacity-90 cursor-pointer"
         on:click={copyLink}
-      >
+          >
         {copied ? "Copied" : "Copy"}
-      </button>
-    </div>
+          </button>
+        </div>
 
     <!-- Desktop share section -->
     <section
@@ -261,8 +261,8 @@
         </p>
         <p class="m-0 text-[18px] font-bold text-ink lg:mt-1 lg:text-lg lg:font-extrabold">
           {ticketsReleased}
-        </p>
-      </div>
+          </p>
+        </div>
       <div
         class="rounded-[10px] border border-paper-border bg-white px-3 py-2 text-left lg:rounded-xl lg:py-3.5 lg:text-center"
       >
@@ -273,8 +273,8 @@
         </p>
         <p class="m-0 text-[18px] font-bold text-ink lg:mt-1 lg:text-lg lg:font-extrabold">
           NLe 0.00
-        </p>
-      </div>
+                  </p>
+                </div>
       <div
         class="rounded-[10px] border border-paper-border bg-white px-3 py-2 text-left lg:rounded-xl lg:py-3.5 lg:text-center"
       >
@@ -286,8 +286,8 @@
         </p>
         <p class="m-0 text-[18px] font-bold text-ink lg:mt-1 lg:text-lg lg:font-extrabold">
           {ticketTypeCount}
-        </p>
-      </div>
+                  </p>
+                </div>
       <div
         class="rounded-[10px] border border-paper-border bg-white px-3 py-2 text-left lg:rounded-xl lg:py-3.5 lg:text-center"
       >
@@ -313,13 +313,13 @@
         >
           Edit Event
         </button>
-        <button
+      <button
           type="button"
           class="rounded-[10px] border border-paper-border bg-white py-2 text-[13px] font-semibold text-ink transition hover:bg-paper-cream cursor-pointer"
           on:click={inviteStaff}
-        >
+      >
           Invite Staff
-        </button>
+      </button>
       </div>
 
       <!-- Desktop: Invite | Edit | Share -->

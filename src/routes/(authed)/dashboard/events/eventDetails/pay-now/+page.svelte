@@ -10,6 +10,7 @@
   import ShieldCheck from "lucide-svelte/icons/shield-check";
   import AuthPanelDecor from "$lib/components/auth/AuthPanelDecor.svelte";
   import CheckoutEventHero from "$lib/components/checkout/CheckoutEventHero.svelte";
+  import MmProviderLogo from "$lib/components/public/MmProviderLogo.svelte";
   import { monimeService } from "$lib/monime";
   import { showToast } from "$lib/store";
 
@@ -258,9 +259,11 @@
                 {paymentMethod === 'orange_money'
                 ? 'border-2 border-brand bg-[#fff7ed] text-brand'
                 : 'border border-paper-border bg-white text-ink-secondary'}"
+              aria-label="Orange Money"
+              aria-pressed={paymentMethod === "orange_money"}
               on:click={() => (paymentMethod = "orange_money")}
             >
-              Orange Money
+              <MmProviderLogo provider="orange_money" class="h-6 lg:h-7" />
             </button>
             <button
               type="button"
@@ -268,9 +271,11 @@
                 {paymentMethod === 'afrimoney'
                 ? 'border-2 border-brand bg-[#fff7ed] text-brand'
                 : 'border border-paper-border bg-white text-ink-secondary'}"
+              aria-label="Afrimoney"
+              aria-pressed={paymentMethod === "afrimoney"}
               on:click={() => (paymentMethod = "afrimoney")}
             >
-              Afrimoney
+              <MmProviderLogo provider="afrimoney" class="h-6 lg:h-7" />
             </button>
           </div>
 

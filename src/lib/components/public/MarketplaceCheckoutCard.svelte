@@ -7,6 +7,7 @@
   import Phone from "lucide-svelte/icons/phone";
   import Smartphone from "lucide-svelte/icons/smartphone";
   import ShieldCheck from "lucide-svelte/icons/shield-check";
+  import MmProviderLogo from "$lib/components/public/MmProviderLogo.svelte";
   import { formatBookingFeePercent } from "$lib/fees";
 
   /** @type {Array<{ name: string, quantity: number, lineTotal: number }>} */
@@ -39,7 +40,7 @@
 </script>
 
 <div
-  class="flex w-full max-w-none flex-col gap-5 lg:max-w-[440px] lg:gap-7 lg:rounded-2xl lg:border lg:border-paper-border lg:bg-white lg:px-8 lg:pb-7 lg:pt-8 lg:shadow-[0px_8px_12px_rgba(18,4,28,0.04)]"
+  class="flex w-full max-w-none flex-col gap-5 lg:max-w-[440px] lg:gap-3 lg:rounded-2xl lg:border lg:border-paper-border lg:bg-white lg:p-4 lg:shadow-[0px_8px_12px_rgba(18,4,28,0.04)]"
 >
   <!-- Mobile summary (4:407) -->
   <div
@@ -72,7 +73,7 @@
   </div>
 
   <!-- Desktop summary (55:471) -->
-  <div class="hidden w-full flex-col gap-3 lg:flex">
+  <div class="hidden w-full flex-col gap-2 lg:flex">
     {#each lineItems as item (item.name + item.quantity)}
       <div class="flex items-center justify-between text-sm">
         <span class="text-[#475569]">{item.name} (Qty {item.quantity})</span>
@@ -86,13 +87,13 @@
     <div class="h-px w-full bg-paper-border" aria-hidden="true"></div>
     <div class="flex items-center justify-between">
       <span class="text-base font-extrabold text-ink">Total Due</span>
-      <span class="font-display text-[26px] font-bold text-brand"
+      <span class="font-display text-2xl font-bold text-brand"
         >{formatMoney(totalWithFee)}</span
       >
     </div>
   </div>
 
-  <div class="flex w-full flex-col gap-3 lg:gap-4">
+  <div class="flex w-full flex-col gap-3">
     <div class="hidden items-center gap-2.5 lg:flex">
       <span
         class="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-[#fff1eb] text-brand"
@@ -102,7 +103,7 @@
       <h2 class="m-0 text-lg font-extrabold text-ink">Secure Checkout</h2>
     </div>
 
-    <div class="flex flex-col gap-3">
+    <div class="flex flex-col gap-3 lg:gap-2">
       <p
         class="m-0 text-xs font-bold uppercase tracking-wide text-ink-secondary lg:text-[13px]"
       >
@@ -111,21 +112,25 @@
       <div class="flex gap-3">
         <button
           type="button"
-          class="flex flex-1 cursor-pointer items-center justify-center rounded-xl p-3.5 {methodClass(
+          class="flex flex-1 cursor-pointer items-center justify-center rounded-xl p-3.5 lg:px-3 lg:py-2 {methodClass(
             paymentMethod === 'orange_money'
           )}"
+          aria-label="Orange Money"
+          aria-pressed={paymentMethod === "orange_money"}
           on:click={() => (paymentMethod = "orange_money")}
         >
-          Orange Money
+          <MmProviderLogo provider="orange_money" class="h-6 lg:h-7" />
         </button>
         <button
           type="button"
-          class="flex flex-1 cursor-pointer items-center justify-center rounded-xl p-3.5 {methodClass(
+          class="flex flex-1 cursor-pointer items-center justify-center rounded-xl p-3.5 lg:px-3 lg:py-2 {methodClass(
             paymentMethod === 'afrimoney'
           )}"
+          aria-label="Afrimoney"
+          aria-pressed={paymentMethod === "afrimoney"}
           on:click={() => (paymentMethod = "afrimoney")}
         >
-          Afrimoney
+          <MmProviderLogo provider="afrimoney" class="h-6 lg:h-7" />
         </button>
       </div>
     </div>
@@ -156,7 +161,7 @@
         <span class="hidden lg:inline">Mobile Money Phone Number</span>
       </label>
       <div
-        class="flex h-12 items-center gap-2.5 rounded-xl border border-paper-border bg-white px-4 lg:h-[52px]"
+        class="flex h-12 items-center gap-2.5 rounded-xl border border-paper-border bg-white px-4 focus-within:outline-none focus-within:ring-0 lg:h-10"
       >
         <Phone size={18} class="hidden shrink-0 text-ink-muted lg:block" />
         <input
@@ -164,7 +169,7 @@
           type="tel"
           bind:value={phone}
           placeholder="+232 7X XX XX XX"
-          class="min-w-0 flex-1 border-0 bg-transparent text-[15px] text-ink outline-none placeholder:text-[#999] lg:text-sm"
+          class="min-w-0 flex-1 border-0 bg-transparent text-[15px] text-ink outline-none placeholder:text-[#999] focus:outline-none focus:ring-0 focus-visible:outline-none lg:text-sm"
         />
       </div>
     </div>
@@ -172,14 +177,14 @@
     <button
       type="button"
       disabled={loading}
-      class="flex h-12 w-full cursor-pointer items-center justify-center rounded-xl border-0 bg-brand px-6 text-[15px] font-extrabold text-white shadow-[0px_4px_4px_rgba(255,90,31,0.25)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 lg:h-[52px] lg:font-bold lg:shadow-[0_8px_10px_rgba(255,90,31,0.15)]"
+      class="flex h-12 w-full cursor-pointer items-center justify-center rounded-xl border-0 bg-brand px-6 text-[15px] font-extrabold text-white shadow-[0px_4px_4px_rgba(255,90,31,0.25)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 lg:h-10 lg:font-bold lg:shadow-[0_8px_10px_rgba(255,90,31,0.15)]"
       on:click={onGenerate}
     >
       {loading ? "Creating…" : "Generate Payment Code"}
     </button>
 
     <div
-      class="flex flex-col gap-2 rounded-xl border border-brand bg-[#fff5f0] px-4 py-3 lg:border-[rgba(255,90,31,0.1)] lg:bg-[#fff7ed]"
+      class="flex flex-col gap-2 rounded-xl border border-brand bg-[#fff5f0] px-4 py-3 lg:gap-2 lg:border-[rgba(255,90,31,0.1)] lg:bg-[#fff7ed] lg:py-2"
     >
       <div class="flex items-center gap-2">
         <Smartphone size={16} class="shrink-0 text-brand lg:text-ink" />
@@ -195,7 +200,7 @@
   </div>
 
   <div
-    class="hidden w-full flex-col gap-4 rounded-lg border border-paper-border bg-white px-4 py-3 lg:flex"
+    class="hidden w-full flex-col gap-2 rounded-lg border border-paper-border bg-white px-4 py-2 lg:flex"
   >
     <div class="flex items-center gap-1.5">
       <span

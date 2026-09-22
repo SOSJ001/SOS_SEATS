@@ -5,10 +5,7 @@
   import { processOrangeMoneyCallback } from "$lib/orangeMoneyPayment.js";
   import { showToast } from "$lib/store.js";
   import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
-
-  // Mobile money logos (static assets)
-  const orangeMoneyLogo = "/orangeMoney.png";
-  const afriMoneyLogo = "/afriMoney.png";
+  import MmProviderLogo from "$lib/components/public/MmProviderLogo.svelte";
 
   export let show = false;
   export let paymentCodeId: string = "";
@@ -310,12 +307,9 @@
                   ? 'border-orange-500/30'
                   : 'border-purple-500/30'}"
               >
-                <img
-                  src={paymentMethod === "orange_money"
-                    ? orangeMoneyLogo
-                    : afriMoneyLogo}
-                  alt={providerName}
-                  class="h-10 sm:h-12 w-auto object-contain"
+                <MmProviderLogo
+                  provider={paymentMethod}
+                  class="h-10 sm:h-12"
                 />
               </div>
             </div>

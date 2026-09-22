@@ -123,9 +123,9 @@
     try {
       showToast("info", "Processing Claim", "Creating your free tickets…");
       const result = await claimFreeTickets(event.id, selectedTickets, {
-        id: null,
+        id: data.userId,
         email: null,
-        wallet_address: null,
+        wallet_address: data.walletAddress || null,
         name: fullName.trim() || "Anonymous",
       });
 

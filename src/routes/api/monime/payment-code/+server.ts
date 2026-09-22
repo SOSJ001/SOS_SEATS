@@ -19,7 +19,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
   try {
     const body: PaymentCodeRequest = await request.json();
-    const result = await createPaymentCode(body);
+    const metadata = {
+      ...(body.metadata || {}),
+      buyer_id: locals.userId,
+    };
+    const result = await createPaymentCode({
+      ...body,
+      metadata,
+    });
 
     if (result.ok) {
       return json({ success: true, data: result.data });

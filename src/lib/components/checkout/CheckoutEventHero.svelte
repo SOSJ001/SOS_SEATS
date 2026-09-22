@@ -10,6 +10,8 @@
   import Ticket from "lucide-svelte/icons/ticket";
 
   export let badge = "";
+  /** @type {"glass" | "brand" | "danger"} */
+  export let badgeVariant = "glass";
   export let title = "";
   export let date = "";
   export let location = "";
@@ -17,10 +19,26 @@
   export let image = null;
   /** Optional ticket row label, e.g. "15 tickets". Omit for pending Figma. */
   export let ticketLabel = "";
+  /**
+   * When true (marketplace checkout under TopBar), fill parent height instead of
+   * lg:min-h-screen. Leave false for pay-now / claim / confirm-issue.
+   */
+  export let fillParent = false;
+
+  $: badgeClass =
+    badgeVariant === "brand"
+      ? "border-white/20 bg-brand text-white"
+      : badgeVariant === "danger"
+        ? "border-[#ef4444] bg-[#ef4444] text-white"
+        : "border-white/20 bg-white/10";
+
+  $: heightClass = fillParent
+    ? "lg:h-full lg:min-h-0"
+    : "lg:min-h-screen";
 </script>
 
 <div
-  class="relative flex flex-col justify-start overflow-hidden bg-[#12041c] px-5 pb-6 pt-5 lg:w-1/2 lg:min-h-screen lg:justify-end lg:bg-slate-public lg:p-8"
+  class="relative flex flex-col justify-start overflow-hidden bg-[#12041c] px-5 pb-6 pt-5 lg:w-1/2 lg:justify-end lg:bg-slate-public lg:p-8 {heightClass}"
 >
   {#if image}
     <div class="absolute inset-0" aria-hidden="true">
@@ -43,7 +61,7 @@
   <div class="relative z-10 flex flex-col gap-3.5 text-white lg:gap-4">
     {#if badge}
       <span
-        class="inline-flex w-fit rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-extrabold tracking-wide lg:px-3 lg:py-1 lg:text-[11px]"
+        class="inline-flex w-fit rounded-full border px-3.5 py-1.5 text-xs font-extrabold tracking-wide lg:px-3 lg:py-1 lg:text-[11px] {badgeClass}"
       >
         {badge}
       </span>

@@ -48,7 +48,7 @@
       Back to Events
     </a>
   </div>
-{:else}
+            {:else}
   <!-- Hero → tabs → body (Figma PageBody mobile + desktop). -->
   <div class="-mx-4 -mt-4 flex flex-col md:-mx-6 md:-mt-6">
     <div
@@ -60,7 +60,7 @@
         <EventHubOverview {event} />
       {:else if activeTab === "guests"}
         <EventHubGuests {event} />
-      {:else}
+        {:else}
         <EventHubGenerate {event} {walletBalance} />
       {/if}
     </div>

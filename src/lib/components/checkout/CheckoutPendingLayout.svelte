@@ -1,12 +1,12 @@
 <script>
   // @ts-nocheck
   /**
-   * Unwired composition helper for HI-FI 55:521.
-   * CheckoutEventHero + AuthPanelDecor + CheckoutPendingCard.
+   * Marketplace checkout pending — mobile HI-FI 4:454 / desktop 55:521.
    */
   import AuthPanelDecor from "$lib/components/auth/AuthPanelDecor.svelte";
   import CheckoutEventHero from "$lib/components/checkout/CheckoutEventHero.svelte";
   import CheckoutPendingCard from "$lib/components/checkout/CheckoutPendingCard.svelte";
+  import CheckoutPendingMobile from "$lib/components/checkout/CheckoutPendingMobile.svelte";
 
   export let badge = "Processing";
   export let title = "";
@@ -19,18 +19,33 @@
   export let ussdCode = "";
   export let transactionRef = "";
   export let carrier = "Orange Money";
+  export let timeRemaining = 0;
+  export let amountLabel = "";
+  export let orderRef = "";
   export let subtitle =
     "Complete the prompt on your phone. You can close this page - the order will be created automatically.";
   /** @type {string[]} */
   export let steps = [];
-  /** @type {string[]} */
-  export let tips = [
-    "If the payment takes longer than 2 minutes, try the code again. Ensure your Orange Money account has sufficient balance.",
-    "If payment fails, check your PIN and balance. You can retry or contact support.",
-  ];
+  export let canceling = false;
+  /** @type {() => void} */
+  export let onCancel = () => {};
 </script>
 
-<div class="flex min-h-screen flex-col lg:flex-row">
+<!-- Mobile HI-FI 4:454 -->
+<div class="h-full min-h-0 overflow-y-auto lg:hidden">
+  <CheckoutPendingMobile
+    {ussdCode}
+    {timeRemaining}
+    {carrier}
+    {amountLabel}
+    {orderRef}
+    {canceling}
+    {onCancel}
+  />
+</div>
+
+<!-- Desktop HI-FI 55:521 -->
+<div class="hidden h-full min-h-0 flex-col lg:flex lg:flex-row lg:overflow-hidden">
   <CheckoutEventHero
     {badge}
     {title}
@@ -38,19 +53,29 @@
     {location}
     {image}
     {ticketLabel}
+    fillParent
   />
 
   <div
-    class="relative flex flex-1 items-start justify-center overflow-hidden bg-paper px-4 py-5 lg:w-1/2 lg:items-center lg:px-8 lg:py-6"
+    class="relative flex flex-1 flex-col items-center overflow-y-auto bg-paper px-4 py-5 lg:h-full lg:w-1/2 lg:px-8 lg:py-6"
   >
-    <AuthPanelDecor />
-    <CheckoutPendingCard
-      {ussdCode}
-      {transactionRef}
-      {carrier}
-      {subtitle}
-      {steps}
-      {tips}
-    />
+    <div
+      class="pointer-events-none absolute inset-0 hidden lg:block"
+      aria-hidden="true"
+    >
+      <AuthPanelDecor />
+    </div>
+    <div class="relative z-10 my-auto w-full max-w-[480px]">
+      <CheckoutPendingCard
+        {ussdCode}
+        {transactionRef}
+        {carrier}
+        {timeRemaining}
+        {subtitle}
+        {steps}
+        {canceling}
+        {onCancel}
+      />
+    </div>
   </div>
 </div>
