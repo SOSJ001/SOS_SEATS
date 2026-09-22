@@ -140,7 +140,9 @@
           "Free Tickets Claimed",
           `Successfully claimed ${result.ticketsClaimed} ticket(s)!`
         );
-        goto(`/tickets/confirmation/${result.orderId}`);
+        goto(
+          `/marketplace/eventDetails/${event.id}/claim/success?orderId=${result.orderId}`
+        );
       } else {
         throw new Error(result.error || "Failed to claim tickets");
       }
