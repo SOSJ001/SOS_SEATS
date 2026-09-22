@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { env } from "$env/dynamic/public";
+import { getMonimeCredentials } from "$lib/server/payments";
 
 export const GET: RequestHandler = async ({ url }) => {
   try {
@@ -13,18 +13,14 @@ export const GET: RequestHandler = async ({ url }) => {
       );
     }
 
-    // Get Monime credentials from environment
-    // Prioritize payout API key if available
-    const apiKey =
-      env.PUBLIC_MONIME_PAYOUT_API_KEY || env.PUBLIC_MONIME_API_KEY;
-    const spaceId = env.PUBLIC_MONIME_SPACE_ID;
-
-    if (!apiKey || !spaceId) {
+    const creds = getMonimeCredentials({ preferPayoutKey: true });
+    if (!creds) {
       return json(
         { success: false, error: "Monime API credentials not configured" },
         { status: 500 }
       );
     }
+    const { apiKey, spaceId } = creds;
 
     // Get payout status from Monime API
     const response = await fetch(

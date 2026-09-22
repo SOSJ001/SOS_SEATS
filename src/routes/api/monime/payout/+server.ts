@@ -1,7 +1,7 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { env } from "$env/dynamic/public";
 import { randomUUID } from "crypto";
+import { getMonimeCredentials } from "$lib/server/payments";
 
 interface PayoutRequest {
   amount: {
@@ -45,19 +45,14 @@ export const POST: RequestHandler = async ({ request }) => {
       );
     }
 
-    // Get Monime credentials from environment
-    // Prioritize payout API key if available (may have different permissions)
-    const apiKey =
-      env.PUBLIC_MONIME_PAYOUT_API_KEY || env.PUBLIC_MONIME_API_KEY;
-    const spaceId = env.PUBLIC_MONIME_SPACE_ID;
-    const environment = env.PUBLIC_MONIME_ENVIRONMENT || "live";
-
-    if (!apiKey || !spaceId) {
+    const creds = getMonimeCredentials({ preferPayoutKey: true });
+    if (!creds) {
       return json(
         { success: false, error: "Monime API credentials not configured" },
         { status: 500 }
       );
     }
+    const { apiKey, spaceId, environment } = creds;
 
     // Validate and format phone number
     let formattedPhone = body.destination.accountId.trim();

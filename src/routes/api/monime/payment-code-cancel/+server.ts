@@ -1,8 +1,12 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { env } from "$env/dynamic/public";
+import { getMonimeCredentials } from "$lib/server/payments";
 
-export const DELETE: RequestHandler = async ({ url }) => {
+export const DELETE: RequestHandler = async ({ url, locals }) => {
+  if (!locals.userId) {
+    return json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const codeId = url.searchParams.get("codeId");
 
@@ -13,26 +17,22 @@ export const DELETE: RequestHandler = async ({ url }) => {
       );
     }
 
-    // Get Monime credentials from environment
-    const apiKey = env.PUBLIC_MONIME_API_KEY;
-    const spaceId = env.PUBLIC_MONIME_SPACE_ID;
-
-    if (!apiKey || !spaceId) {
+    const creds = getMonimeCredentials();
+    if (!creds) {
       return json(
         { success: false, error: "Monime API credentials not configured" },
         { status: 500 }
       );
     }
 
-    // Cancel payment code via Monime API
     const response = await fetch(
       `https://api.monime.io/v1/payment-codes/${codeId}`,
       {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${creds.apiKey}`,
           "Content-Type": "application/json",
-          "Monime-Space-Id": spaceId,
+          "Monime-Space-Id": creds.spaceId,
           "Monime-Version": "caph.2025-08-23",
         },
       }

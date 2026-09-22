@@ -1,8 +1,14 @@
-import { error } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
 import { getEventById } from "$lib/supabase";
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ params }) {
+export async function load({ params, locals, url }) {
+  // FR-33 (Option A): any authenticated session may checkout; MM phone is a form field
+  if (!locals.userId) {
+    const next = encodeURIComponent(url.pathname + url.search);
+    throw redirect(302, `/sign-in?next=${next}`);
+  }
+
   const eventId = params.eventId;
   if (!eventId) {
     throw error(404, "Event not found");
