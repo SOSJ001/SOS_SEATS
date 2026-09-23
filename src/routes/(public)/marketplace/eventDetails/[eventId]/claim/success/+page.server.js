@@ -1,5 +1,6 @@
 import { error, redirect } from "@sveltejs/kit";
 import { getEventById } from "$lib/supabase";
+import { getServerSupabase } from "$lib/server/db";
 import { getOrderById } from "$lib/server/wallet";
 import { loadOrderItemsForOrder } from "$lib/server/tickets";
 
@@ -36,6 +37,8 @@ export async function load({ params, locals, url }) {
     eventData.images?.[0]?.file_path ||
     "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop";
 
+  const qrPayload = await resolveQrPayload(items, order.id);
+
   return {
     event: {
       id: eventData.id,
@@ -45,6 +48,7 @@ export async function load({ params, locals, url }) {
       venue: eventData.location || "",
       location: eventData.location || "",
       image,
+      ticketDesignConfig: eventData.ticket_design_config || null,
     },
     order: {
       id: order.id,
@@ -52,6 +56,25 @@ export async function load({ params, locals, url }) {
       ticketCount,
       // HI-FI hardcodes FREE TICKET badge (do not pass GA/VIP names)
       ticketTypes: [{ name: "Free" }],
+      qrPayload,
     },
   };
+}
+
+/** FR-19: guest ticket_number / guest id / order_item id. */
+async function resolveQrPayload(items, orderId) {
+  const first = items?.[0];
+  if (!first) return String(orderId);
+  if (first.guest_id) {
+    const db = getServerSupabase();
+    const { data: guest } = await db
+      .from("guests")
+      .select("id, ticket_number")
+      .eq("id", first.guest_id)
+      .maybeSingle();
+    if (guest?.ticket_number) return String(guest.ticket_number);
+    if (guest?.id) return String(guest.id);
+    return String(first.guest_id);
+  }
+  return String(first.id || orderId);
 }

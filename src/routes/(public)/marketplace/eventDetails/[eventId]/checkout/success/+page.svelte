@@ -89,6 +89,8 @@
     paymentMethod={order.paymentMethod}
     timestamp={order.timestamp}
     orderNumber={order.orderNumber}
+    ticketDesignConfig={event.ticketDesignConfig}
+    qrData={order.qrPayload}
     {shareUrl}
     primaryHref="/dashboard/my-tickets"
     browseHref="/marketplace"

@@ -6,8 +6,11 @@
   import Check from "lucide-svelte/icons/check";
   import Lock from "lucide-svelte/icons/lock";
   import TicketLivePreview from "$lib/components/organizer/TicketLivePreview.svelte";
-  import { defaultTicketLayout } from "$lib/client/ticketLayout";
-  import { showToast } from "$lib/store";
+  import {
+    defaultTicketLayout,
+    ensureTicketDesignWithLayout,
+  } from "$lib/client/ticketLayout";
+  import { defaultTicketDesignConfig, showToast } from "$lib/store";
 
   export let eventName = "";
   export let eventDate = "";
@@ -17,6 +20,9 @@
   export let ticketTypes = [{ name: "Free" }];
   export let ticketCount = 1;
   export let orderNumber = "";
+  /** @type {Record<string, any> | null} */
+  export let ticketDesignConfig = null;
+  export let qrData = "";
   export let shareUrl = "/marketplace";
   export let primaryHref = "/dashboard/my-tickets";
   export let browseHref = "/marketplace";
@@ -30,14 +36,18 @@
   $: orderIdDisplay = orderNumber?.startsWith("#")
     ? orderNumber
     : `#${orderNumber || "—"}`;
-  $: previewLayout = {
-    ...defaultTicketLayout,
-    qrPlacement: "left",
-    backgroundPattern: "diagonal",
-    includeVenue: true,
-    includeDateTime: true,
-    showDisclaimer: true,
-  };
+  $: previewLayout = (() => {
+    const design = ensureTicketDesignWithLayout(
+      ticketDesignConfig || defaultTicketDesignConfig
+    );
+    return {
+      ...defaultTicketLayout,
+      ...design.layout,
+      includeVenue: design.layout?.includeVenue ?? true,
+      includeDateTime: design.layout?.includeDateTime ?? true,
+      showDisclaimer: design.layout?.showDisclaimer ?? true,
+    };
+  })();
 
   async function shareWithFriends() {
     const url =
@@ -100,6 +110,7 @@
       {eventLocation}
       {ticketTypes}
       ticketNumber={orderIdDisplay}
+      {qrData}
     />
   </div>
 

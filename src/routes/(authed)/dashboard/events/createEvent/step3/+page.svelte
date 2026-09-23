@@ -44,7 +44,7 @@
 
   function nextStep() {
     persist();
-    goto("/dashboard/events/createEvent/step4");
+      goto("/dashboard/events/createEvent/step4");
   }
 
   function prevStep() {
@@ -63,7 +63,7 @@
     <div class="order-2 flex min-w-0 flex-1 flex-col gap-6 lg:order-1">
       <h2 class="m-0 hidden text-lg font-extrabold text-ink lg:block">
         Layout Configurations
-      </h2>
+    </h2>
       <TicketLayoutPanel
         {layout}
         brandingPlaceholder={eventData.name || ""}

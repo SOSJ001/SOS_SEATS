@@ -26,6 +26,9 @@
   export let paymentMethod = "Orange Money";
   export let timestamp = "";
   export let orderNumber = "";
+  /** @type {Record<string, any> | null} */
+  export let ticketDesignConfig = null;
+  export let qrData = "";
   export let shareUrl = "/marketplace";
   export let primaryHref = "/dashboard/my-tickets";
   export let browseHref = "/marketplace";

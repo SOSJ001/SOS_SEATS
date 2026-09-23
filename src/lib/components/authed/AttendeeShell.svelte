@@ -1,7 +1,7 @@
 <script>
   // @ts-nocheck
   /**
-   * Attendee shell — HI-FI desktop header 604:1491 + hamburger 483:82 + PublicFooter.
+   * Attendee shell — desktop 604:1491; mobile tickets chrome 484:88 + hamburger drawer.
    */
   import { page } from "$app/stores";
   import PublicIcon from "$lib/components/public/PublicIcon.svelte";
@@ -29,9 +29,18 @@
 
 <div class="authed-shell min-h-screen flex flex-col bg-public-page text-ink">
   <header
-    class="sticky top-0 z-30 flex items-center justify-between bg-paper border-b border-paper-border px-5 py-3.5 md:px-20 md:py-5"
+    class="sticky top-0 z-30 flex items-center justify-between px-5 py-3.5 md:px-20 md:py-5 {onTickets
+      ? 'bg-paper-cream md:border-b md:border-paper-border md:bg-paper'
+      : 'border-b border-paper-border bg-paper'}"
   >
-    <AuthedWordmark variant="light" href="/dashboard/my-tickets" />
+    {#if onTickets}
+      <p class="m-0 text-[22px] font-bold text-ink md:hidden">My Tickets</p>
+      <div class="hidden md:block">
+        <AuthedWordmark variant="light" href="/dashboard/my-tickets" />
+      </div>
+    {:else}
+      <AuthedWordmark variant="light" href="/dashboard/my-tickets" />
+    {/if}
 
     <nav class="hidden md:flex items-center gap-8" aria-label="Attendee">
       <a href="/dashboard/my-tickets" class="flex flex-col items-center gap-1">
@@ -63,16 +72,22 @@
 
     <button
       type="button"
-      class="md:hidden size-10 rounded-full bg-paper-border/40 flex items-center justify-center text-ink border-0 cursor-pointer"
+      class="md:hidden flex items-center justify-center border-0 bg-transparent p-0 text-ink cursor-pointer {onTickets
+        ? 'size-6'
+        : 'size-10 rounded-full bg-paper-border/40'}"
       aria-label="Open menu"
       on:click={openMenu}
     >
-      <PublicIcon name="menu" size={22} />
+      <PublicIcon name="menu" size={onTickets ? 18 : 22} />
     </button>
   </header>
 
   <main class="flex-1 w-full">
-    <div class="max-w-[1280px] mx-auto px-5 py-6 md:px-20 md:py-8">
+    <div
+      class="mx-auto max-w-[1280px] px-5 md:px-20 {onTickets
+        ? 'overflow-x-hidden pb-6 pt-0 md:overflow-x-visible md:py-8'
+        : 'py-6 md:py-8'}"
+    >
       <slot />
     </div>
   </main>

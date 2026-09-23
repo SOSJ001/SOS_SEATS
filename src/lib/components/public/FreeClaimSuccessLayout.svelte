@@ -24,6 +24,9 @@
   export let ticketTypes = [{ name: "Free" }];
   export let ticketCount = 1;
   export let orderNumber = "";
+  /** @type {Record<string, any> | null} */
+  export let ticketDesignConfig = null;
+  export let qrData = "";
   export let shareUrl = "/marketplace";
   export let primaryHref = "/dashboard/my-tickets";
   export let browseHref = "/marketplace";
@@ -89,6 +92,8 @@
         {ticketTypes}
         {ticketCount}
         {orderNumber}
+        {ticketDesignConfig}
+        {qrData}
         {shareUrl}
         {primaryHref}
         {browseHref}
