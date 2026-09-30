@@ -33,7 +33,6 @@ export async function loginWithPassword(email: string, password: string) {
 export async function signUpWithPassword(
   email: string,
   password: string,
-  name: string,
   userName: string,
 ) {
   try {
@@ -43,7 +42,6 @@ export async function signUpWithPassword(
       password,
       options: {
         data: {
-          name,
           userName,
         },
       },

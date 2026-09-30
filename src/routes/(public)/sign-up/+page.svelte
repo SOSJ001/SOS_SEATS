@@ -9,7 +9,6 @@
   import AuthWordmark from "$lib/components/auth/AuthWordmark.svelte";
   import { authSearchParams, safeNext } from "$lib/auth/postAuthRedirect.js";
 
-  let name = "";
   let userName = "";
   let email = "";
   let password = "";
@@ -27,7 +26,7 @@
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name, userName }),
+        body: JSON.stringify({ email, password, userName }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -53,7 +52,7 @@
     <div class="flex w-full flex-col items-start gap-2">
       <h1 class="m-0 text-[28px] font-extrabold leading-none text-ink">Sign Up</h1>
       <p class="m-0 text-sm leading-[1.4] text-ink-secondary opacity-85">
-        Create an account with email and password to buy tickets and manage events.
+        Create an account with username, email, and password to buy tickets and manage events.
       </p>
     </div>
   </header>
@@ -65,14 +64,6 @@
     <div
       class="flex w-full flex-col gap-4 rounded-2xl border border-paper-border bg-white p-4 shadow-[0px_2px_4px_rgba(18,4,28,0.03),0px_10px_14px_rgba(18,4,28,0.05)]"
     >
-      <AuthTextField
-        id="sign-up-name-mobile"
-        label="Full name"
-        bind:value={name}
-        placeholder="e.g. Musa Kamara"
-        autocomplete="name"
-        variant="mobile"
-      />
       <AuthTextField
         id="sign-up-username-mobile"
         label="Username"
@@ -126,7 +117,7 @@
   </form>
 </div>
 
-<!-- Desktop AuthPanel -->
+<!-- Desktop AuthFrame -->
 <div class="hidden min-h-screen bg-white text-ink lg:flex lg:h-screen lg:h-[100dvh] lg:overflow-hidden">
   <AuthHeroPanel />
 
@@ -134,18 +125,11 @@
     <div class="flex w-full flex-col items-center gap-[var(--auth-field-gap)] text-center">
       <h1 class="m-0 w-full text-[length:var(--auth-title-size)] font-extrabold text-ink">Create your account</h1>
       <p class="m-0 w-full text-sm font-normal text-ink-secondary">
-        Create an account with email and password to buy tickets and manage events.
+        Create an account with username, email, and password to buy tickets and manage events.
       </p>
     </div>
 
     <form class="flex w-full flex-col gap-[var(--auth-form-gap)]" on:submit|preventDefault={onSubmit}>
-      <AuthTextField
-        id="sign-up-name"
-        label="Full name"
-        bind:value={name}
-        placeholder="e.g. Musa Kamara"
-        autocomplete="name"
-      />
       <AuthTextField
         id="sign-up-username"
         label="Username"
@@ -158,7 +142,7 @@
         label="Email Address"
         type="email"
         bind:value={email}
-        placeholder="e.g. musa@kamara.com"
+        placeholder="name@domain.com"
         autocomplete="email"
         showLeadingIcon={true}
         leadingIcon="mail"

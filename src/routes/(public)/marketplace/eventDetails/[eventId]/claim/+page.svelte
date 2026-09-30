@@ -22,7 +22,6 @@
 
   let selectedTickets = {};
   let ready = false;
-  let fullName = "";
   let claiming = false;
 
   $: heroDateTime = formatHeroDateTime(event?.dateRaw, event?.time);
@@ -126,7 +125,8 @@
         id: data.userId,
         email: null,
         wallet_address: data.walletAddress || null,
-        name: fullName.trim() || "Anonymous",
+        username: data.userName || undefined,
+        name: data.userName || "Guest",
       });
 
       if (result.success && result.orderId) {
@@ -218,7 +218,7 @@
           eventName={event.name}
           ticketTypeLabel={badgeInfo.label}
           ticketQty={badgeInfo.qty}
-          bind:fullName
+          userName={data.userName || ""}
           loading={claiming}
           onClaim={handleClaim}
         />

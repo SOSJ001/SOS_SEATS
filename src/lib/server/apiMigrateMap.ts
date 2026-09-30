@@ -82,20 +82,6 @@ export const apiMigrateMap: MigrateRow[] = [
     note: "2.6 Solana / web3 deferred; leave root (supabase.js callers)",
   },
   {
-    from: "/createWalletApi",
-    to: null,
-    methods: ["POST"],
-    status: "skip",
-    note: "Solana",
-  },
-  {
-    from: "/transferSolApi",
-    to: null,
-    methods: ["POST"],
-    status: "skip",
-    note: "Solana",
-  },
-  {
     from: "/dataUrlApi",
     to: null,
     methods: ["POST"],

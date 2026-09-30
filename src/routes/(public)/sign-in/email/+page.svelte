@@ -9,7 +9,7 @@
   import AuthPanelShell from "$lib/components/auth/AuthPanelShell.svelte";
   import AuthWordmark from "$lib/components/auth/AuthWordmark.svelte";
 
-  let email = "";
+  let identifier = "";
   let password = "";
   let errorMessage = null;
   let loading = false;
@@ -26,7 +26,7 @@
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -52,7 +52,7 @@
     <div class="flex w-full flex-col items-start gap-2">
       <h1 class="m-0 text-[28px] font-extrabold leading-none text-ink">Sign In</h1>
       <p class="m-0 text-sm leading-[1.4] text-ink-secondary opacity-85">
-        Access your digital tickets and event panel securely.
+        Access your digital tickets and event panel securely with your username or email plus password.
       </p>
     </div>
   </header>
@@ -65,12 +65,12 @@
       class="flex w-full flex-col gap-4 rounded-2xl border border-paper-border bg-white p-4 shadow-[0px_2px_4px_rgba(18,4,28,0.03),0px_10px_14px_rgba(18,4,28,0.05)]"
     >
       <AuthTextField
-        id="sign-in-email-mobile"
-        label="Email Address"
-        type="email"
-        bind:value={email}
-        placeholder="name@domain.com"
-        autocomplete="email"
+        id="sign-in-identifier-mobile"
+        label="Username or email"
+        type="text"
+        bind:value={identifier}
+        placeholder="username or name@domain.com"
+        autocomplete="username"
         variant="mobile"
       />
       <AuthTextField
@@ -129,7 +129,7 @@
   </form>
 </div>
 
-<!-- Desktop AuthPanel -->
+<!-- Desktop AuthFrame -->
 <div class="hidden min-h-screen bg-white text-ink lg:flex lg:h-screen lg:h-[100dvh] lg:overflow-hidden">
   <AuthHeroPanel />
 
@@ -137,18 +137,18 @@
     <div class="flex w-full flex-col items-center gap-[var(--auth-field-gap)] text-center">
       <h1 class="m-0 w-full text-[length:var(--auth-title-size)] font-extrabold text-ink">Welcome back</h1>
       <p class="m-0 w-full text-sm font-normal text-ink-secondary">
-        Sign in with your email address and password.
+        Sign in with your username or email and password.
       </p>
     </div>
 
     <form class="flex w-full flex-col gap-[var(--auth-form-gap)]" on:submit|preventDefault={onSubmit}>
       <AuthTextField
-        id="sign-in-email"
-        label="Email Address"
-        type="email"
-        bind:value={email}
-        placeholder="e.g. musa@kamara.com"
-        autocomplete="email"
+        id="sign-in-identifier"
+        label="Username or email"
+        type="text"
+        bind:value={identifier}
+        placeholder="username or name@domain.com"
+        autocomplete="username"
         showLeadingIcon={true}
         leadingIcon="mail"
       />

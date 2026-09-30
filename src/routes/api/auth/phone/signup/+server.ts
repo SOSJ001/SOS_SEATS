@@ -1,6 +1,6 @@
 /**
- * POST /api/auth/phone/signup — phone+password create account (roadmap 2.2).
- * Body: { phone, password, name }
+ * POST /api/auth/phone/signup — phone+password create account (roadmap 2.7).
+ * Body: { phone, password, userName }
  */
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
@@ -9,10 +9,13 @@ import {
   signUpWithPhone,
   setUserSessionCookie,
   AUTH_SERVICE_UNREACHABLE,
+  normalizeUsername,
+  isUsernameTaken,
+  provisionAuthUsername,
 } from "$lib/server/auth";
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
-  let body: { phone?: string; password?: string; name?: string };
+  let body: { phone?: string; password?: string; userName?: string };
   try {
     body = await request.json();
   } catch {
@@ -21,11 +24,12 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
   const phoneRaw = typeof body.phone === "string" ? body.phone : "";
   const password = typeof body.password === "string" ? body.password : "";
-  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const userNameRaw =
+    typeof body.userName === "string" ? body.userName.trim() : "";
 
-  if (!phoneRaw || !password || !name) {
+  if (!phoneRaw || !password || !userNameRaw) {
     return json(
-      { error: "Full name, phone number, and password are required" },
+      { error: "Username, phone number, and password are required" },
       { status: 400 },
     );
   }
@@ -37,15 +41,30 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     );
   }
 
+  const usernameNorm = normalizeUsername(userNameRaw);
+  if (!usernameNorm.ok) {
+    return json({ error: usernameNorm.error }, { status: 400 });
+  }
+
   const normalized = normalizeSlPhone(phoneRaw);
   if (!normalized.ok) {
     return json({ error: normalized.error }, { status: 400 });
   }
 
+  try {
+    if (await isUsernameTaken(usernameNorm.username)) {
+      return json({ error: "Username already taken" }, { status: 400 });
+    }
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : AUTH_SERVICE_UNREACHABLE;
+    return json({ error: message }, { status: 503 });
+  }
+
   const { data, error } = await signUpWithPhone(
     normalized.e164,
     password,
-    name,
+    usernameNorm.username,
   );
 
   if (error?.message === AUTH_SERVICE_UNREACHABLE) {
@@ -63,6 +82,17 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
           "Account created but email confirmation is required before you can sign in.",
       },
       { status: 400 },
+    );
+  }
+
+  const provisioned = await provisionAuthUsername({
+    authUserId: data.user.id,
+    username: usernameNorm.username,
+  });
+  if (!provisioned.ok) {
+    return json(
+      { error: provisioned.error },
+      { status: provisioned.conflict ? 400 : 500 },
     );
   }
 

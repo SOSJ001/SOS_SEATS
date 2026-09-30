@@ -94,7 +94,12 @@ export async function claimTickets(
       buyer_id: userData.id || null,
       buyer_wallet_address: userData.wallet_address || null,
       buyer_email: userData.email || null,
-      buyer_name: userData.name || userData.display_name || "Anonymous",
+      buyer_name:
+        userData.username ||
+        userData.userName ||
+        userData.display_name ||
+        userData.name ||
+        "Guest",
       order_number: orderNumber,
       total_amount: totalAmount,
       currency: paymentInfo ? paymentInfo.currency || "USDC" : "NLe",
@@ -109,12 +114,20 @@ export async function claimTickets(
       orderData.buyer_id = authResult.user.id;
       orderData.buyer_wallet_address = authResult.user.wallet_address;
       orderData.buyer_name =
-        authResult.user.display_name || authResult.user.username;
+        authResult.user.username ||
+        authResult.user.display_name ||
+        userData.username ||
+        userData.userName ||
+        "Guest";
     } else {
       const fallbackData = authResult.fallbackData || userData;
       orderData.buyer_wallet_address = fallbackData.wallet_address;
       orderData.buyer_name =
-        fallbackData.name || fallbackData.display_name || "Anonymous";
+        fallbackData.username ||
+        fallbackData.userName ||
+        fallbackData.display_name ||
+        fallbackData.name ||
+        "Guest";
     }
 
     if (paymentInfo?.buyerWallet) {

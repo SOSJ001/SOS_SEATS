@@ -41,7 +41,7 @@
   const pageSize = 4;
   let pageIndex = 0;
 
-  $: displayName = userName?.split?.(" ")?.[0] || userName || "Attendee";
+  $: displayName = userName || "Attendee";
   $: list = tab === "upcoming" ? upcoming : past;
   $: activeHighlight = tab === "past" ? pastHighlight : highlight;
   $: highlightVariant = tab === "past" ? "past" : "upcoming";
@@ -80,7 +80,7 @@
 <div class="flex w-full flex-col gap-5" data-node-id="604:1506">
   <header class="hidden flex-col gap-1 lg:flex">
     <h1 class="m-0 text-2xl font-extrabold tracking-[-0.5px] text-ink">
-      Welcome Back, {displayName}
+      Welcome back, {displayName}
     </h1>
     <p class="m-0 text-sm text-ink-secondary">
       Your personalized Freetown event ticket dashboard. Scan at the gate or manage

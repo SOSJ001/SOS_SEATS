@@ -20,6 +20,16 @@ export {
   PHONE_SYNTHETIC_DOMAIN,
 } from "./phone";
 export {
+  normalizeUsername,
+  isUsernameTaken,
+  provisionAuthUsername,
+  ensureAuthUsernameProvisioned,
+  resolveLoginEmail,
+  resolvePhoneLoginEmail,
+  getRegistryUsername,
+  withRegistryUserName,
+} from "./username";
+export {
   setUserSessionCookie,
   clearUserSessionCookie,
   cookieOptions,

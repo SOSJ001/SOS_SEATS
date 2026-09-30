@@ -430,12 +430,10 @@ SOS_SEATS/
 
 - `/api/wallet/execute-pending-withdrawal` - Execute withdrawal
 - `/api/wallet/cancel-pending-withdrawal` - Cancel withdrawal
-- `/transferSolApi` - Transfer SOL
 
 ### Data APIs
 
 - `/dataUrlApi` - Data URL generation
-- `/createWalletApi` - Create wallet record
 
 ---
 

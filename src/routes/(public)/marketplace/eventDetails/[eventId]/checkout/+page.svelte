@@ -33,7 +33,6 @@
   let ready = false;
   let paymentMethod = "orange_money";
   let phone = "";
-  let fullName = "";
   let creating = false;
 
   /** @type {null | {
@@ -147,11 +146,6 @@
       .toUpperCase();
     const suffix = digits.padStart(4, "0");
     return `#${initials}-${suffix}`;
-  }
-
-  function isMobileCheckoutViewport() {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(max-width: 1023px)").matches;
   }
 
   function formatNle(n) {
@@ -437,11 +431,6 @@
       return;
     }
 
-    if (isMobileCheckoutViewport() && !fullName.trim()) {
-      showToast("error", "Name required", "Enter your full name to continue.");
-      return;
-    }
-
     if (totalSelected !== 1) {
       showToast(
         "warning",
@@ -461,9 +450,9 @@
       const fee = calculateBookingFee(totalPrice);
       const total = totalPrice + fee;
       const buyerName =
-        fullName.trim() ||
-        web3User?.display_name ||
+        data?.userName ||
         web3User?.username ||
+        web3User?.display_name ||
         "Guest User";
 
       const purchaseData = {
@@ -475,6 +464,7 @@
         buyerInfo: {
           wallet_address: connectedWalletAddress || undefined,
           name: buyerName,
+          username: data?.userName || web3User?.username || undefined,
           phone: phone.trim(),
         },
       };
@@ -602,7 +592,6 @@
           {totalWithFee}
           bind:paymentMethod
           bind:phone
-          bind:fullName
           loading={creating}
           onGenerate={handleGenerate}
         />

@@ -1,16 +1,22 @@
 /**
- * POST /api/auth/signup — email/password create account (roadmap 2.1).
- * Body: { email, password, name, userName }
+ * POST /api/auth/signup — email/password create account (roadmap 2.7).
+ * Body: { email, password, userName }
  */
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { signUpWithPassword, setUserSessionCookie, AUTH_SERVICE_UNREACHABLE } from "$lib/server/auth";
+import {
+  signUpWithPassword,
+  setUserSessionCookie,
+  AUTH_SERVICE_UNREACHABLE,
+  normalizeUsername,
+  isUsernameTaken,
+  provisionAuthUsername,
+} from "$lib/server/auth";
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
   let body: {
     email?: string;
     password?: string;
-    name?: string;
     userName?: string;
   };
   try {
@@ -21,13 +27,12 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
   const email = typeof body.email === "string" ? body.email.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  const userName =
+  const userNameRaw =
     typeof body.userName === "string" ? body.userName.trim() : "";
 
-  if (!email || !password || !name || !userName) {
+  if (!email || !password || !userNameRaw) {
     return json(
-      { error: "Full name, username, email, and password are required" },
+      { error: "Username, email, and password are required" },
       { status: 400 },
     );
   }
@@ -39,11 +44,25 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     );
   }
 
+  const usernameNorm = normalizeUsername(userNameRaw);
+  if (!usernameNorm.ok) {
+    return json({ error: usernameNorm.error }, { status: 400 });
+  }
+
+  try {
+    if (await isUsernameTaken(usernameNorm.username)) {
+      return json({ error: "Username already taken" }, { status: 400 });
+    }
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : AUTH_SERVICE_UNREACHABLE;
+    return json({ error: message }, { status: 503 });
+  }
+
   const { data, error } = await signUpWithPassword(
     email,
     password,
-    name,
-    userName,
+    usernameNorm.username,
   );
 
   if (error?.message === AUTH_SERVICE_UNREACHABLE) {
@@ -61,6 +80,17 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
           "Account created but email confirmation is required before you can sign in.",
       },
       { status: 400 },
+    );
+  }
+
+  const provisioned = await provisionAuthUsername({
+    authUserId: data.user.id,
+    username: usernameNorm.username,
+  });
+  if (!provisioned.ok) {
+    return json(
+      { error: provisioned.error },
+      { status: provisioned.conflict ? 400 : 500 },
     );
   }
 

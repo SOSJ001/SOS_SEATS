@@ -10,7 +10,7 @@
   import AuthWordmark from "$lib/components/auth/AuthWordmark.svelte";
   import { authSearchParams, safeNext } from "$lib/auth/postAuthRedirect.js";
 
-  let name = "";
+  let userName = "";
   let phone = "";
   let password = "";
   let errorMessage = null;
@@ -27,7 +27,7 @@
       const res = await fetch("/api/auth/phone/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, password, name }),
+        body: JSON.stringify({ phone, password, userName }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -55,7 +55,7 @@
         Create Phone Account
       </h1>
       <p class="m-0 text-sm leading-[1.4] text-ink-secondary opacity-85">
-        Phone and password for paid mobile money tickets.
+        Username, phone, and password for paid mobile money tickets.
       </p>
     </div>
   </header>
@@ -68,11 +68,11 @@
       class="flex w-full flex-col gap-4 rounded-2xl border border-paper-border bg-white p-4 shadow-[0px_2px_4px_rgba(18,4,28,0.03),0px_10px_14px_rgba(18,4,28,0.05)]"
     >
       <AuthTextField
-        id="phone-sign-up-name-mobile"
-        label="Full Name"
-        bind:value={name}
-        placeholder="e.g. Musa Kamara"
-        autocomplete="name"
+        id="phone-sign-up-username-mobile"
+        label="Username"
+        bind:value={userName}
+        placeholder="e.g. musa_k"
+        autocomplete="username"
         variant="mobile"
       />
       <AuthPhoneField
@@ -135,7 +135,7 @@
         Create Phone Account
       </h1>
       <p class="m-0 w-full text-sm font-normal text-ink-secondary">
-        Phone and password for paid mobile money tickets.
+        Username, phone, and password for paid mobile money tickets.
       </p>
     </div>
 
@@ -144,11 +144,11 @@
       on:submit|preventDefault={onSubmit}
     >
       <AuthTextField
-        id="phone-sign-up-name"
-        label="Full Name"
-        bind:value={name}
-        placeholder="e.g. Musa Kamara"
-        autocomplete="name"
+        id="phone-sign-up-username"
+        label="Username"
+        bind:value={userName}
+        placeholder="e.g. musa_k"
+        autocomplete="username"
       />
       <AuthPhoneField
         id="phone-sign-up-phone"

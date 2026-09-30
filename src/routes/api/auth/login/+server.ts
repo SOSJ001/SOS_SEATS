@@ -1,27 +1,58 @@
 /**
- * POST /api/auth/login — email/password session (roadmap 2.1).
- * Body: { email, password }
+ * POST /api/auth/login — username|email + password session (roadmap 2.7).
+ * Body: { identifier, password }
  */
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { loginWithPassword, setUserSessionCookie, AUTH_SERVICE_UNREACHABLE } from "$lib/server/auth";
+import {
+  loginWithPassword,
+  setUserSessionCookie,
+  AUTH_SERVICE_UNREACHABLE,
+  resolveLoginEmail,
+  ensureAuthUsernameProvisioned,
+  withRegistryUserName,
+} from "$lib/server/auth";
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
-  let body: { email?: string; password?: string };
+  let body: { identifier?: string; password?: string; email?: string };
   try {
     body = await request.json();
   } catch {
     return json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const identifierRaw =
+    typeof body.identifier === "string"
+      ? body.identifier.trim()
+      : typeof body.email === "string"
+        ? body.email.trim()
+        : "";
   const password = typeof body.password === "string" ? body.password : "";
 
-  if (!email || !password) {
-    return json({ error: "Email and password are required" }, { status: 400 });
+  if (!identifierRaw || !password) {
+    return json(
+      { error: "Username or email and password are required" },
+      { status: 400 },
+    );
   }
 
-  const { data, error } = await loginWithPassword(email, password);
+  let resolved;
+  try {
+    resolved = await resolveLoginEmail(identifierRaw);
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : AUTH_SERVICE_UNREACHABLE;
+    return json({ error: message }, { status: 503 });
+  }
+
+  if (!resolved.ok) {
+    return json(
+      { error: "Invalid username or email or password" },
+      { status: 401 },
+    );
+  }
+
+  const { data, error } = await loginWithPassword(resolved.email, password);
 
   if (error?.message === AUTH_SERVICE_UNREACHABLE) {
     return json({ error: AUTH_SERVICE_UNREACHABLE }, { status: 503 });
@@ -29,12 +60,22 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
   if (error || !data.session || !data.user) {
     return json(
-      { error: error?.message || "Invalid email or password" },
+      { error: "Invalid username or email or password" },
       { status: 401 },
     );
   }
 
-  setUserSessionCookie(cookies, data.user, data.session.expires_at);
+  const meta = data.user.user_metadata || {};
+  await ensureAuthUsernameProvisioned({
+    authUserId: data.user.id,
+    userName: meta.userName || null,
+  });
+
+  setUserSessionCookie(
+    cookies,
+    await withRegistryUserName(data.user),
+    data.session.expires_at,
+  );
 
   return json(
     {

@@ -38,13 +38,12 @@ export const ANONYMOUS_KEY = supabaseAnonKey;
 // Cache bust comment - updated to force browser refresh
 
 //sign up function
-export async function createAccount(email, password, userName, name) {
+export async function createAccount(email, password, userName) {
   const response = await supabase.auth.signUp({
     email: email,
     password: password,
     options: {
       data: {
-        name: name,
         userName: userName,
       },
     },
@@ -252,15 +251,6 @@ export async function loadUserEventsForSelector(userId) {
 // Seats out of v1 (roadmap 3.1): no singular orderhistory reads.
 export async function orderHistory(_user_id) {
   return { data: [], error: null };
-}
-
-// Solana custodial keypair persistence deferred (2.6 SKIP / 3.1 freeze).
-export async function storeWallet(_user_id, _wallet, _publicKey) {
-  return { data: [], error: { message: "deferred" } };
-}
-
-export async function signTransactionKey(_user_id) {
-  return { data: [], error: { message: "deferred" } };
 }
 
 // ===== WEB3 AUTHENTICATION FUNCTIONS =====

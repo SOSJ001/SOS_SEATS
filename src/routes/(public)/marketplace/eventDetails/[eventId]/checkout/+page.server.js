@@ -46,5 +46,9 @@ export async function load({ params, locals, url }) {
     image,
   };
 
-  return { event, ticketTypes };
+  return {
+    event,
+    ticketTypes,
+    userName: locals.userName ?? null,
+  };
 }

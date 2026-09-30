@@ -14,24 +14,26 @@
   let isSubmitting = false;
 
   function handleSubmit() {
-    if (!username.trim()) {
+    const normalized = username.trim().toLowerCase();
+
+    if (!normalized) {
       error = "Username is required";
       return;
     }
 
-    if (username.length < 3) {
+    if (normalized.length < 3) {
       error = "Username must be at least 3 characters";
       return;
     }
 
-    if (username.length > 20) {
-      error = "Username must be less than 20 characters";
+    if (normalized.length > 20) {
+      error = "Username must be at most 20 characters";
       return;
     }
 
-    // Only allow alphanumeric and underscores
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      error = "Username can only contain letters, numbers, and underscores";
+    if (!/^[a-z0-9_]{3,20}$/.test(normalized)) {
+      error =
+        "Username can only contain lowercase letters, numbers, and underscores";
       return;
     }
 
@@ -39,8 +41,8 @@
     isSubmitting = true;
 
     dispatch("submit", {
-      username: username.trim(),
-      displayName: displayName.trim() || username.trim(),
+      username: normalized,
+      displayName: displayName.trim() || normalized,
     });
   }
 
@@ -147,7 +149,7 @@
               class="w-full px-4 py-3 bg-gradient-to-br from-[#18122B] via-[#232946] to-[#0A0A0A] border border-[#00F5FF]/30 rounded-lg text-white placeholder-gray-400 focus:border-[#00F5FF]/60 focus:outline-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <div class="text-xs text-gray-400 mt-1">
-              3-20 characters, letters, numbers, and underscores only
+              3-20 characters, lowercase letters, numbers, and underscores only
             </div>
           </div>
 

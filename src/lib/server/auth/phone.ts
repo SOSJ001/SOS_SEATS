@@ -87,7 +87,7 @@ export async function loginWithPhone(e164: string, password: string) {
 export async function signUpWithPhone(
   e164: string,
   password: string,
-  name: string,
+  userName: string,
 ) {
   try {
     const supabase = getAnonSupabase();
@@ -96,7 +96,7 @@ export async function signUpWithPhone(
       password,
       options: {
         data: {
-          name,
+          userName,
           phone: e164,
           sessionType: "phone",
         },

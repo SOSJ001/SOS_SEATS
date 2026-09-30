@@ -18,7 +18,6 @@
   /** @type {"orange_money" | "afrimoney"} */
   export let paymentMethod = "orange_money";
   export let phone = "";
-  export let fullName = "";
   export let loading = false;
   /** @type {() => void} */
   export let onGenerate = () => {};
@@ -133,23 +132,6 @@
           <MmProviderLogo provider="afrimoney" class="h-6 lg:h-7" />
         </button>
       </div>
-    </div>
-
-    <div class="flex flex-col gap-2 lg:hidden">
-      <label
-        class="m-0 text-xs font-bold uppercase text-ink-secondary"
-        for="mm-checkout-fullname"
-      >
-        Full name
-      </label>
-      <input
-        id="mm-checkout-fullname"
-        type="text"
-        bind:value={fullName}
-        placeholder="e.g. Alie Kamara"
-        autocomplete="name"
-        class="h-12 w-full rounded-xl border border-paper-border bg-white px-4 text-[15px] text-ink outline-none placeholder:text-ink-secondary"
-      />
     </div>
 
     <div class="flex flex-col gap-2">

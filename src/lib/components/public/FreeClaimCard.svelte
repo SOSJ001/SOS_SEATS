@@ -11,10 +11,15 @@
   /** Primary badge label, e.g. ticket type name or "2 types" */
   export let ticketTypeLabel = "";
   export let ticketQty = 0;
-  export let fullName = "";
+  /** Session username handle (no leading @). */
+  export let userName = "";
   export let loading = false;
   /** @type {() => void} */
   export let onClaim = () => {};
+
+  $: signedInLabel = userName
+    ? `Signed in as @${userName}. This ticket will be saved to My Tickets.`
+    : "You’re signed in. Claim this ticket to add it to My Tickets.";
 </script>
 
 <div
@@ -54,28 +59,9 @@
     {/if}
   </div>
 
-  <div class="flex flex-col gap-4">
-    <p class="m-0 text-[13px] font-normal leading-[1.4] text-ink-secondary">
-      No account is required to claim this ticket. Complete your details below.
-    </p>
-
-    <div class="flex flex-col gap-2">
-      <label
-        class="m-0 text-[13px] font-bold text-ink"
-        for="free-claim-name"
-      >
-        Your Full Name (Optional)
-      </label>
-      <input
-        id="free-claim-name"
-        type="text"
-        bind:value={fullName}
-        placeholder="e.g. Alie Kamara"
-        autocomplete="name"
-        class="h-12 w-full rounded-[10px] border border-paper-border bg-white px-4 text-[15px] text-ink outline-none placeholder:text-ink-muted"
-      />
-    </div>
-  </div>
+  <p class="m-0 text-[13px] font-normal leading-[1.4] text-ink-secondary">
+    {signedInLabel}
+  </p>
 
   <button
     type="button"

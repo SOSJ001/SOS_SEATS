@@ -4,13 +4,12 @@
   import { page } from "$app/stores";
   import { authSearchParams, safeNext } from "$lib/auth/postAuthRedirect.js";
   import AuthTextField from "$lib/components/auth/AuthTextField.svelte";
-  import AuthPhoneField from "$lib/components/auth/AuthPhoneField.svelte";
   import AuthPrimaryButton from "$lib/components/auth/AuthPrimaryButton.svelte";
   import AuthHeroPanel from "$lib/components/auth/AuthHeroPanel.svelte";
   import AuthPanelShell from "$lib/components/auth/AuthPanelShell.svelte";
   import AuthWordmark from "$lib/components/auth/AuthWordmark.svelte";
 
-  let phone = "";
+  let identifier = "";
   let password = "";
   let errorMessage = null;
   let loading = false;
@@ -27,7 +26,7 @@
       const res = await fetch("/api/auth/phone/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, password }),
+        body: JSON.stringify({ identifier, password }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -55,7 +54,7 @@
         Sign In with Phone
       </h1>
       <p class="m-0 text-sm leading-[1.4] text-ink-secondary opacity-85">
-        Phone and password. Quick and secure access.
+        Use your username or phone number and password for quick, secure access.
       </p>
     </div>
   </header>
@@ -67,9 +66,13 @@
     <div
       class="flex w-full flex-col gap-4 rounded-2xl border border-paper-border bg-white p-4 shadow-[0px_2px_4px_rgba(18,4,28,0.03),0px_10px_14px_rgba(18,4,28,0.05)]"
     >
-      <AuthPhoneField
-        id="phone-sign-in-phone-mobile"
-        bind:value={phone}
+      <AuthTextField
+        id="phone-sign-in-identifier-mobile"
+        label="Username or phone"
+        type="text"
+        bind:value={identifier}
+        placeholder="musa_k or +232 76…"
+        autocomplete="username"
         variant="mobile"
       />
       <AuthTextField
@@ -147,7 +150,7 @@
         Phone Sign In
       </h1>
       <p class="m-0 w-full text-sm font-normal text-ink-secondary">
-        Sign in with your Sierra Leone phone number and password
+        Use your username or phone number and password for quick, secure access.
       </p>
     </div>
 
@@ -155,11 +158,15 @@
       class="flex w-full flex-col gap-[var(--auth-form-gap)]"
       on:submit|preventDefault={onSubmit}
     >
-      <AuthPhoneField
-        id="phone-sign-in-phone"
-        bind:value={phone}
-        placeholder="76 123456"
+      <AuthTextField
+        id="phone-sign-in-identifier"
+        label="Username or phone"
+        type="text"
+        bind:value={identifier}
+        placeholder="musa_k or +232 76…"
+        autocomplete="username"
         showLeadingIcon={true}
+        leadingIcon="mail"
       />
       <AuthTextField
         id="phone-sign-in-password"

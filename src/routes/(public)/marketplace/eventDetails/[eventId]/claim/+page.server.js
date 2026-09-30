@@ -50,6 +50,7 @@ export async function load({ params, locals, url }) {
     event,
     ticketTypes,
     userId: locals.userId,
+    userName: locals.userName ?? null,
     walletAddress: locals.walletAddress ?? null,
   };
 }
