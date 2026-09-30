@@ -2,11 +2,10 @@
   // @ts-nocheck
   /**
    * Ticket Transfers: desktop HI-FI 604:1579 / mobile 306:76, history 606:1343 / 311:174 (roadmap 6.2 / FR-21).
-   * Transfer buttons open the form at [ticketId]; receipts land with the 6.2b transfer backend.
+   * Transfer buttons open the form at [ticketId]; history opens receipt/[transferId] (6.2b).
    */
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import { showToast } from "$lib/store";
   import TransfersLayout from "$lib/components/attendee/TransfersLayout.svelte";
 
   export let data;
@@ -24,12 +23,9 @@
     goto(`/dashboard/my-tickets/transfers/${ticket.id}`);
   }
 
-  function viewReceipt() {
-    showToast(
-      "info",
-      "Transfer receipt coming next",
-      "Receipts arrive with the transfer backend (roadmap 6.2b)."
-    );
+  function viewReceipt(entry) {
+    if (!entry?.id) return;
+    goto(`/dashboard/my-tickets/transfers/receipt/${entry.id}`);
   }
 </script>
 

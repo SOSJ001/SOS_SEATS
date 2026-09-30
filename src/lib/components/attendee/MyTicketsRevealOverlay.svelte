@@ -20,8 +20,9 @@
   $: eventTime = event?.time || "";
   $: eventLocation = event?.location || "";
   $: ticketTypes = [{ name: guest?.ticketType || "GA" }];
-  $: ticketNumber = guest?.ticketNumber || guest?.id || "";
-  $: qrData = guest?.ticketNumber || guest?.id || "";
+  // ticket_number is display only; the QR is the secret, rotating qr_token (6.2b)
+  $: ticketNumber = guest?.ticketNumber || "";
+  $: qrData = guest?.qrToken || "";
 
   /** Honor organizer layout (left / right / centre) from ticket_design_config. */
   $: previewLayout = ticketPreviewLayout(event?.ticketDesignConfig);
@@ -57,7 +58,7 @@
       });
       downloadImage(
         dataUrl,
-        `ticket-${guest?.ticketNumber || guest?.id || "guest"}.png`
+        `ticket-${guest?.ticketNumber || "guest"}.png`
       );
     } catch {
       /* export failed; overlay still visible */

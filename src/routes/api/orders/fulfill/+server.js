@@ -1,13 +1,11 @@
 import { json } from "@sveltejs/kit";
-import {
-  loadOrderItemsForOrder,
-  updateOrderItem,
-  insertGuests,
-  getTicketType,
-} from "$lib/server/tickets";
+import { loadOrderItemsForOrder, getTicketType } from "$lib/server/tickets";
 import { getServerSupabase } from "$lib/server/db";
 
-/** Confirmation / post-purchase fulfill helpers (service role). */
+/**
+ * Confirmation / post-purchase read helpers (service role).
+ * Read-only: the legacy Orange Money confirmation page calls these outside /dashboard.
+ */
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
   try {
@@ -27,22 +25,6 @@ export async function POST({ request }) {
 
     if (action === "list-order-items") {
       const { data, error } = await loadOrderItemsForOrder(body.orderId);
-      if (error) {
-        return json({ success: false, error: error.message }, { status: 400 });
-      }
-      return json({ success: true, data });
-    }
-
-    if (action === "update-order-item") {
-      const { data, error } = await updateOrderItem(body.itemId, body.updates);
-      if (error) {
-        return json({ success: false, error: error.message }, { status: 400 });
-      }
-      return json({ success: true, data });
-    }
-
-    if (action === "insert-guests") {
-      const { data, error } = await insertGuests(body.rows || []);
       if (error) {
         return json({ success: false, error: error.message }, { status: 400 });
       }

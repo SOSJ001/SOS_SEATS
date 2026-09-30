@@ -3,10 +3,11 @@
   /**
    * Transfer Ticket form: desktop TransferCard 609:1364 (dense per hifi-density), mobile 36:905.
    * Mobile order: header card, input, ticket, warning, guidance, CTA. Desktop: ticket before input.
-   * Ticket card is TicketLivePreview 571:110 without qrData (FR-20) and with a masked number.
+   * Ticket card is TicketLivePreview 571:110 without qrData (FR-20) and with a masked ticket_number.
    */
   import TicketIcon from "lucide-svelte/icons/ticket";
   import AtSign from "lucide-svelte/icons/at-sign";
+  import { goto } from "$app/navigation";
   import TicketLivePreview from "$lib/components/organizer/TicketLivePreview.svelte";
   import TransferWarning from "./TransferWarning.svelte";
   import TransferGuidelines from "./TransferGuidelines.svelte";
@@ -15,6 +16,9 @@
 
   /** @type {any} */
   export let ticket;
+  /** Rule failure (409): the page swaps to Transfer Failed. */
+  /** @type {(detail: { reason: string, recipient: string }) => void} */
+  export let onFailed = () => {};
 
   let recipient = "";
   let error = "";
@@ -23,7 +27,7 @@
   $: canSubmit = !!recipient.trim() && !submitting;
   $: layout = ticketPreviewLayout(ticket?.ticketDesignConfig);
   $: ticketTypes = [{ name: ticket?.ticketTypeName || "Ticket" }];
-  $: maskedNumber = maskTicketNumber(ticket?.qrPayload);
+  $: maskedNumber = maskTicketNumber(ticket?.ticketNumber);
 
   async function submit() {
     if (!canSubmit) return;
@@ -36,23 +40,27 @@
         body: JSON.stringify({ ticketId: ticket.id, recipient }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok || !body?.success) {
-        error = body?.error || "Could not check that username";
+      if (res.ok && body?.success && body.transferId) {
+        // Stay disabled while the receipt loads so the ticket can't be sent twice
+        await goto(`/dashboard/my-tickets/transfers/receipt/${body.transferId}`);
         return;
       }
-      showToast(
-        "info",
-        "Transfer coming next",
-        `@${body.recipient} can receive this ticket. Sending lands with the transfer backend (roadmap 6.2b).`
-      );
+      submitting = false;
+      if (res.status === 409) {
+        onFailed({
+          reason: body?.error || "This transfer couldn't be completed",
+          recipient: recipient.trim().replace(/^@/, "").toLowerCase(),
+        });
+        return;
+      }
+      error = body?.error || "Transfer failed. Please try again.";
     } catch {
+      submitting = false;
       showToast(
         "error",
         "Could not reach SOS SEATS",
         "Check your connection and try again."
       );
-    } finally {
-      submitting = false;
     }
   }
 </script>
@@ -144,7 +152,7 @@
       class="flex h-12 w-full items-center justify-center rounded-lg border-0 bg-brand text-[15px] font-bold text-white enabled:cursor-pointer enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 lg:h-10 lg:text-[13px]"
     >
       {#if submitting}
-        Checking...
+        Transferring...
       {:else}
         <span class="lg:hidden">Confirm &amp; Transfer Ticket</span>
         <span class="hidden lg:inline">Confirm &amp; Transfer</span>

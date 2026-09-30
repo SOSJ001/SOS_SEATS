@@ -2,12 +2,13 @@ import { json } from "@sveltejs/kit";
 import {
   loadTransferTicket,
   validateTransferRecipient,
+  transferTicket,
 } from "$lib/server/tickets/transfers";
 
 /**
- * Transfer by username (roadmap 6.2 / FR-21). Auth required.
- * Checks ticket eligibility and the recipient only; nothing is written yet.
- * Roadmap 6.2b replaces the success branch with the atomic transfer RPC.
+ * Transfer by username (roadmap 6.2 / 6.2b, FR-21). Auth required.
+ * Pre-checks give friendly messages; transfer_order_item re-checks everything under a row lock.
+ * 400 = input format (inline), 404 = not the holder's transferable ticket, 409 = rule failure (failed state).
  * @type {import('./$types').RequestHandler}
  */
 export async function POST({ request, locals }) {
@@ -48,16 +49,34 @@ export async function POST({ request, locals }) {
       raw: recipient,
     });
     if (!check.ok) {
-      return json({ success: false, error: check.error }, { status: 400 });
+      return json(
+        { success: false, code: check.code, error: check.error },
+        { status: check.code === "invalid_username" ? 400 : 409 }
+      );
     }
 
-    return json({ success: true, recipient: check.username });
+    const result = await transferTicket({
+      userId: locals.userId,
+      ticketId: ticket.id,
+      username: check.username,
+    });
+    if (!result.ok) {
+      return json(
+        { success: false, code: result.code, error: result.error },
+        { status: result.status }
+      );
+    }
+
+    return json({
+      success: true,
+      transferId: result.transferId,
+      reference: result.reference,
+      recipient: result.recipient,
+    });
   } catch (error) {
+    console.error("Ticket transfer failed:", error);
     return json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Transfer check failed",
-      },
+      { success: false, error: "Transfer failed. Please try again." },
       { status: 500 }
     );
   }

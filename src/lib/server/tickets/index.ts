@@ -265,17 +265,26 @@ export async function loadOrderItemsForOrder(orderId: string) {
   return db.from("order_items").select("*").eq("order_id", orderId);
 }
 
-export async function updateOrderItem(
-  itemId: string,
-  updates: Record<string, any>
-) {
+/**
+ * Success-page QR (FR-19, 6.2b): the secret qr_token of the first ticket in the order
+ * the viewer currently holds, else "" (the preview then draws its decorative placeholder).
+ */
+export async function resolveOwnedQrToken(
+  items: Array<{ owner_user_id?: string | null; guest_id?: string | null }> | null | undefined,
+  userId: string | null | undefined
+): Promise<string> {
+  if (!userId) return "";
+  const owned = (items || []).find(
+    (item) => item.owner_user_id === userId && item.guest_id
+  );
+  if (!owned?.guest_id) return "";
   const db = getServerSupabase();
-  return db.from("order_items").update(updates).eq("id", itemId).select();
-}
-
-export async function insertGuests(rows: Record<string, any>[]) {
-  const db = getServerSupabase();
-  return db.from("guests").insert(rows).select();
+  const { data: guest } = await db
+    .from("guests")
+    .select("qr_token")
+    .eq("id", owned.guest_id)
+    .maybeSingle();
+  return guest?.qr_token ? String(guest.qr_token) : "";
 }
 
 export async function getTicketType(ticketTypeId: string) {
@@ -355,7 +364,7 @@ export type MyTicketRow = {
   price: number;
   priceLabel: string;
   isFree: boolean;
-  /** FR-19 QR payload for scanner wiring in roadmap 7.1 (depends on 6.1). Never wallet. */
+  /** Secret guests.qr_token (6.2b); only for the holder. Scanner switches to it in 7.1. */
   qrPayload: string;
   guestId: string | null;
   guestName: string;
@@ -378,7 +387,7 @@ export type MyTicketsPayload = {
   stats: { upcoming: number; past: number; transfer: number };
 };
 
-function resolveImageUrl(
+export function resolveImageUrl(
   db: ReturnType<typeof getServerSupabase>,
   filePath: string | null | undefined
 ): string | null {
@@ -425,7 +434,7 @@ function formatCountdown(eventStartMs: number): string | null {
   return `IN ${days} DAYS`;
 }
 
-function formatDateLong(dateRaw: string | null | undefined): string {
+export function formatDateLong(dateRaw: string | null | undefined): string {
   if (!dateRaw) return "";
   const d = new Date(dateRaw);
   if (Number.isNaN(d.getTime())) return String(dateRaw);
@@ -447,7 +456,7 @@ function formatDateShort(dateRaw: string | null | undefined): string {
   });
 }
 
-function formatTimeLabel(timeRaw: string | null | undefined): string {
+export function formatTimeLabel(timeRaw: string | null | undefined): string {
   if (!timeRaw) return "";
   const raw = String(timeRaw).trim();
   if (/^\d{1,2}:\d{2}/.test(raw)) return raw.slice(0, 5);
@@ -465,10 +474,23 @@ export function formatTierLabel(typeName: string, price: number, isFree: boolean
   return formatPriceLabel((typeName || "Ticket").toUpperCase(), price, isFree);
 }
 
+/** Transfers sent by this user (roadmap 6.2b). */
+export async function countTransfersSent(userId: string): Promise<number> {
+  if (!userId) return 0;
+  const db = getServerSupabase();
+  const { count } = await db
+    .from("ticket_transfers")
+    .select("id", { count: "exact", head: true })
+    .eq("from_user_id", userId);
+  return count ?? 0;
+}
+
 /**
- * Cookie-authz My Tickets load (roadmap 6.1 / FR-19–20).
- * Filters by buyer_id = session user id via Kit privileged client.
- * Not live auth.uid() RLS — Data Model §7 / API Spec client+RLS waits on Auth JWT cutover.
+ * Cookie-authz My Tickets load (roadmap 6.1 / FR-19 to 20, re-keyed in 6.2b).
+ * Filters by order_items.owner_user_id = session Auth id via Kit privileged client,
+ * so transferred tickets follow the holder. qrPayload is the secret guests.qr_token:
+ * only ever sent to the holder.
+ * Not live auth.uid() RLS (Data Model §7 / API Spec client+RLS waits on Auth JWT cutover).
  */
 export async function loadMyTicketsForBuyer(
   userId: string,
@@ -486,40 +508,43 @@ export async function loadMyTicketsForBuyer(
   if (!userId) return empty;
 
   const db = getServerSupabase();
-  const { data: orders, error } = await db
-    .from("orders")
-    .select(
-      `
-      id,
-      event_id,
-      payment_status,
-      payment_method,
-      total_amount,
-      order_status,
-      events (
-        id,
-        name,
-        date,
-        time,
-        location,
-        image_id,
-        ticket_design_config
-      ),
-      order_items (
+  const [itemsResult, transferCount] = await Promise.all([
+    db
+      .from("order_items")
+      .select(
+        `
         id,
         check_in_time,
         guest_id,
         quantity,
         unit_price,
         ticket_types ( name, price ),
-        guests ( id, ticket_number, first_name, last_name )
+        guests ( id, ticket_number, first_name, last_name, qr_token ),
+        orders!inner (
+          id,
+          payment_status,
+          payment_method,
+          total_amount,
+          events (
+            id,
+            name,
+            date,
+            time,
+            location,
+            image_id,
+            ticket_design_config
+          )
+        )
+      `
       )
-    `
-    )
-    .eq("buyer_id", userId)
-    .order("created_at", { ascending: false });
+      .eq("owner_user_id", userId)
+      .order("created_at", { ascending: false }),
+    countTransfersSent(userId),
+  ]);
 
-  if (error || !orders?.length) return empty;
+  empty.stats.transfer = transferCount;
+  const { data: ownedItems, error } = itemsResult;
+  if (error || !ownedItems?.length) return empty;
 
   const imageCache = new Map<string, string | null>();
 
@@ -538,7 +563,10 @@ export async function loadMyTicketsForBuyer(
 
   const rows: MyTicketRow[] = [];
 
-  for (const order of orders as any[]) {
+  for (const item of ownedItems as any[]) {
+    const orderRaw = item.orders;
+    const order = Array.isArray(orderRaw) ? orderRaw[0] : orderRaw;
+    if (!order) continue;
     const paymentStatus = String(order.payment_status || "").toLowerCase();
     const paymentMethod = String(order.payment_method || "").toLowerCase();
     const isFreeOrder = paymentMethod === "free" || Number(order.total_amount) === 0;
@@ -564,80 +592,75 @@ export async function loadMyTicketsForBuyer(
     const timeLabel = formatTimeLabel(event.time);
     const location = event.location || "";
 
-    const items = Array.isArray(order.order_items) ? order.order_items : [];
-    for (const item of items) {
-      const ticketTypeRaw = item.ticket_types;
-      const ticketType = Array.isArray(ticketTypeRaw)
-        ? ticketTypeRaw[0]
-        : ticketTypeRaw;
-      const guestRaw = item.guests;
-      const guest = Array.isArray(guestRaw) ? guestRaw[0] : guestRaw;
-      const typeName = ticketType?.name || "Ticket";
-      const unitPrice = Number(
-        item.unit_price ?? ticketType?.price ?? (isFreeOrder ? 0 : 0)
-      );
-      const isFree = isFreeOrder || unitPrice <= 0;
-      const checkInTime = item.check_in_time || null;
+    const ticketTypeRaw = item.ticket_types;
+    const ticketType = Array.isArray(ticketTypeRaw)
+      ? ticketTypeRaw[0]
+      : ticketTypeRaw;
+    const guestRaw = item.guests;
+    const guest = Array.isArray(guestRaw) ? guestRaw[0] : guestRaw;
+    const typeName = ticketType?.name || "Ticket";
+    const unitPrice = Number(
+      item.unit_price ?? ticketType?.price ?? (isFreeOrder ? 0 : 0)
+    );
+    const isFree = isFreeOrder || unitPrice <= 0;
+    const checkInTime = item.check_in_time || null;
 
-      let status: MyTicketStatus;
-      let bucket: "upcoming" | "past";
-      if (ended && checkInTime) {
-        status = "ATTENDED";
-        bucket = "past";
-      } else if (ended) {
-        status = "EXPIRED";
-        bucket = "past";
-      } else if (checkInTime) {
-        status = "CHECKED IN";
-        bucket = "upcoming";
-      } else {
-        status = "VALID";
-        bucket = "upcoming";
-      }
-
-      // FR-19: prefer guest ticket_number / guest id; else order_items.id. Consumed by Kit scanner in 7.1.
-      const ticketNumber = guest?.ticket_number || null;
-      const guestId = guest?.id || item.guest_id || null;
-      const qrPayload = ticketNumber || guestId || item.id;
-      const guestName = guest
-        ? [guest.first_name, guest.last_name].filter(Boolean).join(" ").trim()
-        : "";
-
-      const metaParts = [typeName, location, dateLabel, timeLabel].filter(Boolean);
-      const rowMeta = [dateShort, timeLabel].filter(Boolean).join(" · ");
-      const rowMetaLine = location
-        ? `${rowMeta}${rowMeta ? " | " : ""}${location}`
-        : rowMeta;
-
-      rows.push({
-        id: item.id,
-        orderId: order.id,
-        status,
-        bucket,
-        eventId: event.id,
-        eventName: event.name || "Event",
-        eventDate: event.date || null,
-        eventTime: timeLabel,
-        eventLocation: location,
-        eventImage,
-        ticketDesignConfig: event.ticket_design_config || null,
-        ticketTypeName: typeName,
-        price: unitPrice,
-        priceLabel: formatPriceLabel(typeName, unitPrice, isFree),
-        isFree,
-        qrPayload: String(qrPayload),
-        guestId,
-        guestName: guestName || userName || "Guest",
-        ticketNumber,
-        checkInTime,
-        dateLabel,
-        timeLabel,
-        metaLine: metaParts.join(" · "),
-        rowMetaLine,
-        countdownLabel: formatCountdown(eventStartMs),
-        eventStartMs,
-      });
+    let status: MyTicketStatus;
+    let bucket: "upcoming" | "past";
+    if (ended && checkInTime) {
+      status = "ATTENDED";
+      bucket = "past";
+    } else if (ended) {
+      status = "EXPIRED";
+      bucket = "past";
+    } else if (checkInTime) {
+      status = "CHECKED IN";
+      bucket = "upcoming";
+    } else {
+      status = "VALID";
+      bucket = "upcoming";
     }
+
+    const ticketNumber = guest?.ticket_number || null;
+    const guestId = guest?.id || item.guest_id || null;
+    const guestName = guest
+      ? [guest.first_name, guest.last_name].filter(Boolean).join(" ").trim()
+      : "";
+
+    const metaParts = [typeName, location, dateLabel, timeLabel].filter(Boolean);
+    const rowMeta = [dateShort, timeLabel].filter(Boolean).join(" · ");
+    const rowMetaLine = location
+      ? `${rowMeta}${rowMeta ? " | " : ""}${location}`
+      : rowMeta;
+
+    rows.push({
+      id: item.id,
+      orderId: order.id,
+      status,
+      bucket,
+      eventId: event.id,
+      eventName: event.name || "Event",
+      eventDate: event.date || null,
+      eventTime: timeLabel,
+      eventLocation: location,
+      eventImage,
+      ticketDesignConfig: event.ticket_design_config || null,
+      ticketTypeName: typeName,
+      price: unitPrice,
+      priceLabel: formatPriceLabel(typeName, unitPrice, isFree),
+      isFree,
+      qrPayload: guest?.qr_token ? String(guest.qr_token) : "",
+      guestId,
+      guestName: guestName || userName || "Guest",
+      ticketNumber,
+      checkInTime,
+      dateLabel,
+      timeLabel,
+      metaLine: metaParts.join(" · "),
+      rowMetaLine,
+      countdownLabel: formatCountdown(eventStartMs),
+      eventStartMs,
+    });
   }
 
   const upcoming = rows
@@ -664,7 +687,7 @@ export async function loadMyTicketsForBuyer(
     stats: {
       upcoming: upcoming.length,
       past: past.length,
-      transfer: 0,
+      transfer: transferCount,
     },
   };
 }

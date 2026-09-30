@@ -2,7 +2,7 @@
   // @ts-nocheck
   /**
    * My Tickets: desktop HI-FI 604:1490 / past 605:1341 (roadmap 6.1 / FR-19 to 20).
-   * Transfer Ticket opens the transfer form (6.2) for VALID tickets. QR payload locked for scanner 7.1.
+   * Transfer Ticket opens the transfer form (6.2) for VALID tickets. QR is the holder's qr_token (6.2b).
    */
   import { goto } from "$app/navigation";
   import { showToast } from "$lib/store";
@@ -41,7 +41,8 @@
       guest: {
         name: ticket.guestName,
         ticketType: ticket.ticketTypeName,
-        ticketNumber: ticket.qrPayload,
+        ticketNumber: ticket.ticketNumber || "",
+        qrToken: ticket.qrPayload || "",
         id: ticket.guestId || ticket.id,
       },
     };

@@ -1,5 +1,8 @@
 import { getServerSupabase } from "$lib/server/db";
-import { getOrganiserNleBalance } from "$lib/server/payments";
+import {
+  getOrganiserNleBalance,
+  isPrivateIssuedGuest,
+} from "$lib/server/payments";
 
 const supabase = getServerSupabase();
 
@@ -209,6 +212,13 @@ export async function load({ url, locals }) {
             if (ticketType?.name) ticketTypeName = ticketType.name;
           }
 
+          // Organizer QR is private-issue only; buyers' tokens never reach the organizer
+          const isPrivate = isPrivateIssuedGuest({
+            status: guest.status,
+            ticketType: ticketTypeName,
+            special_requirements: guest.special_requirements,
+          });
+
           return {
             id: guest.id,
             name:
@@ -219,6 +229,7 @@ export async function load({ url, locals }) {
             phone: guest.phone || "",
             ticketType: ticketTypeName,
             ticketNumber: guest.ticket_number || "",
+            qrToken: isPrivate && guest.qr_token ? guest.qr_token : null,
             status: guest.status,
             specialRequirements: guest.special_requirements || null,
             createdAt: guest.created_at || null,

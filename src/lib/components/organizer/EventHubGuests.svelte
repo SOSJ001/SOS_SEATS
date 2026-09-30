@@ -124,6 +124,8 @@
   }
 
   async function buildPreview(guest) {
+    // generateTicketPreview invents a QR when qrData is empty; never ship one without the token
+    if (!guest?.qrToken) throw new Error("Missing entry token");
     return generateTicketPreview({
       eventName: event.title || "Event",
       eventDate: event.rawDate || event.date,
@@ -134,7 +136,7 @@
       ticketPrice: "0",
       guestName: guest.name || "Guest",
       ticketNumber: guest.ticketNumber || guest.id,
-      qrData: guest.ticketNumber || guest.id,
+      qrData: guest.qrToken,
       designConfig: event.ticketDesignConfig || defaultTicketDesignConfig,
     });
   }

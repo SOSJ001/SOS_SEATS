@@ -25,6 +25,9 @@
   export let receipt = null;
   /** @type {"success" | "failed"} */
   export let variant = "success";
+  /** Failed variant: resets in place when set (same-URL links don't reset page state). */
+  /** @type {(() => void) | null} */
+  export let onTryAgain = null;
 
   $: failed = variant === "failed";
 
@@ -122,7 +125,15 @@
 
     <div class="flex w-full flex-col {failed ? 'gap-3.5 lg:gap-3' : 'gap-3'}">
       {#if failed}
-        <a href={tryAgainHref} class={primaryButtonClass}>Try Again</a>
+        {#if onTryAgain}
+          <button
+            type="button"
+            class="{primaryButtonClass} cursor-pointer border-0"
+            on:click={onTryAgain}>Try Again</button
+          >
+        {:else}
+          <a href={tryAgainHref} class={primaryButtonClass}>Try Again</a>
+        {/if}
         <a href="/dashboard/my-tickets" class={secondaryButtonClass}>Back to My Tickets</a>
       {:else}
         <a href="/dashboard/my-tickets" class={primaryButtonClass}>Back to My Tickets</a>

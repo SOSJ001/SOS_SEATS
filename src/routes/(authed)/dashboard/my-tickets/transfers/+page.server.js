@@ -4,8 +4,8 @@ import {
 } from "$lib/server/tickets/transfers";
 
 /**
- * Ticket Transfers page load (roadmap 6.2 / FR-21).
- * Same cookie-authz pattern as My Tickets: buyer_id = locals.userId.
+ * Ticket Transfers page load (roadmap 6.2 / 6.2b, FR-21).
+ * Same cookie-authz pattern as My Tickets: owner_user_id = locals.userId; history from ticket_transfers.
  */
 export async function load({ locals }) {
   const userId = locals.userId || null;

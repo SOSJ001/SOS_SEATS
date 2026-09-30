@@ -24,8 +24,10 @@
   }
 
   async function loadPreview() {
-    loading = true;
     previewUrl = "";
+    // No token, no ticket: generateTicketPreview would invent a fake QR
+    if (!guest?.qrToken) return;
+    loading = true;
     try {
       previewUrl = await generateTicketPreview({
         eventName: event.title || "Event",
@@ -37,7 +39,7 @@
         ticketPrice: "0",
         guestName: guest.name || "Guest",
         ticketNumber: guest.ticketNumber || guest.id,
-        qrData: guest.ticketNumber || guest.id || String(Date.now()),
+        qrData: guest.qrToken,
         designConfig: event.ticketDesignConfig || defaultTicketDesignConfig,
       });
     } catch {
