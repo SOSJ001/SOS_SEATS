@@ -7,6 +7,7 @@
   import MyTicketsHighlight from "./MyTicketsHighlight.svelte";
   import MyTicketsStats from "./MyTicketsStats.svelte";
   import MyTicketsTicketRow from "./MyTicketsTicketRow.svelte";
+  import AttendeeTabs from "./AttendeeTabs.svelte";
 
   export let userName = "Attendee";
   /** @type {any} */
@@ -101,72 +102,15 @@
 
   <MyTicketsStats {stats} />
 
-  <!-- Mobile segmented tabs (610:1374) -->
-  <div
-    class="flex w-full items-start lg:hidden"
-    role="tablist"
-    aria-label="Ticket filters"
-  >
-    <div
-      class="flex flex-1 gap-1 rounded-full border border-paper-border bg-paper p-1"
-    >
-      <button
-        type="button"
-        role="tab"
-        aria-selected={tab === "upcoming"}
-        class="flex h-9 flex-1 cursor-pointer items-center justify-center rounded-full border-0 text-[13px] font-bold {tab ===
-        'upcoming'
-          ? 'bg-brand text-white'
-          : 'bg-transparent text-ink-secondary'}"
-        on:click={() => setTab("upcoming")}
-      >
-        Upcoming
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={tab === "past"}
-        class="flex h-9 flex-1 cursor-pointer items-center justify-center rounded-full border-0 text-[13px] font-bold {tab ===
-        'past'
-          ? 'bg-brand text-white'
-          : 'bg-transparent text-ink-secondary'}"
-        on:click={() => setTab("past")}
-      >
-        Past History
-      </button>
-    </div>
-  </div>
-
-  <!-- Desktop loose pills (604:1542) -->
-  <div
-    class="hidden items-center gap-2.5 lg:flex"
-    role="tablist"
-    aria-label="Ticket filters"
-  >
-    <button
-      type="button"
-      role="tab"
-      aria-selected={tab === "upcoming"}
-      class="cursor-pointer rounded-[20px] px-3.5 py-1.5 text-[13px] {tab ===
-      'upcoming'
-        ? 'border-0 bg-brand font-bold text-white'
-        : 'border border-solid border-paper-border bg-transparent font-medium text-ink-secondary'}"
-      on:click={() => setTab("upcoming")}
-    >
-      Upcoming
-    </button>
-    <button
-      type="button"
-      role="tab"
-      aria-selected={tab === "past"}
-      class="cursor-pointer rounded-[20px] px-3.5 py-1.5 text-[13px] {tab === 'past'
-        ? 'border-0 bg-brand font-bold text-white'
-        : 'border border-solid border-paper-border bg-transparent font-medium text-ink-secondary'}"
-      on:click={() => setTab("past")}
-    >
-      Past History
-    </button>
-  </div>
+  <AttendeeTabs
+    tabs={[
+      { id: "upcoming", label: "Upcoming" },
+      { id: "past", label: "Past History" },
+    ]}
+    active={tab}
+    onChange={setTab}
+    ariaLabel="Ticket filters"
+  />
 
   <div class="flex w-full flex-col gap-4 lg:gap-3" role="tabpanel">
     {#if list.length === 0}

@@ -1,16 +1,13 @@
 <script>
   // @ts-nocheck
-  /** My Tickets ticket reveal — desktop 607:1429 / mobile 83:25; card via TicketLivePreview 571:110. */
+  /** My Tickets ticket reveal: desktop 607:1429 / mobile 83:25; card via TicketLivePreview 571:110. */
   import { onMount } from "svelte";
   import { fade, scale } from "svelte/transition";
   import X from "lucide-svelte/icons/x";
   import TicketLivePreview from "$lib/components/organizer/TicketLivePreview.svelte";
-  import {
-    defaultTicketLayout,
-    ensureTicketDesignWithLayout,
-  } from "$lib/client/ticketLayout";
+  import { ticketPreviewLayout } from "$lib/client/ticketLayout";
   import { exportTicketCardPng } from "$lib/client/exportTicketCard";
-  import { defaultTicketDesignConfig, downloadImage } from "$lib/store";
+  import { downloadImage } from "$lib/store";
 
   /** @type {any} */
   export let event = null;
@@ -27,18 +24,7 @@
   $: qrData = guest?.ticketNumber || guest?.id || "";
 
   /** Honor organizer layout (left / right / centre) from ticket_design_config. */
-  $: previewLayout = (() => {
-    const design = ensureTicketDesignWithLayout(
-      event?.ticketDesignConfig || defaultTicketDesignConfig
-    );
-    return {
-      ...defaultTicketLayout,
-      ...design.layout,
-      includeVenue: design.layout?.includeVenue ?? true,
-      includeDateTime: design.layout?.includeDateTime ?? true,
-      showDisclaimer: design.layout?.showDisclaimer ?? true,
-    };
-  })();
+  $: previewLayout = ticketPreviewLayout(event?.ticketDesignConfig);
 
   function close() {
     open = false;

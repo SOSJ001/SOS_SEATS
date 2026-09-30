@@ -460,6 +460,11 @@ function formatPriceLabel(typeName: string, price: number, isFree: boolean): str
   return `${typeName} · NLe ${n}`;
 }
 
+/** Tier uppercased, currency kept as "NLe" (CSS uppercase would print "NLE"). */
+export function formatTierLabel(typeName: string, price: number, isFree: boolean): string {
+  return formatPriceLabel((typeName || "Ticket").toUpperCase(), price, isFree);
+}
+
 /**
  * Cookie-authz My Tickets load (roadmap 6.1 / FR-19–20).
  * Filters by buyer_id = session user id via Kit privileged client.

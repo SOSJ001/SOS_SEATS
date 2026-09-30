@@ -108,7 +108,29 @@ export function formatTicketDate(dateStr: string, timeStr?: string): string {
 export function ticketTypeBadge(ticketTypes: Array<{ name?: string }> | undefined): string {
   const named = ticketTypes?.find((t) => t.name?.trim());
   if (named?.name?.trim()) {
-    return `${named.name.trim().toUpperCase()} TICKET`;
+    const label = named.name.trim().toUpperCase();
+    return /TICKET$/.test(label) ? label : `${label} TICKET`;
   }
   return "VIP TICKET";
+}
+
+/** Attendee card layout: organizer layout over defaults, venue/date/disclaimer on unless turned off. */
+export function ticketPreviewLayout(
+  ticketDesignConfig: TicketDesignConfig | Record<string, unknown> | null | undefined,
+): TicketLayout {
+  const design = ensureTicketDesignWithLayout(ticketDesignConfig || defaultTicketDesignConfig);
+  return {
+    ...defaultTicketLayout,
+    ...design.layout,
+    includeVenue: design.layout?.includeVenue ?? true,
+    includeDateTime: design.layout?.includeDateTime ?? true,
+    showDisclaimer: design.layout?.showDisclaimer ?? true,
+  };
+}
+
+/** Last 4 characters only, so a screenshot cannot rebuild the entry QR. */
+export function maskTicketNumber(value: string | null | undefined): string {
+  const raw = String(value || "").replace(/^#/, "").trim();
+  if (!raw) return "#••••";
+  return `#••••${raw.slice(-4).toUpperCase()}`;
 }

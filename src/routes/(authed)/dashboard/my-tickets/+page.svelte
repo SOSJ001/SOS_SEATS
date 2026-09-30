@@ -1,9 +1,10 @@
 <script>
   // @ts-nocheck
   /**
-   * My Tickets — desktop HI-FI 604:1490 / past 605:1341 (roadmap 6.1 / FR-19–20).
-   * Transfer behavior = 6.2 (toast only). QR payload locked for scanner 7.1.
+   * My Tickets: desktop HI-FI 604:1490 / past 605:1341 (roadmap 6.1 / FR-19 to 20).
+   * Transfer Ticket opens the transfer form (6.2) for VALID tickets. QR payload locked for scanner 7.1.
    */
+  import { goto } from "$app/navigation";
   import { showToast } from "$lib/store";
   import MyTicketsLayout from "$lib/components/attendee/MyTicketsLayout.svelte";
   import MyTicketsRevealOverlay from "$lib/components/attendee/MyTicketsRevealOverlay.svelte";
@@ -78,12 +79,12 @@
     }
   }
 
-  function transferTicket() {
-      showToast(
-      "info",
-      "Transfer coming soon",
-      "Ticket transfer lands in the next release (roadmap 6.2)."
-    );
+  function transferTicket(ticket) {
+    if (ticket?.id && ticket.status === "VALID") {
+      goto(`/dashboard/my-tickets/transfers/${ticket.id}`);
+    } else {
+      goto("/dashboard/my-tickets/transfers");
+    }
   }
 
   function feedbackReview() {

@@ -1,10 +1,11 @@
 <script>
   // @ts-nocheck
   /**
-   * Ticket list row — desktop 604:1548 / past 605:1402; mobile upcoming 610:1380 / past 611:1413 (308:76).
+   * Ticket list row: desktop 604:1548 / past 605:1402; mobile upcoming 610:1380 / past 611:1413 (308:76).
    */
   import Calendar from "lucide-svelte/icons/calendar";
   import MapPin from "lucide-svelte/icons/map-pin";
+  import AttendeeDateTile from "./AttendeeDateTile.svelte";
 
   export let ticket;
   /** @type {"upcoming" | "past"} */
@@ -133,17 +134,12 @@
     </div>
 
     {#if isPast && calendarParts.month}
-      <div
-        class="flex h-[52px] w-12 shrink-0 flex-col items-center justify-center overflow-hidden rounded-[10px] bg-[#f7f7f7] px-1 py-1.5 text-center lg:hidden"
-        data-name="Date-Tile"
-      >
-        <p class="m-0 text-[10px] font-bold uppercase {dateTileMonthClass}">
-          {calendarParts.month}
-        </p>
-        <p class="m-0 text-xl font-extrabold leading-none text-[#262626]">
-          {calendarParts.day}
-        </p>
-      </div>
+      <AttendeeDateTile
+        month={calendarParts.month}
+        day={calendarParts.day}
+        monthClass={dateTileMonthClass}
+        className="lg:hidden"
+      />
     {/if}
   </div>
 
