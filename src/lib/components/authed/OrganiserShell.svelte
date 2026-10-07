@@ -96,11 +96,23 @@
       mobileIcon: "door-open",
       sub: "Scan & check-in",
     },
+    {
+      id: "browse",
+      label: "Browse Events",
+      mobileLabel: "Browse Events",
+      href: "/marketplace",
+      icon: "compass",
+      mobileIcon: "compass",
+      sub: "Find upcoming events",
+    },
   ];
 
   function isActive(item) {
-    if (item.exact) return path === item.href;
-    return path === item.href || path.startsWith(item.href + "/");
+    const cleanPath = path.endsWith("/") && path.length > 1 ? path.slice(0, -1) : path;
+    const cleanHref = item.href.endsWith("/") && item.href.length > 1 ? item.href.slice(0, -1) : item.href;
+
+    if (item.exact) return cleanPath === cleanHref;
+    return cleanPath === cleanHref || cleanPath.startsWith(cleanHref + "/");
   }
 
   function openMenu() {
@@ -130,6 +142,7 @@
               ? 'bg-brand text-white font-bold'
               : 'text-white/70 font-medium hover:bg-white/[0.06] hover:text-white'}"
           >
+          <!-- icon -->
             <PublicIcon name={item.icon} size={20} color="currentColor" />
             <span>{item.label}</span>
           </a>
@@ -200,6 +213,7 @@
           ORGANISER PORTAL
         </span>
       </div>
+      
       <button
         type="button"
         class="shrink-0 rounded-lg border border-paper-border bg-paper px-4 py-2 text-sm font-semibold text-ink hover:bg-paper-cream cursor-pointer"
@@ -217,16 +231,19 @@
   </div>
 </div>
 
+<!-- mobile menu -->
 {#if menuOpen}
   <div class="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+    <!-- backdrop -->
     <button
       type="button"
-      class="absolute inset-0 bg-ink/60 border-0 cursor-pointer"
+      class="absolute inset-0 w-full h-full bg-ink/60 border-0 cursor-pointer"
       aria-label="Close menu"
       on:click={closeMenu}
     ></button>
+
     <div
-      class="absolute top-0 right-0 h-full w-[min(292px,92vw)] bg-paper shadow-[-4px_0_12px_rgba(0,0,0,0.15)] flex flex-col pb-8 pt-6 overflow-y-auto"
+      class="absolute top-0 right-0 h-full w-[min(292px,92vw)] bg-paper shadow-[-4px_0_12px_rgba(0,0,0,0.15)] flex flex-col pb-8 pt-6 overflow-y-auto z-10"
     >
       <div class="flex flex-col gap-3 px-6 pb-5 pt-6">
         <div class="flex items-center justify-between">
@@ -244,6 +261,7 @@
       </div>
 
       <div class="flex-1 flex flex-col gap-5 px-6 pb-6 pt-4">
+        <!-- user profile -->
         <div class="flex items-center gap-3">
           <div
             class="size-12 rounded-full bg-[#fff5f1] flex items-center justify-center text-brand text-base font-extrabold shrink-0"
@@ -279,6 +297,7 @@
                 : 'bg-paper border-paper-border'}"
               on:click={closeMenu}
             >
+              <!-- icon -->
               <span
                 class="size-8 rounded-lg flex items-center justify-center shrink-0 {active
                   ? 'bg-brand/10 text-brand'
@@ -286,11 +305,14 @@
               >
                 <PublicIcon name={item.mobileIcon || item.icon} size={18} />
               </span>
+              <!-- label -->
               <span class="flex-1 min-w-0 text-left">
+                <!-- top level label -->
                 <span
                   class="block text-[15px] font-bold {active ? 'text-brand' : 'text-ink'}"
                   >{item.mobileLabel}</span
                 >
+                <!-- sub label -->
                 <span class="block text-xs text-ink-secondary truncate">{item.sub}</span>
               </span>
               <PublicIcon name="chevron-right" size={20} color="#9a92b3" />

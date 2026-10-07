@@ -5,6 +5,7 @@
   import PublicTopBar from "$lib/components/public/PublicTopBar.svelte";
   import PublicFooter from "$lib/components/public/PublicFooter.svelte";
 
+  export let data;
   $: path = $page.url.pathname;
   $: isAuthRoute =
     path.startsWith("/sign-in") ||
@@ -22,14 +23,14 @@
   <div
     class="public-shell flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-public-page"
   >
-    <PublicTopBar />
+    <PublicTopBar userName={data.userName} />
     <div class="flex min-h-0 flex-1 flex-col">
       <slot />
     </div>
   </div>
 {:else}
   <div class="public-shell flex flex-col min-h-screen bg-public-page">
-    <PublicTopBar />
+    <PublicTopBar userName={data.userName} />
     <div class="flex-1">
       <slot />
     </div>

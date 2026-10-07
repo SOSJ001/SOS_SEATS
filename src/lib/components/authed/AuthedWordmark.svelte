@@ -2,7 +2,7 @@
   // @ts-nocheck
   /** Split SOS SEATS mark (matches PublicTopBar). variant: light | dark */
   export let variant = "light";
-  export let href = "/dashboard";
+  export let href = "/";
 
   $: seatsClass = variant === "dark" ? "text-white" : "text-ink-seats";
 </script>

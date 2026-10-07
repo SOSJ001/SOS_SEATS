@@ -26,6 +26,10 @@
   import ChevronRight from "lucide-svelte/icons/chevron-right";
   import DoorOpen from "lucide-svelte/icons/door-open";
   import Lock from "lucide-svelte/icons/lock";
+  import Compass from "lucide-svelte/icons/compass";
+  import House from "lucide-svelte/icons/house";
+  import Briefcase from "lucide-svelte/icons/briefcase";
+  import CalendarPlus from "lucide-svelte/icons/calendar-plus";
 
   export let name = "search";
   export let size = 20;
@@ -54,6 +58,9 @@
     "chevron-right": ChevronRight,
     "door-open": DoorOpen,
     lock: Lock,
+    compass: Compass,
+    house: House,
+    briefcase: Briefcase,
   };
 
   $: Icon = map[name] || Search;
