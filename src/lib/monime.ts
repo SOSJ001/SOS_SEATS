@@ -72,6 +72,9 @@ class MonimeService {
       const fullError = new Error(
         `Monime API Error: ${response.status} - ${errorMessage}`
       ) as any;
+      fullError.status = response.status;
+      fullError.code = error.code;
+      fullError.apiMessage = errorMessage;
 
       // Pass through infrastructure error flag from API
       if (error.isInfrastructureError) {

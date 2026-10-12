@@ -3,6 +3,7 @@
   /**
    * Marketplace buyer Secure Checkout — desktop 55:471 / mobile 4:407.
    */
+  import ArrowLeft from "lucide-svelte/icons/arrow-left";
   import Lock from "lucide-svelte/icons/lock";
   import Phone from "lucide-svelte/icons/phone";
   import Smartphone from "lucide-svelte/icons/smartphone";
@@ -15,6 +16,7 @@
   export let bookingFee = 0;
   export let totalWithFee = 0;
   export let eventName = "";
+  export let backHref = "";
   /** @type {"orange_money" | "afrimoney"} */
   export let paymentMethod = "orange_money";
   export let phone = "";
@@ -41,6 +43,16 @@
 <div
   class="flex w-full max-w-none flex-col gap-5 lg:max-w-[440px] lg:gap-3 lg:rounded-2xl lg:border lg:border-paper-border lg:bg-white lg:p-4 lg:shadow-[0px_8px_12px_rgba(18,4,28,0.04)]"
 >
+  {#if backHref}
+    <a
+      href={backHref}
+      class="hidden w-full items-center gap-2 rounded-xl border border-paper-border bg-paper-cream px-3 py-2 text-sm font-bold text-brand no-underline hover:border-brand/40 lg:flex"
+    >
+      <ArrowLeft size={16} class="shrink-0" />
+      Back to event
+    </a>
+  {/if}
+
   <!-- Mobile summary (4:407) -->
   <div
     class="flex w-full flex-col gap-3 rounded-xl border border-paper-border bg-[#faf9f7] p-4 lg:hidden"

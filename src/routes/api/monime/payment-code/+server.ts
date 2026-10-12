@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { createPaymentCode } from "$lib/server/payments";
+import { createPaymentCode, validateCheckoutQuote } from "$lib/server/payments";
 
 interface PaymentCodeRequest {
   name: string;
@@ -19,6 +19,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
   try {
     const body: PaymentCodeRequest = await request.json();
+
+    // Organizer pay-now codes are never fulfilled into tickets (webhook skips them).
+    if (body.metadata?.purpose !== "private_issue") {
+      const quote = await validateCheckoutQuote({
+        metadata: body.metadata,
+        amount: body.amount,
+      });
+      if (!quote.ok) {
+        return json(
+          { success: false, error: quote.message, code: quote.code },
+          { status: 409 }
+        );
+      }
+    }
+
     const metadata = {
       ...(body.metadata || {}),
       buyer_id: locals.userId,

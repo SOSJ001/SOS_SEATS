@@ -2,37 +2,12 @@
   // @ts-nocheck
   /** Buyer MM checkout success — Figma desktop-checkout-success 787:1466. */
   import MarketplaceCheckoutSuccessLayout from "$lib/components/checkout/MarketplaceCheckoutSuccessLayout.svelte";
+  import { formatHeroDateTime } from "$lib/utils/formatHeroDateTime.js";
 
   export let data;
 
   $: event = data.event;
   $: order = data.order;
-
-  function formatHeroDateTime(dateRaw, time) {
-    if (!dateRaw) return "Date TBD";
-    const d = new Date(dateRaw);
-    if (Number.isNaN(d.getTime())) return dateRaw;
-    const datePart = d.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-    if (!time) return datePart;
-    try {
-      const iso = `${dateRaw}T${time.length === 5 ? `${time}:00` : time}`;
-      const t = new Date(iso);
-      if (!Number.isNaN(t.getTime())) {
-        const timePart = t.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        });
-        return `${datePart} · ${timePart}`;
-      }
-    } catch {
-      /* ignore */
-    }
-    return `${datePart} · ${time}`;
-  }
 
   function formatNle(n) {
     return Number(n || 0).toLocaleString("en-US", {
@@ -41,7 +16,7 @@
     });
   }
 
-  $: heroDateTime = formatHeroDateTime(event?.dateRaw, event?.time);
+  $: heroDateTime = formatHeroDateTime(event?.dateRaw, event?.time, "Date TBD");
   $: heroVenue = (event?.location || event?.venue || "").trim();
   $: amountLabel = `NLe ${formatNle(order?.amount)}`;
   $: shareUrl = event?.id

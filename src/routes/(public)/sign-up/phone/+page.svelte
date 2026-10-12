@@ -111,8 +111,15 @@
       <p class="m-0 w-full text-center text-sm text-ink-muted">
         Already have a phone account?
         <a
-          href="/sign-in{authQuery}"
+          href="/sign-in/phone{authQuery}"
           class="font-extrabold text-brand hover:underline">Sign In</a
+        >
+      </p>
+      <p class="m-0 w-full text-center text-sm text-ink-muted">
+        Prefer email?
+        <a
+          href="/sign-up{authQuery}"
+          class="font-extrabold text-brand hover:underline">Use email instead</a
         >
       </p>
     </div>
@@ -189,8 +196,15 @@
       <p class="m-0 w-full text-center text-sm text-ink-muted">
         Already have a phone account?
         <a
-          href="/sign-in{authQuery}"
+          href="/sign-in/phone{authQuery}"
           class="font-bold text-brand hover:underline">Sign In</a
+        >
+      </p>
+      <p class="m-0 w-full text-center text-sm text-ink-muted">
+        Prefer email?
+        <a
+          href="/sign-up{authQuery}"
+          class="font-bold text-brand hover:underline">Use email instead</a
         >
       </p>
     </div>

@@ -7,6 +7,7 @@
   import { goto } from "$app/navigation";
   import { calculateBookingFee } from "$lib/fees";
   import { showToast } from "$lib/store";
+  import { formatHeroDateTime } from "$lib/utils/formatHeroDateTime.js";
   import EventDetailHero from "$lib/components/public/EventDetailHero.svelte";
   import EventPurchaseCard from "$lib/components/public/EventPurchaseCard.svelte";
   import EventAboutOrganizer from "$lib/components/public/EventAboutOrganizer.svelte";
@@ -71,32 +72,6 @@
   $: aboutDescription = (event?.description || "").trim();
   $: showAboutBlock =
     !!aboutDescription || !!(event?.organizer || "").trim();
-
-  function formatHeroDateTime(date, time) {
-    if (!date) return "";
-    const d = new Date(date);
-    if (Number.isNaN(d.getTime())) return String(date);
-    const datePart = d.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-    if (!time) return datePart;
-    try {
-      const iso = `${date}T${time.length === 5 ? `${time}:00` : time}`;
-      const t = new Date(iso);
-      if (!Number.isNaN(t.getTime())) {
-        const timePart = t.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        });
-        return `${datePart} · ${timePart}`;
-      }
-    } catch {
-      /* ignore */
-    }
-    return `${datePart} · ${time}`;
-  }
 
   function handleQuantityChange(ticketId, newQuantity) {
     const ticketType = ticketTypes.find((t) => t.id === ticketId);

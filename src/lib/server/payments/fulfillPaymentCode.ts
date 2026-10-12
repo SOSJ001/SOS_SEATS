@@ -27,7 +27,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return null;
 }
 
-function parseSelectedTickets(raw: unknown): Record<string, number> | null {
+export function parseSelectedTickets(raw: unknown): Record<string, number> | null {
   let parsed: unknown = raw;
   if (typeof raw === "string") {
     try {

@@ -8,6 +8,7 @@
   import { goto } from "$app/navigation";
   import { claimFreeTickets } from "$lib/supabase";
   import { showToast } from "$lib/store";
+  import { formatHeroDateTime } from "$lib/utils/formatHeroDateTime.js";
   import AuthPanelDecor from "$lib/components/auth/AuthPanelDecor.svelte";
   import CheckoutEventHero from "$lib/components/checkout/CheckoutEventHero.svelte";
   import FreeClaimCard from "$lib/components/public/FreeClaimCard.svelte";
@@ -27,32 +28,6 @@
   $: heroDateTime = formatHeroDateTime(event?.dateRaw, event?.time);
   $: heroVenue = (event?.location || event?.venue || "").trim();
   $: badgeInfo = buildBadgeInfo(selectedTickets, ticketTypes);
-
-  function formatHeroDateTime(date, time) {
-    if (!date) return "";
-    const d = new Date(date);
-    if (Number.isNaN(d.getTime())) return String(date);
-    const datePart = d.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-    if (!time) return datePart;
-    try {
-      const iso = `${date}T${time.length === 5 ? `${time}:00` : time}`;
-      const t = new Date(iso);
-      if (!Number.isNaN(t.getTime())) {
-        const timePart = t.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        });
-        return `${datePart} · ${timePart}`;
-      }
-    } catch {
-      /* ignore */
-    }
-    return `${datePart} · ${time}`;
-  }
 
   function bounceToEvent() {
     goto(`/marketplace/eventDetails/${eventId}`);
@@ -109,6 +84,20 @@
         return;
       }
 
+      const soldOut = ticketTypes.some(
+        (t) => (selectedTickets[t.id] || 0) > (t.available_quantity ?? 0)
+      );
+      if (soldOut) {
+        showToast(
+          "warning",
+          "Ticket unavailable",
+          "Your selected ticket is no longer available."
+        );
+        sessionStorage.removeItem(STORAGE_KEY);
+        bounceToEvent();
+        return;
+      }
+
       ready = true;
     } catch {
       sessionStorage.removeItem(STORAGE_KEY);
@@ -143,6 +132,8 @@
         goto(
           `/marketplace/eventDetails/${event.id}/claim/success?orderId=${result.orderId}`
         );
+      } else if (result.status === 401) {
+        goto(`/marketplace/eventDetails/${event.id}/account?intent=claim`);
       } else {
         throw new Error(result.error || "Failed to claim tickets");
       }

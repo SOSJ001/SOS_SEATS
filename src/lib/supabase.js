@@ -1798,7 +1798,8 @@ export async function claimFreeTickets(
         paymentInfo,
       }),
     });
-    return await response.json();
+    const json = await response.json().catch(() => ({ success: false }));
+    return { ...json, status: response.status };
   } catch (error) {
     console.error("Error claiming tickets:", error);
     return {

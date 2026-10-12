@@ -5,13 +5,15 @@
    * Pending state uses HI-FI 55:521 CheckoutPendingLayout.
    */
   import { onMount, onDestroy } from "svelte";
+  import ArrowLeft from "lucide-svelte/icons/arrow-left";
   import { page } from "$app/stores";
-  import { goto } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
   import {
     handleMobileMoneyPaymentWithCode,
   } from "$lib/orangeMoneyPayment";
   import { monimeService } from "$lib/monime";
   import { calculateBookingFee } from "$lib/fees";
+  import { formatHeroDateTime } from "$lib/utils/formatHeroDateTime.js";
   import { walletStore, web3UserStore, showToast } from "$lib/store";
   import AuthPanelDecor from "$lib/components/auth/AuthPanelDecor.svelte";
   import CheckoutEventHero from "$lib/components/checkout/CheckoutEventHero.svelte";
@@ -20,12 +22,14 @@
   import MarketplaceCheckoutCard from "$lib/components/public/MarketplaceCheckoutCard.svelte";
 
   const STORAGE_KEY = "sos_mm_checkout";
+  const PAYMENT_METHODS = ["orange_money", "afrimoney"];
   const ORDER_WAIT_MAX_MS = 90_000;
   const ORDER_WAIT_INTERVAL_MS = 2000;
 
   export let data;
 
   $: eventId = $page.params.eventId;
+  $: eventHref = `/marketplace/eventDetails/${eventId}`;
   $: event = data?.event || null;
   $: ticketTypes = data?.ticketTypes || [];
 
@@ -98,34 +102,47 @@
     0
   );
 
-  function formatHeroDateTime(date, time) {
-    if (!date) return "";
-    const d = new Date(date);
-    if (Number.isNaN(d.getTime())) return String(date);
-    const datePart = d.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-    if (!time) return datePart;
+  function bounceToEvent() {
+    goto(`/marketplace/eventDetails/${eventId}`);
+  }
+
+  /** Session expired at Generate: keep the form, then send the buyer to account choice. */
+  function goToAccountChoice() {
     try {
-      const iso = `${date}T${time.length === 5 ? `${time}:00` : time}`;
-      const t = new Date(iso);
-      if (!Number.isNaN(t.getTime())) {
-        const timePart = t.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        });
-        return `${datePart} · ${timePart}`;
-      }
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      const saved = raw ? JSON.parse(raw) : {};
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          ...saved,
+          eventId,
+          selectedTickets,
+          paymentMethod,
+          phone: phone.trim(),
+        })
+      );
     } catch {
       /* ignore */
     }
-    return `${datePart} · ${time}`;
+    goto(`/marketplace/eventDetails/${eventId}/account?intent=checkout`);
   }
 
-  function bounceToEvent() {
-    goto(`/marketplace/eventDetails/${eventId}`);
+  /** Server rejected the quote (409) before any payment code was created. */
+  async function handleQuoteRejected(result) {
+    const message =
+      result.apiMessage || "Ticket details changed. Please review and try again.";
+    if (result.code === "price_changed") {
+      showToast("warning", "Price updated", message);
+      await invalidateAll();
+      return;
+    }
+    showToast("warning", "Ticket unavailable", message);
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    bounceToEvent();
   }
 
   function deriveOrderRef(name, id) {
@@ -381,6 +398,27 @@
         return;
       }
 
+      const soldOut = ticketTypes.some(
+        (t) => (selectedTickets[t.id] || 0) > (t.available_quantity ?? 0)
+      );
+      if (soldOut) {
+        showToast(
+          "warning",
+          "Ticket unavailable",
+          "Your selected ticket is no longer available."
+        );
+        sessionStorage.removeItem(STORAGE_KEY);
+        bounceToEvent();
+        return;
+      }
+
+      if (PAYMENT_METHODS.includes(parsed.paymentMethod)) {
+        paymentMethod = parsed.paymentMethod;
+      }
+      if (typeof parsed.phone === "string" && parsed.phone) {
+        phone = parsed.phone;
+      }
+
       ready = true;
     } catch {
       sessionStorage.removeItem(STORAGE_KEY);
@@ -483,6 +521,10 @@
           purchaseData,
         };
         startPolling();
+      } else if (result.status === 401) {
+        goToAccountChoice();
+      } else if (result.status === 409) {
+        await handleQuoteRejected(result);
       } else {
         throw new Error(result.error || "Failed to create payment code");
       }
@@ -573,6 +615,14 @@
         <AuthPanelDecor />
       </div>
 
+      <a
+        href={eventHref}
+        class="relative z-10 flex h-11 w-full items-center gap-2 px-5 py-2 text-[15px] font-bold text-ink no-underline lg:hidden"
+      >
+        <ArrowLeft size={20} class="shrink-0" />
+        Back to event
+      </a>
+
       <div
         class="relative z-10 flex w-full items-center justify-between px-5 py-3 lg:hidden"
       >
@@ -587,6 +637,7 @@
       <div class="relative z-10 w-full px-5 pb-5 pt-4 lg:max-w-[440px] lg:px-0 lg:py-0">
         <MarketplaceCheckoutCard
           eventName={event.name}
+          backHref={eventHref}
           {lineItems}
           {bookingFee}
           {totalWithFee}

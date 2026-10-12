@@ -27,3 +27,7 @@ export {
   fulfillPaymentCode,
   type FulfillPaymentCodeResult,
 } from "./fulfillPaymentCode";
+export {
+  validateCheckoutQuote,
+  type CheckoutQuoteResult,
+} from "./validateCheckoutQuote";

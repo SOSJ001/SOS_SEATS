@@ -90,6 +90,9 @@ export async function handleMobileMoneyPaymentWithCode(
   paymentCodeId?: string;
   ussdCode?: string;
   error?: string;
+  status?: number;
+  code?: string;
+  apiMessage?: string;
 }> {
   try {
     // Validate purchase data
@@ -159,10 +162,18 @@ export async function handleMobileMoneyPaymentWithCode(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Payment setup failed";
+    const details = (error ?? {}) as {
+      status?: number;
+      code?: string;
+      apiMessage?: string;
+    };
 
     return {
       success: false,
       error: errorMessage,
+      status: details.status,
+      code: details.code,
+      apiMessage: details.apiMessage,
     };
   }
 }

@@ -10,9 +10,11 @@
   $: isAuthRoute =
     path.startsWith("/sign-in") ||
     path.startsWith("/sign-up") ||
-    (path.includes("/marketplace/eventDetails/") && path.endsWith("/claim"));
+    (path.includes("/marketplace/eventDetails/") &&
+      (path.endsWith("/claim") || path.endsWith("/account")));
   $: isCheckoutRoute =
     path.includes("/marketplace/eventDetails/") && path.includes("/checkout");
+  $: isCheckoutPage = isCheckoutRoute && path.endsWith("/checkout");
 </script>
 
 {#if isAuthRoute}
@@ -23,7 +25,11 @@
   <div
     class="public-shell flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-public-page"
   >
-    <PublicTopBar userName={data.userName} />
+    {#if !isCheckoutPage}
+      <div class="lg:hidden">
+        <PublicTopBar userName={data.userName} />
+      </div>
+    {/if}
     <div class="flex min-h-0 flex-1 flex-col">
       <slot />
     </div>

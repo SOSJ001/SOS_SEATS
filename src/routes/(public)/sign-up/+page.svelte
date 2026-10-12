@@ -18,6 +18,7 @@
   $: role = $page.url.searchParams.get("role");
   $: next = $page.url.searchParams.get("next");
   $: authQuery = authSearchParams({ next, role });
+  $: showPhoneSwitch = role !== "organizer" && role !== "staff";
 
   async function onSubmit() {
     errorMessage = null;
@@ -102,10 +103,18 @@
 
       <p class="m-0 w-full text-center text-sm text-ink-secondary">
         Already have an account?
-        <a href="/sign-in{authQuery}" class="font-extrabold text-brand hover:underline"
+        <a href="/sign-in/email{authQuery}" class="font-extrabold text-brand hover:underline"
           >Sign In</a
         >
       </p>
+      {#if showPhoneSwitch}
+        <p class="m-0 w-full text-center text-sm text-ink-secondary">
+          Prefer phone?
+          <a href="/sign-up/phone{authQuery}" class="font-extrabold text-brand hover:underline"
+            >Use phone instead</a
+          >
+        </p>
+      {/if}
     </div>
 
     <p class="m-0 w-full text-center text-xs leading-[1.5] text-ink-muted">
@@ -170,8 +179,16 @@
     <div class="flex w-full flex-col items-center gap-3 text-center">
       <p class="m-0 w-full text-sm text-ink-secondary">
         Already have an account?
-        <a href="/sign-in{authQuery}" class="font-bold text-brand hover:underline">Sign In</a>
+        <a href="/sign-in/email{authQuery}" class="font-bold text-brand hover:underline">Sign In</a>
       </p>
+      {#if showPhoneSwitch}
+        <p class="m-0 w-full text-sm text-ink-secondary">
+          Prefer phone?
+          <a href="/sign-up/phone{authQuery}" class="font-bold text-brand hover:underline"
+            >Use phone instead</a
+          >
+        </p>
+      {/if}
       <p class="m-0 w-full text-center text-xs leading-[1.5] text-ink-muted">
         By creating an account, you agree to our
         <a href="/terms" class="font-semibold text-brand hover:underline">Terms</a>
