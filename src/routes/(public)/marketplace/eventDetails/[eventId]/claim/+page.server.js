@@ -18,9 +18,7 @@ export async function load({ params, locals }) {
     throw error(404, "Event not found");
   }
 
-  const image =
-    eventData.images?.[0]?.file_path ||
-    "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop";
+  const image = eventData.images?.[0]?.file_path || null;
 
   const ticketTypes = (eventData.ticket_types || []).map((ticket) => ({
     id: ticket.id,

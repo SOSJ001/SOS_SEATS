@@ -8,6 +8,7 @@
   import Copy from "lucide-svelte/icons/copy";
   import Pencil from "lucide-svelte/icons/pencil";
   import Calendar from "lucide-svelte/icons/calendar";
+  import EventCover from "$lib/components/event/EventCover.svelte";
   import { showToast } from "$lib/store";
 
   /** @type {any} */
@@ -78,29 +79,13 @@
   <div
     class="flex w-full flex-col gap-4 overflow-hidden rounded-2xl border border-paper-border bg-paper p-4 shadow-[0px_10px_24px_-10px_rgba(0,0,0,0.05)] lg:hidden"
   >
-    <div
-      class="relative h-[180px] w-full shrink-0 overflow-hidden rounded-2xl bg-paper-cream"
-    >
-      {#if event.image}
-        <img
-          src={event.image}
-          alt=""
-          class="pointer-events-none absolute inset-0 size-full max-w-none scale-110 object-cover blur-xl"
-          aria-hidden="true"
-        />
-        <img
-          src={event.image}
-          alt="Event cover"
-          class="absolute inset-0 size-full max-w-none object-contain"
-        />
-      {:else}
-        <div
-          class="flex h-full w-full items-center justify-center text-sm text-ink-muted"
-        >
-          No cover image
-        </div>
-      {/if}
-    </div>
+    <EventCover
+      src={event.image}
+      alt="Event cover"
+      tone="light"
+      loading="eager"
+      class="h-[180px] w-full shrink-0 rounded-2xl bg-paper-cream"
+    />
 
     <div class="flex flex-col gap-2">
       <h2 class="m-0 text-[22px] font-extrabold leading-tight text-ink">
@@ -141,29 +126,13 @@
   <div
     class="hidden w-full items-center gap-6 overflow-hidden rounded-2xl border border-paper-border bg-paper p-6 shadow-[0px_10px_24px_-8px_rgba(0,0,0,0.05)] lg:flex"
   >
-    <div
-      class="relative h-[220px] w-[420px] shrink-0 overflow-hidden rounded-2xl bg-paper-cream"
-    >
-      {#if event.image}
-        <img
-          src={event.image}
-          alt=""
-          class="pointer-events-none absolute inset-0 size-full max-w-none scale-110 object-cover blur-xl"
-          aria-hidden="true"
-        />
-        <img
-          src={event.image}
-          alt="Event cover"
-          class="absolute inset-0 size-full max-w-none object-contain"
-        />
-      {:else}
-        <div
-          class="flex h-full w-full items-center justify-center text-sm text-ink-muted"
-        >
-          No cover image
-        </div>
-      {/if}
-    </div>
+    <EventCover
+      src={event.image}
+      alt="Event cover"
+      tone="light"
+      loading="eager"
+      class="h-[220px] w-[420px] shrink-0 rounded-2xl bg-paper-cream"
+    />
 
     <div class="flex min-w-0 flex-1 flex-col gap-4">
       <div class="flex flex-col gap-2.5">

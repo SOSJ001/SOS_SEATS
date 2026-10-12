@@ -4,7 +4,7 @@
    * Transfer History card, mobile 627:1331 (311:174).
    * COMPLETED opens the receipt (FR-21e); PENDING shows a disabled "Transfer Pending" button.
    */
-  import AttendeeEventThumb from "./AttendeeEventThumb.svelte";
+  import EventCover from "$lib/components/event/EventCover.svelte";
   import AttendeeDateTile from "./AttendeeDateTile.svelte";
   import TransferStatusBadge from "./TransferStatusBadge.svelte";
 
@@ -18,7 +18,7 @@
 {#if entry}
   <article class="flex w-full flex-col gap-3 rounded-2xl border border-paper-border bg-paper p-4">
     <div class="flex w-full items-center gap-3">
-      <AttendeeEventThumb src={entry.eventImage} sizeClass="size-12 rounded-lg" />
+      <EventCover src={entry.eventImage} empty="icon" class="size-12 shrink-0 rounded-lg" />
       <div class="flex min-w-0 flex-1 flex-col gap-2">
         <div class="flex flex-wrap items-center gap-2.5">
           <TransferStatusBadge status={entry.status} size="sm" pill />

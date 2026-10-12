@@ -1,898 +1,142 @@
-<script lang="ts">
-  import { onMount } from "svelte";
-  import { showToast } from "$lib/store";
-  import EventSelector from "$lib/components/EventSelector.svelte";
-  import QRScanner from "$lib/components/Qrscanner.svelte";
-  import ScanResult from "$lib/components/ScanResult.svelte";
-  import ScanHistory from "$lib/components/ScanHistory.svelte";
-  import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
+<script>
+  // @ts-nocheck
+  /** Door events (roadmap 7.2): desktop 530:289 / mobile 448:82. Organiser picks an owned event to scan. */
+  import Search from "lucide-svelte/icons/search";
+  import Users from "lucide-svelte/icons/users";
+  import BadgeCheck from "lucide-svelte/icons/badge-check";
+  import Ticket from "lucide-svelte/icons/ticket";
+  import DoorEventCard from "$lib/components/door/DoorEventCard.svelte";
+  import DoorStatCard from "$lib/components/door/DoorStatCard.svelte";
 
   export let data;
 
-  // Real events data from database (Kit service-role load)
-  let events: any[] = data.events || [];
-  let selectedEvent = "";
-  let isScanning = false;
-  let currentScanResult: any = null;
-  let scanHistory: any[] = [];
-  let loading = false;
-  let error: string | null = null;
+  const TABS = [
+    { id: "all", label: "All Events" },
+    { id: "active", label: "Active" },
+    { id: "upcoming", label: "Upcoming" },
+  ];
 
-  // Confirmation dialog state
-  let showConfirmDialog = false;
-  let confirmDialogData = {
-    title: "",
-    message: "",
-    confirmText: "",
-    confirmVariant: "success" as const,
-  };
+  let query = "";
+  let tab = "all";
 
-  // Confirmation dialog modes and pending wallet flow
-  let confirmMode: "start" | "wallet" | "guest" = "start";
-  let pendingWalletAddress: string | null = null;
-  let pendingGuestId: string | null = null;
-
-  // Valid ticket info (for showing before check-in)
-  let validTicketInfo: {
-    type: "guest" | "wallet";
-    guestId?: string;
-    walletAddress?: string;
-    guestName?: string;
-    ticketType?: string;
-    unscannedCount?: number;
-  } | null = null;
-
-  // Animation states
-  let isLoaded = false;
-  let showScanner = false;
-  let showHistory = false;
-
-  // Manual input for testing
-  let showManualInput = false;
-  let manualWalletAddress = "";
-
-  async function scannerApi(payload: Record<string, any>) {
-    const response = await fetch("/api/scanner", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    return response.json();
-  }
-
-  // React to event changes when bound value updates
-  let __prevSelectedEvent = "";
-  $: if (selectedEvent !== __prevSelectedEvent) {
-    __prevSelectedEvent = selectedEvent;
-    if (selectedEvent) {
-      handleEventChange(selectedEvent); // Fire and forget async call
-    }
-  }
-
-  onMount(async () => {
-    events = data.events || [];
-
-    // Load scan history for selected event if available
-    if (selectedEvent) {
-      await loadScanHistoryForEvent(selectedEvent);
-    }
-
-    // Trigger entrance animations
-    setTimeout(() => {
-      isLoaded = true;
-    }, 100);
-
-    setTimeout(() => {
-      showScanner = true;
-    }, 300);
-
-    setTimeout(() => {
-      showHistory = true;
-    }, 500);
-  });
-
-  async function loadEvents() {
-    events = data.events || [];
-    loading = false;
-  }
-
-  async function handleEventChange(eventId: string) {
-    selectedEvent = eventId;
-    // Reset scan state when event changes
-    isScanning = false;
-    currentScanResult = null;
-    validTicketInfo = null;
-    // Load scan history for the new event
-    if (eventId) {
-      await loadScanHistoryForEvent(eventId);
-    }
-  }
-
-  async function loadScanHistoryForEvent(eventId: string) {
-    try {
-      const response = await fetch(
-        `/api/scanner?eventId=${encodeURIComponent(eventId)}&action=history`
-      );
-      const result = await response.json();
-      scanHistory = result.history || [];
-    } catch (err) {
-      console.error("Error loading scan history:", err);
-    }
-  }
-
-  function isUuid(value: string) {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      value
+  $: events = data.doorEvents || [];
+  $: summary = data.summary || { activeEvents: 0, scannedToday: 0, notCheckedIn: 0 };
+  $: needle = query.trim().toLowerCase();
+  $: filtered = events.filter((e) => {
+    if (tab !== "all" && e.phase !== tab) return false;
+    if (!needle) return true;
+    return (
+      String(e.name || "").toLowerCase().includes(needle) ||
+      String(e.location || "").toLowerCase().includes(needle)
     );
-  }
-
-  function isLikelySolanaAddress(value: string) {
-    // Base58, typically 32-44 chars, no 0,O,I,l
-    return /^[1-9A-HJ-NP-Za-km-z]{32,64}$/.test(value);
-  }
-
-  async function processWalletScan(walletAddress: string) {
-    const res = await scannerApi({
-      action: "validate-wallet",
-      eventId: selectedEvent,
-      walletAddress,
-    });
-    return {
-      route: "wallet" as const,
-      result: res,
-      scannedValue: walletAddress,
-    };
-  }
-
-  async function handleScanResult(scannedValue: string) {
-    if (!scannedValue || scannedValue.trim() === "") {
-      return;
-    }
-
-    if (!selectedEvent) {
-      showToast(
-        "error",
-        "No Event Selected",
-        "Please select an event before scanning tickets"
-      );
-      isScanning = false;
-      return;
-    }
-
-    try {
-      let result: any;
-      let route: "guest" | "wallet" | "invalid" = "invalid";
-
-      if (isUuid(scannedValue)) {
-        // Guest ID path
-        route = "guest";
-        const lookup = await scannerApi({
-          action: "lookup-guest",
-          eventId: selectedEvent,
-          guestId: scannedValue,
-        });
-        const guestRow = lookup.guest;
-        const ticketTypeName = lookup.ticketTypeName || "Ticket";
-
-        if (!lookup.success || !guestRow) {
-          result = {
-            success: false,
-            message:
-              "Invalid ticket or invite code. Please check the Invite code and try again.",
-          };
-        } else if (guestRow.event_id !== selectedEvent) {
-          result = {
-            success: false,
-            message: "This ticket is not valid.",
-          };
-        } else if (guestRow.check_in_time) {
-          const checkInDate = new Date(guestRow.check_in_time);
-          const formattedDate = checkInDate.toLocaleString([], {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          result = {
-            success: false,
-            message: `This ticket has already been checked in on ${formattedDate}. Each ticket can only be used once.`,
-          };
-        } else if (guestRow.status && guestRow.status !== "confirmed") {
-          result = {
-            success: false,
-            message: `This ticket cannot be checked in. Current status: ${guestRow.status}. Only confirmed tickets can be checked in.`,
-          };
-        } else {
-          validTicketInfo = {
-            type: "guest",
-            guestId: scannedValue,
-            guestName: `${guestRow.first_name} ${guestRow.last_name}`,
-            ticketType: ticketTypeName,
-          };
-          currentScanResult = {
-            success: true,
-            message: "Ticket is valid and ready to check in",
-            guestName: validTicketInfo.guestName,
-            ticketType: validTicketInfo.ticketType,
-            section: "General Admission",
-            timestamp: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            isPending: true,
-          };
-          isScanning = false;
-          return;
-        }
-      } else if (isLikelySolanaAddress(scannedValue)) {
-        const preview = await scannerApi({
-          action: "wallet-preview",
-          eventId: selectedEvent,
-          walletAddress: scannedValue,
-        });
-        const unscannedCount = preview.unscannedCount || 0;
-
-        if (unscannedCount < 1) {
-          if (preview.alreadyCheckedIn && preview.lastCheckIn) {
-            const checkInDate = new Date(preview.lastCheckIn);
-            const formattedDate = checkInDate.toLocaleString([], {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-            result = {
-              success: false,
-              message: `All tickets for this wallet have already been checked in. Last check-in: ${formattedDate}. Each ticket can only be used once.`,
-            };
-          } else {
-            route = "invalid";
-            result = {
-              success: false,
-              message:
-                "No valid tickets found for this wallet address. Please verify the QR code matches a valid ticket or invite.",
-            };
-          }
-        } else {
-          validTicketInfo = {
-            type: "wallet",
-            walletAddress: scannedValue,
-            guestName: preview.buyerName || "Ticket Holder",
-            ticketType: preview.ticketTypeName || "Ticket",
-            unscannedCount: unscannedCount,
-          };
-          currentScanResult = {
-            success: true,
-            message:
-              unscannedCount > 1
-                ? `${unscannedCount} unscanned tickets available`
-                : "Ticket is valid and ready to check in",
-            guestName: validTicketInfo.guestName,
-            ticketType: validTicketInfo.ticketType,
-            section: "General Admission",
-            timestamp: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            isPending: true,
-            unscannedCount,
-          };
-          isScanning = false;
-          return;
-        }
-      } else {
-        route = "invalid";
-        result = {
-          success: false,
-          message:
-            "Unrecognized QR code format. Expected a guest invite UUID or wallet address.",
-        };
-      }
-
-      // Failed / invalid path
-      currentScanResult = {
-        success: false,
-        message: result?.message || "Scan failed",
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        route,
-      };
-      isScanning = false;
-    } catch (err) {
-      console.error("Scan error:", err);
-      showToast(
-        "error",
-        "Scan Error",
-        err instanceof Error ? err.message : "Failed to process scan"
-      );
-      isScanning = false;
-    }
-  }
-
-  function startScanning() {
-    if (!selectedEvent) {
-      showToast(
-        "error",
-        "No Event Selected",
-        "Please select an event before scanning"
-      );
-      return;
-    }
-
-    // Clear previous scan result to show camera again
-    currentScanResult = null;
-    validTicketInfo = null;
-    isScanning = true;
-  }
-
-  function stopScanning() {
-    isScanning = false;
-  }
-
-  function showScanConfirmation() {
-    // Check if event is selected BEFORE opening the modal
-    // Handle empty string, null, undefined, or whitespace-only values
-    const trimmedEvent = (selectedEvent || "").toString().trim();
-    if (!selectedEvent || trimmedEvent === "") {
-      showToast(
-        "error",
-        "No Event Selected",
-        "Please select an event before scanning tickets"
-      );
-      return; // Exit early - don't open modal
-    }
-
-    // Second check: does the event exist in the events array?
-    const selectedEventData = events.find((e) => e.id === selectedEvent);
-
-    if (!selectedEventData) {
-      showToast(
-        "error",
-        "No Event Selected",
-        "Please select an event before scanning tickets"
-      );
-      return; // Exit early - don't open modal
-    }
-
-    // Only open modal if event is valid
-    // Clear previous scan result and stop any ongoing scanning to show camera
-    currentScanResult = null;
-    validTicketInfo = null;
-    isScanning = false;
-
-    confirmMode = "start";
-    confirmDialogData = {
-      title: "Start Scanning",
-      message: `Are you sure you want to start scanning tickets for "${selectedEventData.name}"?`,
-      confirmText: "Start Scanning",
-      confirmVariant: "success",
-    };
-    showConfirmDialog = true;
-  }
-
-  async function handleScanConfirm() {
-    showConfirmDialog = false;
-    if (confirmMode === "wallet" && pendingWalletAddress) {
-      processWalletScan(pendingWalletAddress)
-        .then(async ({ result }) => {
-          if (result.success) {
-            const ticketInfo = result.ticketInfo;
-            currentScanResult = {
-              success: true,
-              message: result.message,
-              guestName: ticketInfo.original_buyer_name || "Unknown",
-              ticketType: ticketInfo.ticket_type_name || "Standard Ticket",
-              section: "General Admission",
-              timestamp: new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-              ticketInfo: ticketInfo,
-            };
-            // Reload scan history from database
-            if (selectedEvent) {
-              await loadScanHistoryForEvent(selectedEvent);
-            }
-            showToast(
-              "success",
-              "Ticket Validated",
-              `${ticketInfo.original_buyer_name} checked in successfully`
-            );
-          } else {
-            // Format error message if it contains a timestamp
-            let errorMessage = result.message;
-            if (
-              errorMessage &&
-              errorMessage.includes("already checked in at")
-            ) {
-              // Try to format the timestamp in the message
-              const timestampMatch = errorMessage.match(
-                /already checked in at (.+)/
-              );
-              if (timestampMatch && timestampMatch[1]) {
-                try {
-                  const checkInDate = new Date(timestampMatch[1]);
-                  const formattedDate = checkInDate.toLocaleString([], {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
-                  errorMessage = `This ticket has already been checked in on ${formattedDate}. Each ticket can only be used once.`;
-                } catch (e) {
-                  // If date parsing fails, use original message
-                }
-              }
-            }
-            currentScanResult = {
-              success: false,
-              message: errorMessage,
-              timestamp: new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-            };
-            // Don't add failed scans to history (only successful check-ins are stored)
-            showToast("error", "Validation Failed", errorMessage);
-          }
-        })
-        .finally(() => {
-          pendingWalletAddress = null;
-          confirmMode = "start";
-          isScanning = false;
-        });
-    } else if (confirmMode === "guest" && pendingGuestId) {
-      // Proceed with guest check-in after confirmation
-      scannerApi({
-        action: "check-in-guest",
-        eventId: selectedEvent,
-        guestId: pendingGuestId,
-      })
-        .then(async (check) => {
-          if (check.success) {
-            const ticketInfo: any = {
-              original_buyer_name: "Guest",
-              ticket_type_name: "Ticket",
-            };
-            currentScanResult = {
-              success: true,
-              message: check.message || "Guest checked in successfully",
-              guestName: ticketInfo.original_buyer_name,
-              ticketType: ticketInfo.ticket_type_name,
-              section: "General Admission",
-              timestamp: new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-              ticketInfo,
-            };
-            // Reload scan history from database
-            if (selectedEvent) {
-              await loadScanHistoryForEvent(selectedEvent);
-            }
-            showToast(
-              "success",
-              "Ticket Validated",
-              `${ticketInfo.original_buyer_name} checked in successfully`
-            );
-          } else {
-            currentScanResult = {
-              success: false,
-              message:
-                check.error ||
-                "Invalid ticket or invite code. Please check the invite code and try again.",
-              timestamp: new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-            };
-            // Don't add failed scans to history (only successful check-ins are stored)
-            showToast("error", "Validation Failed", currentScanResult.message);
-          }
-        })
-        .finally(() => {
-          pendingGuestId = null;
-          validTicketInfo = null;
-          confirmMode = "start";
-          isScanning = false;
-        });
-    } else {
-      startScanning();
-    }
-  }
-
-  function handleScanCancel() {
-    showConfirmDialog = false;
-  }
-
-  function handleCheckInClick() {
-    if (!validTicketInfo) return;
-
-    if (validTicketInfo.type === "guest" && validTicketInfo.guestId) {
-      // Show confirmation dialog for guest check-in
-      pendingGuestId = validTicketInfo.guestId;
-      confirmMode = "guest";
-      confirmDialogData = {
-        title: "Confirm Check-In",
-        message: `Proceed to check in ${validTicketInfo.guestName}?`,
-        confirmText: "Check In",
-        confirmVariant: "success",
-      };
-      showConfirmDialog = true;
-    } else if (
-      validTicketInfo.type === "wallet" &&
-      validTicketInfo.walletAddress
-    ) {
-      // Show confirmation dialog for wallet check-in
-      pendingWalletAddress = validTicketInfo.walletAddress;
-      confirmMode = "wallet";
-      const ticketCount = validTicketInfo.unscannedCount || 1;
-      confirmDialogData = {
-        title: ticketCount > 1 ? "Multiple Tickets Found" : "Confirm Check-In",
-        message:
-          ticketCount > 1
-            ? `This wallet has ${ticketCount} unscanned tickets. Proceed to check in one?`
-            : `Proceed to check in ${validTicketInfo.guestName}?`,
-        confirmText: ticketCount > 1 ? "Check In One" : "Check In",
-        confirmVariant: "success",
-      };
-      showConfirmDialog = true;
-    }
-  }
-
-  function toggleManualInput() {
-    showManualInput = !showManualInput;
-    if (showManualInput) {
-      manualWalletAddress = "";
-    }
-  }
-
-  function handleManualSubmit() {
-    if (manualWalletAddress.trim()) {
-      handleScanResult(manualWalletAddress.trim());
-      manualWalletAddress = "";
-      showManualInput = false;
-    }
-  }
-
-  function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    });
-  }
+  });
 </script>
 
-<div class="min-h-screen bg-gray-900 text-white">
-  <!-- Header -->
-  <div
-    class="mb-8 transition-all duration-1000 transform {isLoaded
-      ? 'translate-y-0 opacity-100'
-      : 'translate-y-8 opacity-0'}"
+<svelte:head>
+  <title>Door Scanner | SOS SEATS</title>
+</svelte:head>
+
+<div class="mx-auto flex w-full max-w-[1100px] flex-col gap-3">
+  <section
+    class="hidden md:flex flex-col gap-2 rounded-[20px] bg-gradient-to-r from-slate-public to-brand px-6 py-4"
   >
-    <h1 class="text-3xl font-bold text-white mb-2">QR Code Scanner</h1>
-    <p class="text-gray-400">Scan tickets and verify guest entry</p>
+    <span class="self-start rounded bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white">
+      ORGANISER PORTAL
+    </span>
+    <h1 class="m-0 text-2xl font-extrabold text-white">Door Scanner</h1>
+    <p class="m-0 text-sm text-white/80">
+      Select an event to begin scanning tickets and manage live check-ins.
+    </p>
+  </section>
+
+  <label
+    class="flex items-center gap-2.5 rounded-xl border border-paper-border bg-paper px-4 py-3.5 focus-within:border-brand md:py-2"
+  >
+    <Search class="size-4 shrink-0 text-ink-secondary" aria-hidden="true" />
+    <span class="sr-only">Search events</span>
+    <input
+      type="search"
+      bind:value={query}
+      placeholder="Search events"
+      class="w-full border-0 bg-transparent p-0 text-sm text-ink placeholder:text-ink-secondary focus:outline-none focus:ring-0"
+    />
+  </label>
+
+  <div class="hidden md:flex gap-4">
+    <DoorStatCard
+      layout="summary"
+      tone="green"
+      icon={Users}
+      value={summary.activeEvents}
+      label="Active Events"
+      caption="Ready for scanning"
+    />
+    <DoorStatCard
+      layout="summary"
+      tone="orange"
+      icon={BadgeCheck}
+      value={summary.scannedToday}
+      label="Scanned Today"
+      caption="Across your events"
+    />
+    <DoorStatCard
+      layout="summary"
+      tone="blue"
+      icon={Ticket}
+      value={summary.notCheckedIn}
+      label="Not checked in yet"
+      caption="Today's events"
+    />
   </div>
 
-  <!-- Loading State -->
-  {#if loading}
-    <div class="flex items-center justify-center min-h-64">
-      <div class="text-center">
-        <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"
-        ></div>
-        <p class="text-gray-400">Loading events...</p>
-      </div>
-    </div>
-  {:else if error}
-    <div class="bg-red-600 border border-red-500 rounded-lg p-6 mb-8">
-      <div class="flex items-center">
-        <svg
-          class="w-6 h-6 text-red-400 mr-3"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-            clip-rule="evenodd"
-          />
-        </svg>
-        <div>
-          <h3 class="text-white font-semibold">Error Loading Events</h3>
-          <p class="text-red-200 text-sm">{error}</p>
-        </div>
-      </div>
+  <div class="hidden md:flex gap-3 py-0.5" role="tablist" aria-label="Filter events">
+    {#each TABS as t}
       <button
-        on:click={loadEvents}
-        class="mt-4 px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition-colors duration-200"
+        type="button"
+        role="tab"
+        aria-selected={tab === t.id}
+        class="rounded-[20px] border px-4 py-2 text-[13px] font-bold {tab === t.id
+          ? 'border-brand bg-brand text-white'
+          : 'border-paper-border bg-paper text-ink hover:border-brand'}"
+        on:click={() => (tab = t.id)}
       >
-        Retry
+        {t.label}
       </button>
+    {/each}
+  </div>
+
+  {#if data.loadError}
+    <div class="rounded-2xl border border-dashed border-paper-border px-5 py-8 text-center">
+      <p class="m-0 text-base font-bold text-ink">Couldn't load your events</p>
+      <p class="m-0 mt-1 text-sm text-ink-secondary">Please refresh the page to try again.</p>
     </div>
   {:else if events.length === 0}
-    <div class="bg-yellow-600 border border-yellow-500 rounded-lg p-6 mb-8">
-      <div class="flex items-center">
-        <svg
-          class="w-6 h-6 text-yellow-400 mr-3"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-            clip-rule="evenodd"
-          />
-        </svg>
-        <div>
-          <h3 class="text-white font-semibold">No Active Events</h3>
-          <p class="text-yellow-200 text-sm">
-            There are no active events available for scanning.
-          </p>
-        </div>
-      </div>
+    <div class="rounded-2xl border border-dashed border-paper-border px-5 py-8 text-center">
+      <p class="m-0 text-base font-bold text-ink">No published events yet</p>
+      <p class="m-0 mt-1 text-sm text-ink-secondary">
+        Publish an event to start scanning tickets at the door.
+      </p>
+      <a
+        href="/dashboard/events/createEvent"
+        class="mt-3 inline-block text-sm font-semibold text-brand underline hover:opacity-90"
+      >
+        Create an event
+      </a>
+    </div>
+  {:else if filtered.length === 0}
+    <div class="rounded-2xl border border-dashed border-paper-border px-5 py-8 text-center">
+      <p class="m-0 text-base font-bold text-ink">No events match</p>
+      <p class="m-0 mt-1 text-sm text-ink-secondary">
+        {tab === "active"
+          ? "None of your events are happening today."
+          : "Try a different search or filter."}
+      </p>
     </div>
   {:else}
-    <!-- Main Content Grid -->
-    <div
-      class="grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all duration-1000 transform {showScanner
-        ? 'translate-y-0 opacity-100'
-        : 'translate-y-8 opacity-0'}"
-    >
-      <!-- Left Column - Scanner Controls -->
-      <div class="lg:col-span-2 space-y-6">
-        <!-- Event Selector -->
-        <EventSelector bind:selectedEvent />
-
-        <!-- QR Scanner or Scan Result -->
-        <div class="flex justify-center">
-          {#if currentScanResult}
-            <!-- Show scan result in place of camera -->
-            <div
-              class="w-80 min-h-80 bg-gray-800 border-2 border-cyan-400 rounded-lg overflow-hidden shadow-lg flex items-center justify-center p-6"
-              style="box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);"
-            >
-              {#if currentScanResult.success}
-                {#if currentScanResult.isPending}
-                  <!-- Valid Ticket - Pending Check-In -->
-                  <div
-                    class="bg-cyan-600 border border-cyan-500 rounded-lg p-6 w-full"
-                  >
-                    <div class="flex items-center mb-4 justify-center">
-                      <svg
-                        class="w-8 h-8 text-cyan-300"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fill-rule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z"
-                          clip-rule="evenodd"
-                        />
-                      </svg>
-                      <h3 class="ml-2 text-white font-bold text-xl">
-                        Valid Ticket
-                      </h3>
-                    </div>
-                    <div class="space-y-3 text-white text-center mb-4">
-                      <p class="font-semibold text-lg">
-                        {currentScanResult.guestName}
-                      </p>
-                      <p class="text-cyan-100">
-                        {currentScanResult.ticketType} - {currentScanResult.section}
-                      </p>
-                      <p class="text-cyan-200 text-sm">
-                        {currentScanResult.timestamp}
-                      </p>
-                    </div>
-                    <div class="flex flex-col sm:flex-row gap-3">
-                      <button
-                        on:click={handleCheckInClick}
-                        class="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base"
-                      >
-                        Check In Now
-                      </button>
-                      <button
-                        on:click={() => {
-                          currentScanResult = null;
-                          validTicketInfo = null;
-                          isScanning = false;
-                        }}
-                        class="flex-1 px-4 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm sm:text-base"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                {:else}
-                  <!-- Success Result (Already Checked In) -->
-                  <div
-                    class="bg-green-600 border border-green-500 rounded-lg p-6 w-full"
-                  >
-                    <div class="flex items-center mb-4 justify-center">
-                      <svg
-                        class="w-8 h-8 text-green-400"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fill-rule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clip-rule="evenodd"
-                        />
-                      </svg>
-                      <h3 class="ml-2 text-white font-bold text-xl">
-                        Ticket Verified!
-                      </h3>
-                    </div>
-                    <div class="space-y-3 text-white text-center">
-                      <p class="font-semibold text-lg">
-                        {currentScanResult.guestName}
-                      </p>
-                      <p class="text-green-100">
-                        {currentScanResult.ticketType} - {currentScanResult.section}
-                      </p>
-                      <p class="text-green-200 text-sm">
-                        {currentScanResult.timestamp}
-                      </p>
-                    </div>
-                  </div>
-                {/if}
-              {:else}
-                <!-- Error Result -->
-                <div
-                  class="bg-red-600 border border-red-500 rounded-lg p-6 w-full"
-                >
-                  <div class="flex items-center mb-4 justify-center">
-                    <svg
-                      class="w-8 h-8 text-red-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                    <h3 class="ml-2 text-white font-bold text-xl">
-                      Verification Failed
-                    </h3>
-                  </div>
-                  <div class="space-y-3 text-white text-center">
-                    <p class="font-semibold text-base leading-relaxed">
-                      {currentScanResult.message}
-                    </p>
-                    <p class="text-red-200 text-sm">
-                      {currentScanResult.timestamp}
-                    </p>
-                  </div>
-                </div>
-              {/if}
-            </div>
-          {:else}
-            <!-- Show camera scanner when no result -->
-            <QRScanner {isScanning} onScan={handleScanResult} />
-          {/if}
-        </div>
-
-        <!-- Scan Controls -->
-        <div class="flex flex-col items-center space-y-4">
-          <div class="flex justify-center space-x-4">
-            <button
-              on:click={showScanConfirmation}
-              disabled={isScanning}
-              class="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              Start Scanning
-            </button>
-            <button
-              on:click={stopScanning}
-              disabled={!isScanning}
-              class="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold rounded-lg hover:from-red-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              Stop Scanning
-            </button>
-          </div>
-
-          <!-- Manual Input Toggle -->
-          <button
-            on:click={toggleManualInput}
-            class="px-4 py-2 bg-gray-700 text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
-          >
-            {showManualInput ? "Hide Manual Input" : "Manual Input"}
-          </button>
-        </div>
-
-        <!-- Manual Input Section -->
-        {#if showManualInput}
-          <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 mt-4">
-            <h3 class="text-lg font-semibold text-white mb-4">
-              Manual Wallet Address Input
-            </h3>
-            <div class="space-y-4">
-              <div>
-                <label
-                  for="wallet-address"
-                  class="block text-sm font-medium text-gray-300 mb-2"
-                >
-                  Wallet Address
-                </label>
-                <input
-                  id="wallet-address"
-                  type="text"
-                  bind:value={manualWalletAddress}
-                  placeholder="Enter wallet address (e.g., 0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6)"
-                  class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  on:keydown={(e) => e.key === "Enter" && handleManualSubmit()}
-                />
-              </div>
-
-              <div class="flex space-x-3">
-                <button
-                  on:click={handleManualSubmit}
-                  disabled={!manualWalletAddress.trim() || !selectedEvent}
-                  class="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Validate Ticket
-                </button>
-                <button
-                  on:click={toggleManualInput}
-                  class="px-4 py-2 bg-gray-600 text-gray-300 font-medium rounded-lg hover:bg-gray-500 transition-all duration-200"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Right Column - Scan History -->
-      <div
-        class="lg:col-span-1 transition-all duration-1000 transform {showHistory
-          ? 'translate-x-0 opacity-100'
-          : 'translate-x-8 opacity-0'}"
-      >
-        <ScanHistory {scanHistory} />
-      </div>
+    <div class="grid gap-4 pt-1 md:grid-cols-2 xl:grid-cols-3">
+      {#each filtered as event (event.id)}
+        <DoorEventCard {event} />
+      {/each}
     </div>
   {/if}
-
-  <!-- Glowing particles background effect -->
-  <div class="fixed inset-0 pointer-events-none overflow-hidden">
-    <div
-      class="absolute top-1/4 left-1/4 w-1 h-1 bg-cyan-400 rounded-full animate-pulse opacity-30"
-      style="animation-delay: 0s;"
-    ></div>
-    <div
-      class="absolute top-1/3 right-1/3 w-1 h-1 bg-teal-400 rounded-full animate-pulse opacity-30"
-      style="animation-delay: 1s;"
-    ></div>
-    <div
-      class="absolute bottom-1/4 left-1/3 w-1 h-1 bg-cyan-400 rounded-full animate-pulse opacity-30"
-      style="animation-delay: 2s;"
-    ></div>
-    <div
-      class="absolute bottom-1/3 right-1/4 w-1 h-1 bg-teal-400 rounded-full animate-pulse opacity-30"
-      style="animation-delay: 0.5s;"
-    ></div>
-  </div>
 </div>
-
-<!-- Confirmation Dialog -->
-<ConfirmationDialog
-  bind:show={showConfirmDialog}
-  title={confirmDialogData.title}
-  message={confirmDialogData.message}
-  confirmText={confirmDialogData.confirmText}
-  confirmVariant={confirmDialogData.confirmVariant}
-  on:confirm={handleScanConfirm}
-  on:cancel={handleScanCancel}
-/>

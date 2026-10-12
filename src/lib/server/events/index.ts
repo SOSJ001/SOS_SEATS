@@ -736,21 +736,6 @@ export async function addGuestToOwnedEvent(
   }
 }
 
-export async function loadOrganizerScannerEvents(
-  userId: string
-): Promise<any[]> {
-  const db = getServerSupabase();
-  const { data, error } = await db
-    .from("events")
-    .select("id, name, date, location, status")
-    .eq("user_id", userId)
-    .in("status", ["published", "live"])
-    .order("date", { ascending: true });
-
-  if (error) return [];
-  return data || [];
-}
-
 export async function loadEventTicketTypes(
   eventId: string,
   userId: string

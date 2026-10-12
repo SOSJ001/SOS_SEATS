@@ -5,6 +5,7 @@
    * Heart/Save is visual only.
    */
   import Heart from "lucide-svelte/icons/heart";
+  import EventCover from "$lib/components/event/EventCover.svelte";
 
   /** @type {Array<Record<string, any>>} */
   export let events = [];
@@ -44,7 +45,7 @@
       ev?.image ||
       ev?.Image?.publicUrl ||
       ev?.Image?.file_path ||
-      "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop"
+      null
     );
   }
 </script>
@@ -70,12 +71,7 @@
           class="flex flex-col gap-3 rounded-2xl border border-paper-border bg-paper p-3 text-inherit no-underline shadow-[0px_8px_10px_rgba(0,0,0,0.05)] transition-transform hover:-translate-y-0.5"
         >
           <div class="relative h-[140px] w-full overflow-hidden rounded-xl bg-paper-border">
-            <img
-              src={imageUrl(ev)}
-              alt=""
-              loading="lazy"
-              class="absolute inset-0 size-full max-w-none object-cover"
-            />
+            <EventCover src={imageUrl(ev)} fill />
           </div>
           <div class="flex flex-col gap-1.5">
             <p class="m-0 text-sm font-extrabold text-ink">{ev.name}</p>

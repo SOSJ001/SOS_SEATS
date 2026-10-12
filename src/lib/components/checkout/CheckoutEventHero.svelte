@@ -8,6 +8,7 @@
   import Calendar from "lucide-svelte/icons/calendar";
   import MapPin from "lucide-svelte/icons/map-pin";
   import Ticket from "lucide-svelte/icons/ticket";
+  import EventCover from "$lib/components/event/EventCover.svelte";
 
   export let badge = "";
   /** @type {"glass" | "brand" | "danger"} */
@@ -40,20 +41,7 @@
 <div
   class="relative flex flex-col justify-start overflow-hidden bg-[#12041c] px-5 pb-6 pt-5 lg:w-1/2 lg:justify-end lg:bg-slate-public lg:p-8 {heightClass}"
 >
-  {#if image}
-    <div class="absolute inset-0" aria-hidden="true">
-      <img
-        src={image}
-        alt=""
-        class="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-xl"
-      />
-      <img
-        src={image}
-        alt=""
-        class="absolute inset-0 h-full w-full object-contain"
-      />
-    </div>
-  {/if}
+  <EventCover src={image} fill empty="backdrop" loading="eager" aria-hidden="true" />
   <div
     class="absolute inset-0 bg-gradient-to-b from-[#12041c]/80 via-[#0f172a]/55 to-[#0f172a]/90 lg:from-transparent lg:via-black/40 lg:to-black/80"
     aria-hidden="true"

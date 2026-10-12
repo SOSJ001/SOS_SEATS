@@ -292,56 +292,6 @@ export async function getTicketType(ticketTypeId: string) {
   return db.from("ticket_types").select("*").eq("id", ticketTypeId).single();
 }
 
-export async function getGuestForScanner(guestId: string) {
-  const db = getServerSupabase();
-  return db
-    .from("guests")
-    .select(
-      "id, event_id, status, check_in_time, first_name, last_name, ticket_type_id"
-    )
-    .eq("id", guestId)
-    .maybeSingle();
-}
-
-export async function getTicketTypeName(ticketTypeId: string) {
-  const db = getServerSupabase();
-  return db
-    .from("ticket_types")
-    .select("name")
-    .eq("id", ticketTypeId)
-    .maybeSingle();
-}
-
-export async function getOrdersForEvent(eventId: string) {
-  const db = getServerSupabase();
-  return db.from("orders").select("id").eq("event_id", eventId);
-}
-
-export async function getOrderItemsByIds(orderIds: string[]) {
-  const db = getServerSupabase();
-  return db
-    .from("order_items")
-    .select("id, order_id, check_in_time, current_owner, ticket_type_id")
-    .in("order_id", orderIds);
-}
-
-export async function updateOrderItemCheckIn(
-  itemId: string,
-  updates: Record<string, any>
-) {
-  const db = getServerSupabase();
-  return db.from("order_items").update(updates).eq("id", itemId).select();
-}
-
-export async function getOrderBuyer(orderId: string) {
-  const db = getServerSupabase();
-  return db
-    .from("orders")
-    .select("buyer_name")
-    .eq("id", orderId)
-    .maybeSingle();
-}
-
 export type MyTicketStatus =
   | "VALID"
   | "CHECKED IN"
@@ -765,6 +715,7 @@ export async function loadUserOrdersServer(
 export async function loadScanHistoryServer(eventId: string, limit = 50) {
   const db = getServerSupabase();
   const scanHistory: any[] = [];
+  const listedGuestIds = new Set<string>();
 
   const { data: guestsCheckIns } = await db
     .from("guests")
@@ -785,10 +736,16 @@ export async function loadScanHistoryServer(eventId: string, limit = 50) {
 
   if (guestsCheckIns) {
     guestsCheckIns.forEach((guest: any) => {
+      listedGuestIds.add(guest.id);
       const checkInDate = new Date(guest.check_in_time);
       scanHistory.push({
         id: guest.id,
-        guestName: `${guest.first_name} ${guest.last_name}`,
+        guestName:
+          [guest.first_name, guest.last_name]
+            .map((part) => String(part || "").trim())
+            .filter(Boolean)
+            .join(" ") || "Guest",
+        ticketType: guest.ticket_types?.name || "Ticket",
         status: "success",
         message: `${guest.ticket_types?.name || "Ticket"} - Checked In`,
         timestamp: checkInDate.toLocaleString([], {
@@ -816,6 +773,7 @@ export async function loadScanHistoryServer(eventId: string, limit = 50) {
       .select(
         `
         id,
+        guest_id,
         check_in_time,
         check_in_location,
         current_owner,
@@ -830,10 +788,13 @@ export async function loadScanHistoryServer(eventId: string, limit = 50) {
 
     if (orderItemsCheckIns) {
       orderItemsCheckIns.forEach((item: any) => {
+        // 7.1 checks in guests and order_items together; legacy wallet check-in only sets order_items
+        if (item.guest_id && listedGuestIds.has(item.guest_id)) return;
         const checkInDate = new Date(item.check_in_time);
         scanHistory.push({
           id: item.id,
           guestName: item.orders?.buyer_name || "Unknown",
+          ticketType: item.ticket_types?.name || "Ticket",
           status: "success",
           message: `${item.ticket_types?.name || "Ticket"} - Checked In`,
           timestamp: checkInDate.toLocaleString([], {

@@ -4,6 +4,8 @@
    * Highlight hero — upcoming 610:1332 / past 605:1361 + Hero-Left 1277:3341.
    * Dense desktop bias; mobile image-top full-bleed.
    */
+  import EventCover from "$lib/components/event/EventCover.svelte";
+
   export let ticket = null;
   /** @type {"upcoming" | "past"} */
   export let variant = "upcoming";
@@ -112,25 +114,11 @@
       </div>
     </div>
 
-    <div
-      class="relative h-[231px] w-full shrink-0 overflow-hidden rounded-xl border border-paper-border lg:h-[160px] lg:w-[280px] lg:rounded-2xl"
+    <EventCover
+      src={ticket.eventImage}
+      loading="eager"
+      class="h-[231px] w-full shrink-0 rounded-xl border border-paper-border lg:h-[160px] lg:w-[280px] lg:rounded-2xl"
       data-node-id={isPast ? "1265:3217" : "620:1333"}
-    >
-      {#if ticket.eventImage}
-        <img
-          src={ticket.eventImage}
-          alt=""
-          class="pointer-events-none absolute inset-0 size-full max-w-none scale-110 object-cover blur-xl"
-          aria-hidden="true"
-        />
-        <img
-          src={ticket.eventImage}
-          alt=""
-          class="absolute inset-0 size-full max-w-none object-contain"
-        />
-      {:else}
-        <div class="absolute inset-0 bg-slate-public" aria-hidden="true"></div>
-      {/if}
-    </div>
+    />
   </section>
 {/if}

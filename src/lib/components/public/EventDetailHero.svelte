@@ -8,6 +8,7 @@
   import Sparkles from "lucide-svelte/icons/sparkles";
   import Calendar from "lucide-svelte/icons/calendar";
   import MapPin from "lucide-svelte/icons/map-pin";
+  import EventCover from "$lib/components/event/EventCover.svelte";
 
   export let title = "";
   export let dateTime = "";
@@ -20,20 +21,7 @@
 <section
   class="relative w-full overflow-hidden bg-slate-public px-5 pb-10 pt-10 md:px-20 md:pb-14 md:pt-[72px]"
 >
-  {#if image}
-    <div class="absolute inset-0" aria-hidden="true">
-      <img
-        src={image}
-        alt=""
-        class="pointer-events-none absolute inset-0 size-full max-w-none scale-110 object-cover blur-xl"
-      />
-      <img
-        src={image}
-        alt=""
-        class="absolute inset-0 size-full max-w-none object-contain"
-      />
-    </div>
-  {/if}
+  <EventCover src={image} fill empty="backdrop" loading="eager" aria-hidden="true" />
   <div
     class="pointer-events-none absolute inset-0"
     style="background-image: linear-gradient(150deg, rgba(15, 23, 42, 0) 25%, rgba(15, 23, 42, 0.8) 75%)"

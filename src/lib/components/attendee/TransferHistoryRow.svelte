@@ -7,7 +7,7 @@
    * The whole row opens the receipt (FR-21e); PENDING rows are disabled until a receipt exists.
    * Inner elements are spans because a <button> may only contain phrasing content.
    */
-  import AttendeeEventThumb from "./AttendeeEventThumb.svelte";
+  import EventCover from "$lib/components/event/EventCover.svelte";
   import TransferStatusBadge from "./TransferStatusBadge.svelte";
 
   export let entry = null;
@@ -35,7 +35,7 @@
     on:click={() => onViewReceipt(entry)}
   >
     <span class="flex min-w-0 items-center gap-3 lg:w-[280px] lg:shrink-0">
-      <AttendeeEventThumb src={entry.eventImage} sizeClass="size-12 rounded-lg" />
+      <EventCover src={entry.eventImage} empty="icon" class="size-12 shrink-0 rounded-lg" />
       <span class="flex min-w-0 flex-1 flex-col gap-1">
         <span class="block truncate text-sm font-extrabold text-ink">{entry.eventName}</span>
         <span class="block text-xs text-ink-muted">Transferred on {entry.transferredAtLabel}</span>

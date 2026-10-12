@@ -4,6 +4,7 @@
   import { fade } from "svelte/transition";
   import { onMount } from "svelte";
   import StepperProgress from "$lib/components/StepperProgress.svelte";
+  import EventCover from "$lib/components/event/EventCover.svelte";
 
   // Get the event data from the server
   export let data;
@@ -267,11 +268,11 @@
       {#if imagePreview}
         <!-- Image Preview -->
         <div class="mb-4">
-          <div class="relative inline-block">
-            <img
+          <div class="relative block w-full max-w-md">
+            <EventCover
               src={imagePreview}
-              alt=""
-              class="max-w-full h-64 object-cover rounded-lg border border-gray-600"
+              loading="eager"
+              class="h-64 w-full rounded-lg border border-gray-600"
             />
             <button
               on:click={() => {

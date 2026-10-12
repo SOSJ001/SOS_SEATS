@@ -9,6 +9,7 @@
   import { showToast } from "$lib/store";
   import { formatHeroDateTime } from "$lib/utils/formatHeroDateTime.js";
   import EventDetailHero from "$lib/components/public/EventDetailHero.svelte";
+  import EventCover from "$lib/components/event/EventCover.svelte";
   import EventPurchaseCard from "$lib/components/public/EventPurchaseCard.svelte";
   import EventAboutOrganizer from "$lib/components/public/EventAboutOrganizer.svelte";
   import EventRelatedSection from "$lib/components/public/EventRelatedSection.svelte";
@@ -221,23 +222,7 @@
 {:else}
   <!-- Mobile stack — Figma 4:179 / 154:50 -->
   <div class="lg:hidden">
-    {#if event.image}
-      <div class="relative h-[280px] w-full overflow-hidden bg-slate-public">
-        <img
-          src={event.image}
-          alt=""
-          class="pointer-events-none absolute inset-0 size-full max-w-none scale-110 object-cover blur-xl"
-          aria-hidden="true"
-        />
-        <img
-          src={event.image}
-          alt=""
-          class="absolute inset-0 size-full max-w-none object-contain"
-        />
-      </div>
-    {:else}
-      <div class="h-[280px] w-full bg-slate-public" aria-hidden="true"></div>
-    {/if}
+    <EventCover src={event.image} loading="eager" class="h-[280px] w-full bg-slate-public" />
 
     <div class="flex flex-col gap-3 bg-white px-5 pb-4 pt-5">
       <h1 class="m-0 font-display text-2xl font-bold leading-[1.2] text-ink">

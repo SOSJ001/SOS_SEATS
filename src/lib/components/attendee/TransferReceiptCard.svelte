@@ -10,7 +10,7 @@
    * Failed 313:83: card 313:95 with divider 313:116 and note 680:1531 inside, actions 313:118
    * and support 313:127 outside.
    */
-  import AttendeeEventThumb from "./AttendeeEventThumb.svelte";
+  import EventCover from "$lib/components/event/EventCover.svelte";
   import AttendeeDateTile from "./AttendeeDateTile.svelte";
   import TransferResultNote from "./TransferResultNote.svelte";
 
@@ -65,9 +65,10 @@
       <div
         class="flex items-center gap-3 rounded-xl border border-paper-border bg-paper-cream p-3"
       >
-        <AttendeeEventThumb
+        <EventCover
           src={receipt.eventImage}
-          sizeClass="size-16 rounded-[10px] lg:size-14 lg:rounded-xl"
+          empty="icon"
+          class="size-16 shrink-0 rounded-[10px] lg:size-14 lg:rounded-xl"
         />
         <div class="flex min-w-0 flex-1 flex-col items-start gap-1 lg:gap-1.5">
           {#if receipt.tierBadge}

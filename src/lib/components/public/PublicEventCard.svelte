@@ -1,6 +1,7 @@
 <script>
   // @ts-nocheck
   import PublicIcon from "$lib/components/public/PublicIcon.svelte";
+  import EventCover from "$lib/components/event/EventCover.svelte";
 
   export let event;
   export let compact = false;
@@ -14,7 +15,7 @@
     event?.Image?.publicUrl ||
     event?.Image?.file_path ||
     event?.image ||
-    "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop";
+    null;
   $: href = event?.showcase
     ? "/marketplace"
     : event?.id || event?.Event?.id
@@ -75,7 +76,7 @@
 >
   <a {href} class="flex flex-col h-full text-inherit">
     <div class="relative h-[160px] md:h-[260px] overflow-hidden bg-paper-border">
-      <img src={image} alt="" loading="lazy" class="w-full h-full object-cover" />
+      <EventCover src={image} fill />
       <div class="absolute inset-0 bg-public-card-image pointer-events-none" aria-hidden="true"></div>
       {#if category}
         <span

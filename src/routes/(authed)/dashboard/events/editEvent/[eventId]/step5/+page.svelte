@@ -5,6 +5,7 @@
   import { onMount } from "svelte";
   import StepperProgress from "$lib/components/StepperProgress.svelte";
   import TicketDesignEditor from "$lib/components/TicketDesignEditor.svelte";
+  import EventCover from "$lib/components/event/EventCover.svelte";
   import { defaultTicketDesignConfig } from "$lib/store";
 
   // Get the event data from the server
@@ -436,10 +437,12 @@
               >
               <div class="mt-2">
                 {#if eventData.imagePreview}
-                  <img
+                  <EventCover
                     src={eventData.imagePreview}
                     alt="Event preview"
-                    class="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 object-cover rounded-lg border border-gray-600"
+                    empty="icon"
+                    loading="eager"
+                    class="size-20 sm:size-24 md:size-32 rounded-lg border border-gray-600"
                   />
                 {:else if eventData.image}
                   <div

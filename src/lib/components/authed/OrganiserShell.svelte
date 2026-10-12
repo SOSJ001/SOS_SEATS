@@ -49,6 +49,7 @@
     if (p.includes("/pending-withdrawal") || p.includes("/withdraw")) return "Withdraw Funds";
     if (p.startsWith("/dashboard/wallet")) return "Wallet & Proceeds";
     if (p.startsWith("/dashboard/settings")) return "Settings";
+    if (p.startsWith("/dashboard/scanner")) return "Door Scanner";
     if (p === "/dashboard" || p === "/dashboard/") return "Dashboard Overview";
     return "Organiser";
   }

@@ -5,6 +5,7 @@
   import { fade } from "svelte/transition";
   import { onMount } from "svelte";
   import Check from "lucide-svelte/icons/check";
+  import EventCover from "$lib/components/event/EventCover.svelte";
   import {
     loadEventDraft,
     saveEventDraft,
@@ -306,29 +307,13 @@
         </dl>
       </div>
 
-      {#if eventData.imagePreview}
-        <div
-          class="relative h-[200px] w-full overflow-hidden rounded-xl lg:h-[240px]"
-        >
-          <img
-            src={eventData.imagePreview}
-            alt=""
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-xl"
-          />
-          <img
-            src={eventData.imagePreview}
-            alt="Event cover"
-            class="relative z-10 h-full w-full object-contain"
-          />
-        </div>
-      {:else}
-        <div
-          class="flex h-[200px] w-full items-center justify-center rounded-xl border border-dashed border-paper-border bg-paper-cream text-sm text-ink-muted lg:h-[240px]"
-        >
-          No cover image
-        </div>
-      {/if}
+      <EventCover
+        src={eventData.imagePreview}
+        alt="Event cover"
+        tone="light"
+        loading="eager"
+        class="h-[200px] w-full rounded-xl lg:h-[240px]"
+      />
     </div>
 
     <div class="flex min-w-0 flex-1 flex-col gap-4">

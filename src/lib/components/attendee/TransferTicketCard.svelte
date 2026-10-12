@@ -7,7 +7,7 @@
   import Check from "lucide-svelte/icons/check";
   import Calendar from "lucide-svelte/icons/calendar";
   import MapPin from "lucide-svelte/icons/map-pin";
-  import AttendeeEventThumb from "./AttendeeEventThumb.svelte";
+  import EventCover from "$lib/components/event/EventCover.svelte";
 
   export let ticket = null;
   /** @type {() => void} */
@@ -22,7 +22,7 @@
   >
     <div class="flex flex-col gap-3 lg:hidden">
       <div class="flex items-center gap-3">
-        <AttendeeEventThumb src={ticket.eventImage} sizeClass="size-12 rounded-xl" />
+        <EventCover src={ticket.eventImage} empty="icon" class="size-12 shrink-0 rounded-xl" />
         <div class="flex min-w-0 flex-1 flex-col gap-3">
           <div class="flex flex-wrap items-center gap-3">
             <span
@@ -66,7 +66,7 @@
         <Check size={14} class="text-[#22c55e]" strokeWidth={2.5} aria-hidden="true" />
       </div>
       <div class="flex w-full items-center gap-3">
-        <AttendeeEventThumb src={ticket.eventImage} sizeClass="size-14 rounded-xl" />
+        <EventCover src={ticket.eventImage} empty="icon" class="size-14 shrink-0 rounded-xl" />
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           <p class="m-0 text-[15px] font-extrabold text-ink">{ticket.eventName}</p>
           <p class="m-0 text-[13px] text-ink-secondary">{dateVenue}</p>

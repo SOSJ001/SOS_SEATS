@@ -6,6 +6,7 @@
   import Calendar from "lucide-svelte/icons/calendar";
   import MapPin from "lucide-svelte/icons/map-pin";
   import AttendeeDateTile from "./AttendeeDateTile.svelte";
+  import EventCover from "$lib/components/event/EventCover.svelte";
 
   export let ticket;
   /** @type {"upcoming" | "past"} */
@@ -73,25 +74,12 @@
   class="flex w-full flex-col gap-3 rounded-2xl border border-paper-border bg-paper p-4 shadow-[0_6px_9px_rgba(0,0,0,0.05)] lg:flex-row lg:items-center lg:gap-4 lg:shadow-[0_4px_8px_rgba(0,0,0,0.03)] {rowOpacity}"
 >
   <div class="flex min-w-0 flex-1 items-center gap-3" data-name="Card-Top">
-    <div
-      class="relative size-12 shrink-0 overflow-hidden rounded-xl lg:size-14"
-    >
-      {#if ticket.eventImage}
-        <img
-          src={ticket.eventImage}
-          alt=""
-          class="pointer-events-none absolute inset-0 size-full max-w-none scale-110 object-cover blur-xl"
-          aria-hidden="true"
-        />
-        <img
-          src={ticket.eventImage}
-          alt=""
-          class="absolute inset-0 size-full max-w-none object-contain"
-        />
-      {:else}
-        <div class="size-full bg-paper-cream" aria-hidden="true"></div>
-      {/if}
-    </div>
+    <EventCover
+      src={ticket.eventImage}
+      empty="icon"
+      tone="light"
+      class="size-12 shrink-0 rounded-xl lg:size-14"
+    />
 
     <div class="flex min-w-0 flex-1 flex-col gap-3 lg:gap-2">
       <div class="flex flex-wrap items-center gap-3 lg:gap-2.5">

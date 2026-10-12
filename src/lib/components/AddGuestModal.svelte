@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { fade, scale, fly } from "svelte/transition";
+  import EventCover from "$lib/components/event/EventCover.svelte";
   import {
     addGuestToEvent,
     loadEventTicketTypes,
@@ -600,51 +601,22 @@
                   in:fly={{ x: -30, duration: 500, delay: 150 }}
                   out:fly={{ x: -30, duration: 200 }}
                 >
-                  {#if selectedEvent.image}
+                  <div
+                    class="relative overflow-hidden rounded-lg border border-gray-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:border-[#00F5FF]/50"
+                    in:scale={{ duration: 400, delay: 200 }}
+                    out:scale={{ duration: 200 }}
+                  >
+                    <EventCover
+                      src={selectedEvent.image}
+                      alt={selectedEvent.name}
+                      empty="icon"
+                      class="size-12 sm:size-14"
+                    />
+                    <!-- Subtle overlay for depth -->
                     <div
-                      class="relative overflow-hidden rounded-lg border border-gray-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:border-[#00F5FF]/50"
-                      in:scale={{ duration: 400, delay: 200 }}
-                      out:scale={{ duration: 200 }}
-                    >
-                      <img
-                        src={selectedEvent.image}
-                        alt={selectedEvent.name}
-                        class="w-12 h-12 sm:w-14 sm:h-14 object-cover transition-all duration-500 hover:scale-110"
-                        in:fade={{ duration: 600, delay: 300 }}
-                        out:fade={{ duration: 200 }}
-                      />
-                      <!-- Subtle overlay for depth -->
-                      <div
-                        class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"
-                      ></div>
-                    </div>
-                  {:else}
-                    <div
-                      class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-gradient-to-br from-[#9D4EDD] to-[#00F5FF] flex items-center justify-center border border-gray-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:border-[#00F5FF]/50 relative overflow-hidden"
-                      in:scale={{ duration: 400, delay: 200 }}
-                      out:scale={{ duration: 200 }}
-                    >
-                      <!-- Animated background gradient -->
-                      <div
-                        class="absolute inset-0 bg-gradient-to-br from-[#9D4EDD] via-[#00F5FF] to-[#9D4EDD] animate-pulse opacity-20"
-                      ></div>
-                      <svg
-                        class="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all duration-500 hover:rotate-12 hover:scale-110 relative z-10"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        in:fly={{ y: 10, duration: 400, delay: 400 }}
-                        out:fly={{ y: -10, duration: 200 }}
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                        />
-                      </svg>
-                    </div>
-                  {/if}
+                      class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"
+                    ></div>
+                  </div>
                 </div>
               {/if}
             {/if}

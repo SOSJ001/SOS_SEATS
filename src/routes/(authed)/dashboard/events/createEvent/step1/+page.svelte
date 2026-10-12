@@ -9,6 +9,7 @@
   import WizardNav from "$lib/components/organizer/WizardNav.svelte";
   import { loadEventDraft, saveEventDraft } from "$lib/client/eventDraft";
   import Image from "lucide-svelte/icons/image";
+  import EventCover from "$lib/components/event/EventCover.svelte";
 
   export let data;
 
@@ -169,19 +170,12 @@
               {imagePreview ? 'p-0' : 'p-5'}"
           >
             {#if imagePreview}
-              <div class="relative h-[160px] w-full overflow-hidden">
-                <img
-                  src={imagePreview}
-                  alt=""
-                  aria-hidden="true"
-                  class="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-xl"
-                />
-                <img
-                  src={imagePreview}
-                  alt="Cover preview"
-                  class="relative z-10 h-full w-full object-contain"
-                />
-              </div>
+              <EventCover
+                src={imagePreview}
+                alt="Cover preview"
+                loading="eager"
+                class="h-[160px] w-full"
+              />
               <span
                 class="w-full bg-white py-2 text-center text-[13px] font-semibold text-brand"
                 >Replace image</span
@@ -223,19 +217,12 @@
           {imagePreview ? 'p-0' : 'p-8'}"
       >
         {#if imagePreview}
-          <div class="relative min-h-[280px] w-full flex-1 overflow-hidden lg:min-h-[400px]">
-            <img
-              src={imagePreview}
-              alt=""
-              aria-hidden="true"
-              class="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-xl"
-            />
-            <img
-              src={imagePreview}
-              alt="Cover preview"
-              class="relative z-10 h-full w-full object-contain"
-            />
-          </div>
+          <EventCover
+            src={imagePreview}
+            alt="Cover preview"
+            loading="eager"
+            class="min-h-[280px] w-full flex-1 lg:min-h-[400px]"
+          />
           <span
             class="w-full bg-white py-3 text-center text-[15px] font-bold text-brand"
             >Replace image</span

@@ -35,9 +35,7 @@ export async function load({ params, locals, url }) {
   const ticketCount =
     items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0) || 1;
 
-  const image =
-    eventData.images?.[0]?.file_path ||
-    "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop";
+  const image = eventData.images?.[0]?.file_path || null;
 
   const qrPayload = await resolveOwnedQrToken(items, locals.userId);
 

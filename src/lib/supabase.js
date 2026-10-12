@@ -730,8 +730,7 @@ export async function loadPublicEvents() {
           .eq("event_id", event.id);
 
         // Load image for this event
-        let imageUrl =
-          "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop";
+        let imageUrl = null;
         if (event.image_id) {
           const { data: imageData } = await supabase
             .from("images")
@@ -1052,134 +1051,6 @@ export async function addGuestToEvent(eventId, guestData) {
     return await response.json();
   } catch (error) {
     return { success: false, error: error.message };
-  }
-}
-
-// Check in guest
-export async function checkInGuest(guestId, checkInLocation = null) {
-  try {
-    const { data, error } = await supabase.rpc("check_in_guest", {
-      p_guest_id: guestId,
-      p_check_in_location: checkInLocation,
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: data[0].success, message: data[0].message };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
-// Load scan history for an event (check-ins from both guests and order_items)
-export async function loadScanHistory(eventId, limit = 50) {
-  try {
-    const scanHistory = [];
-
-    // Load check-ins from guests table
-    const { data: guestsCheckIns, error: guestsError } = await supabase
-      .from("guests")
-      .select(
-        `
-        id,
-        first_name,
-        last_name,
-        check_in_time,
-        check_in_location,
-        ticket_types(name)
-      `
-      )
-      .eq("event_id", eventId)
-      .not("check_in_time", "is", null)
-      .order("check_in_time", { ascending: false })
-      .limit(limit);
-
-    if (!guestsError && guestsCheckIns) {
-      guestsCheckIns.forEach((guest) => {
-        const checkInDate = new Date(guest.check_in_time);
-        scanHistory.push({
-          id: guest.id,
-          guestName: `${guest.first_name} ${guest.last_name}`,
-          status: "success",
-          message: `${guest.ticket_types?.name || "Ticket"} - Checked In`,
-          timestamp: checkInDate.toLocaleString([], {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          check_in_time: guest.check_in_time,
-          walletAddress: undefined,
-        });
-      });
-    }
-
-    // Load check-ins from order_items table (wallet-based tickets)
-    // First get order IDs for this event
-    const { data: eventOrders, error: ordersError } = await supabase
-      .from("orders")
-      .select("id")
-      .eq("event_id", eventId);
-
-    if (!ordersError && eventOrders && eventOrders.length > 0) {
-      const orderIds = eventOrders.map((o) => o.id);
-
-      const { data: orderItemsCheckIns, error: orderItemsError } =
-        await supabase
-          .from("order_items")
-          .select(
-            `
-            id,
-            check_in_time,
-            check_in_location,
-            current_owner,
-            ticket_types(name),
-            orders(buyer_name)
-          `
-          )
-          .in("order_id", orderIds)
-          .not("check_in_time", "is", null)
-          .order("check_in_time", { ascending: false })
-          .limit(limit);
-
-      if (!orderItemsError && orderItemsCheckIns) {
-        orderItemsCheckIns.forEach((item) => {
-          const checkInDate = new Date(item.check_in_time);
-          scanHistory.push({
-            id: item.id,
-            guestName: item.orders?.buyer_name || "Unknown",
-            status: "success",
-            message: `${item.ticket_types?.name || "Ticket"} - Checked In`,
-            timestamp: checkInDate.toLocaleString([], {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            check_in_time: item.check_in_time,
-            walletAddress: item.current_owner,
-          });
-        });
-      }
-    }
-
-    // Sort all check-ins by time (most recent first) and limit
-    const sortedHistory = scanHistory
-      .sort(
-        (a, b) =>
-          new Date(b.check_in_time).getTime() -
-          new Date(a.check_in_time).getTime()
-      )
-      .slice(0, limit);
-
-    return sortedHistory;
-  } catch (error) {
-    console.error("Error loading scan history:", error);
-    return [];
   }
 }
 
@@ -1861,50 +1732,6 @@ export async function loadTicketsByCurrentOwner(walletAddress) {
   } catch (error) {
     console.error("Error loading tickets by current owner:", error);
     return { data: null, error: error.message };
-  }
-}
-
-// Validate and check in a ticket by wallet address (QR code)
-export async function validateAndCheckInTicket(
-  walletAddress,
-  eventId,
-  checkInLocation = null
-) {
-  try {
-    const { data, error } = await supabase.rpc("validate_and_check_in_ticket", {
-      p_wallet_address: walletAddress,
-      p_event_id: eventId,
-      p_check_in_location: checkInLocation,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    if (data && data.length > 0) {
-      const result = data[0];
-      return {
-        success: result.success,
-        message: result.message,
-        ticketInfo: result.ticket_info,
-        error: null,
-      };
-    } else {
-      return {
-        success: false,
-        message: "No response from database",
-        ticketInfo: null,
-        error: "No response from database",
-      };
-    }
-  } catch (error) {
-    console.error("Error in validateAndCheckInTicket:", error);
-    return {
-      success: false,
-      message: error.message || "Validation failed",
-      ticketInfo: null,
-      error: error.message,
-    };
   }
 }
 

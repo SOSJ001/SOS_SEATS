@@ -67,9 +67,7 @@ export async function load({ params, locals, url }) {
       : eventData.ticket_types?.slice(0, 1).map((t) => ({ name: t.name })) ||
         [{ name: "Ticket" }];
 
-  const image =
-    eventData.images?.[0]?.file_path ||
-    "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop";
+  const image = eventData.images?.[0]?.file_path || null;
 
   const amount =
     typeof order.total_amount === "string"

@@ -1,11 +1,26 @@
-import { loadOrganizerScannerEvents } from "$lib/server/events";
+import { loadDoorEvents } from "$lib/server/tickets/door";
 
+/** Door events (roadmap 7.2): the organiser's published events to scan. */
 export async function load({ locals }) {
   const userId = locals.userId;
   if (!userId) {
-    return { events: [], userId: null };
+    return {
+      doorEvents: [],
+      summary: { activeEvents: 0, scannedToday: 0, notCheckedIn: 0 },
+      loadError: false,
+    };
   }
 
-  const events = await loadOrganizerScannerEvents(userId);
-  return { events, userId };
+  try {
+    const { events, summary } = await loadDoorEvents(userId);
+    return { doorEvents: events, summary, loadError: false };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    console.error("Door events load failed:", message);
+    return {
+      doorEvents: [],
+      summary: { activeEvents: 0, scannedToday: 0, notCheckedIn: 0 },
+      loadError: true,
+    };
+  }
 }

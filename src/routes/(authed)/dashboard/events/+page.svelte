@@ -4,6 +4,7 @@
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import ShareEventModal from "$lib/components/ShareEventModal.svelte";
+  import EventCover from "$lib/components/event/EventCover.svelte";
 
   // Event data
   let events = [];
@@ -32,9 +33,7 @@
             date: formatEventDate(event.date, event.time), // Formatted date for display
             rawDate: event.date, // Raw date for filtering
             location: event.location,
-            image:
-              event.image?.file_path ||
-              "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=250&fit=crop",
+            image: event.image?.file_path || null,
             status: event.status || "draft", // Keep original case for filtering
             statusColor: getStatusColor(event.status),
             ticketsSold: getTicketsSold(event),
@@ -382,10 +381,11 @@
         >
           <!-- Event Image -->
           <div class="relative h-48 overflow-hidden">
-            <img
+            <EventCover
               src={event.image}
               alt={event.title}
-              class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+              fill
+              class="transition-transform duration-300 hover:scale-105"
             />
             <!-- Status Badge -->
             <div class="absolute top-3 right-3">

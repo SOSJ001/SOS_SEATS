@@ -6,6 +6,8 @@
    * Desktop: image right, dense per hifi-density. Mobile: full-bleed, image top, optional badge slot.
    * Image uses blur + contain (event-image-blur-contain), no dark overlay.
    */
+  import EventCover from "$lib/components/event/EventCover.svelte";
+
   export let eyebrow = "";
   export let title = "";
   export let meta = "";
@@ -97,24 +99,11 @@
       {/if}
     </div>
 
-    <div
-      class="relative h-[231px] w-full shrink-0 overflow-hidden rounded-xl border border-paper-border lg:h-[160px] lg:w-[280px] lg:rounded-2xl"
-    >
-      {#if image}
-        <img
-          src={image}
-          alt=""
-          class="pointer-events-none absolute inset-0 size-full max-w-none scale-110 object-cover blur-xl"
-          aria-hidden="true"
-        />
-        <img
-          src={image}
-          alt="Event cover"
-          class="absolute inset-0 size-full max-w-none object-contain"
-        />
-      {:else}
-        <div class="absolute inset-0 bg-slate-public" aria-hidden="true"></div>
-      {/if}
-    </div>
+    <EventCover
+      src={image}
+      alt="Event cover"
+      loading="eager"
+      class="h-[231px] w-full shrink-0 rounded-xl border border-paper-border lg:h-[160px] lg:w-[280px] lg:rounded-2xl"
+    />
   </section>
 {/if}
