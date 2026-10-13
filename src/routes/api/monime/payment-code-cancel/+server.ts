@@ -1,20 +1,29 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { getMonimeCredentials } from "$lib/server/payments";
+import {
+  getMonimeCredentials,
+  fetchPaymentCodeFromMonime,
+} from "$lib/server/payments";
 
+/** Cancel an unused payment code the signed-in user created. */
 export const DELETE: RequestHandler = async ({ url, locals }) => {
   if (!locals.userId) {
     return json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const codeId = url.searchParams.get("codeId");
+  const codeId = url.searchParams.get("codeId");
+  if (!codeId) {
+    return json(
+      { success: false, error: "Payment code ID required" },
+      { status: 400 }
+    );
+  }
 
-    if (!codeId) {
-      return json(
-        { success: false, error: "Payment code ID required" },
-        { status: 400 }
-      );
+  try {
+    const code = await fetchPaymentCodeFromMonime(codeId);
+    const meta = (code?.metadata || {}) as Record<string, unknown>;
+    if (!code || String(meta.buyer_id || "") !== locals.userId) {
+      return json({ success: false, error: "Not found" }, { status: 404 });
     }
 
     const creds = getMonimeCredentials();
@@ -26,7 +35,7 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
     }
 
     const response = await fetch(
-      `https://api.monime.io/v1/payment-codes/${codeId}`,
+      `https://api.monime.io/v1/payment-codes/${encodeURIComponent(codeId)}`,
       {
         method: "DELETE",
         headers: {
@@ -49,20 +58,14 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
       );
     }
 
-    const result = await response.json();
-
-    return json({
-      success: true,
-      data: result,
-    });
+    const result = await response.json().catch(() => ({}));
+    return json({ success: true, data: result });
   } catch (error) {
     return json(
       {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to cancel payment code",
+          error instanceof Error ? error.message : "Failed to cancel payment code",
       },
       { status: 500 }
     );

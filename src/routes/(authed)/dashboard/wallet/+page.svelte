@@ -3,140 +3,21 @@
   import PortfolioOverview from "$lib/components/PortfolioOverview.svelte";
   import RecentTransactions from "$lib/components/RecentTransactions.svelte";
   import NetworkStatus from "$lib/components/NetworkStatus.svelte";
-  import { onMount, onDestroy } from "svelte";
-  import { supabase, verifyWeb3Session, loadUserEvents } from "$lib/supabase";
-  import {
-    getBalance,
-    getActiveWalletAddress,
-    signMessageWithWallet,
-  } from "$lib/web3";
+  import { onMount } from "svelte";
   import { sessionFromDb, showToast } from "$lib/store";
   import MaintenanceWrapper from "$lib/components/MaintenanceWrapper.svelte";
-  import { monimeService } from "$lib/monime";
-  import { calculateWithdrawalFee } from "$lib/orangeMoneyPayment";
   import {
+    calculateWithdrawalFee,
     formatPlatformFeePercent,
     formatWithdrawalMonimeFeePercent,
   } from "$lib/fees";
-  import MultisigSettings from "$lib/components/MultisigSettings.svelte";
   import PendingWithdrawalCard from "$lib/components/PendingWithdrawalCard.svelte";
   import {
     walletDataGet,
-    walletDataPost,
+    getWithdrawable,
+    requestWithdrawal,
+    syncPayouts,
   } from "$lib/client/walletData";
-
-  // Function to check and update withdrawal status from Monime
-  async function checkAndUpdateWithdrawalStatus() {
-    try {
-      // Get wallet address
-      const session = await verifyWeb3Session();
-      let wallet =
-        session?.success && session.user?.wallet_address
-          ? session.user.wallet_address
-          : null;
-      if (!wallet) {
-        wallet = getActiveWalletAddress();
-      }
-
-      if (!wallet) return;
-
-      // Find pending withdrawals with external_id (Monime payout ID)
-      const txResult = await walletDataGet("transactions", {
-        wallet,
-        type: "withdrawal",
-        limit: 100,
-      });
-      const pendingWithdrawals = (txResult?.success ? txResult.data || [] : []).filter(
-        (w: any) =>
-          ["pending", "pending_approval"].includes(w.status) && w.external_id
-      );
-
-      if (!pendingWithdrawals || pendingWithdrawals.length === 0) {
-        return;
-      }
-
-      let hasUpdates = false;
-
-      // Check each pending withdrawal's status with Monime
-      for (const withdrawal of pendingWithdrawals) {
-        if (!withdrawal.external_id) continue;
-
-        try {
-          const payoutStatus = await monimeService.getPayoutStatus(
-            withdrawal.external_id
-          );
-
-          // Map Monime statuses to our database statuses
-          // Also check for transactionReference in destination - this indicates the transaction was completed by the mobile money provider
-          let newStatus: string;
-          const hasTransactionReference =
-            payoutStatus.destination?.transactionReference;
-
-          if (
-            payoutStatus.status === "completed" ||
-            payoutStatus.status === "paid" ||
-            hasTransactionReference
-          ) {
-            // Transaction is completed if:
-            // 1. Payout status is "completed" or "paid"
-            // 2. OR destination has a transactionReference (means mobile money provider processed it)
-            newStatus = "completed";
-          } else if (
-            payoutStatus.status === "failed" ||
-            payoutStatus.status === "cancelled"
-          ) {
-            newStatus = "failed";
-          } else {
-            // "pending" or "processing" -> keep current status
-            newStatus = withdrawal.status;
-          }
-
-          // Always update metadata with latest Monime response
-          // Store transaction reference for tracking
-          const updatedMetadata = {
-            ...(withdrawal.metadata || {}),
-            payout_status: payoutStatus.status,
-            last_status_check: new Date().toISOString(),
-            transaction_reference:
-              payoutStatus.destination?.transactionReference || null,
-            monime_response: payoutStatus,
-          };
-
-          // Use RPC function to update status (bypasses RLS)
-          const { data: updateResult, error: updateError } = await supabase.rpc(
-            "update_withdrawal_status",
-            {
-              p_withdrawal_id: withdrawal.id,
-              p_status: newStatus,
-              p_external_id: withdrawal.external_id,
-              p_metadata: updatedMetadata,
-            }
-          );
-
-          if (!updateError && newStatus !== withdrawal.status) {
-            hasUpdates = true;
-          }
-        } catch (err) {
-          console.error(
-            "Error checking withdrawal status:",
-            withdrawal.id,
-            err
-          );
-          // Skip if status check fails (e.g., network error, payout not found)
-          continue;
-        }
-      }
-
-      // Refresh data if any updates were made
-      if (hasUpdates) {
-        await loadMobileMoneyTotal();
-        await loadPendingWithdrawals();
-        await loadRecentTransactions();
-      }
-    } catch (err) {
-      // Error checking withdrawal status - don't block page load
-    }
-  }
 
   export const data = undefined;
 
@@ -144,8 +25,7 @@
   let isLoaded = false;
   let showContent = false;
 
-  // Dynamic balances
-  let solBalance: string | null = null; // on-chain SOL balance (optional)
+  // Balances (the withdrawable balance is computed on the server)
   let mobileMoneyTotal: number = 0;
   let solanaOrdersTotal: number = 0;
   let totalRevenue: number = 0;
@@ -157,44 +37,26 @@
   let isLoadingSolana = true;
   let isLoadingTotal = true;
   let isLoadingTransactions = true;
-  let isLoadingSolBalance = true;
   let isWithdrawing = false;
-  // Wallet address state
-  let currentWalletAddress: string | null = null;
-  // Pending withdrawals state
   let pendingWithdrawals: any[] = [];
   let isLoadingPendingWithdrawals = true;
+
   // Withdrawal modal state
   let showWithdrawalModal = false;
   let withdrawalPhoneNumber = "";
   let withdrawalProvider: "orange_money" | "afrimoney" = "orange_money";
 
-  // Get current wallet address
-  async function getCurrentWallet(): Promise<string | null> {
-    try {
-      const session = await verifyWeb3Session();
-      let wallet =
-        session?.success && session.user?.wallet_address
-          ? session.user.wallet_address
-          : null;
-      if (!wallet) {
-        wallet = getActiveWalletAddress();
-      }
-      return wallet;
-    } catch (err) {
-      console.error("Error getting wallet:", err);
-      return null;
-    }
-  }
-
-  // Calculated withdrawal fees (reactive)
+  // Fee preview; the server recomputes these when the withdrawal is made
   $: withdrawalFeeDetails = calculateWithdrawalFee(mobileMoneyTotal);
   $: withdrawalPlatformFee = withdrawalFeeDetails.platformFee;
   $: estimatedMonimeFee = withdrawalFeeDetails.monimeFee;
-  $: withdrawalTotalFees = withdrawalFeeDetails.totalFees;
-  $: withdrawalNetAfterPlatformFee =
-    withdrawalFeeDetails.netAmountAfterPlatformFee;
   $: withdrawalNetAmount = withdrawalFeeDetails.netAmount;
+
+  const formatMoney = (n: number) =>
+    n.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
   function openWithdrawalModal() {
     showWithdrawalModal = true;
@@ -207,37 +69,24 @@
     withdrawalPhoneNumber = "";
   }
 
+  async function refreshWalletData() {
+    await Promise.all([
+      loadMobileMoneyTotal(),
+      loadRecentTransactions(),
+      loadPendingWithdrawals(),
+    ]);
+  }
+
   async function handleWithdrawMobileMoney() {
     if (mobileMoneyTotal <= 0 || isWithdrawing) return;
 
-    // Get user ID from session store
-    const userId = $sessionFromDb;
-    if (!userId) {
+    if (!$sessionFromDb) {
       showToast("error", "Login Required", "Please log in to withdraw.", 5000);
       return;
     }
 
-    const session = await verifyWeb3Session();
-    let wallet =
-      session?.success && session.user?.wallet_address
-        ? session.user.wallet_address
-        : null;
-    if (!wallet) {
-      wallet = getActiveWalletAddress();
-    }
-    if (!wallet) {
-      showToast(
-        "error",
-        "Wallet Not Connected",
-        "Please connect your wallet to withdraw.",
-        5000
-      );
-      return;
-    }
-
-    // Validate phone number
-    const phoneNumber = withdrawalPhoneNumber.trim();
-    if (!phoneNumber) {
+    const phone = withdrawalPhoneNumber.trim();
+    if (!phone) {
       showToast(
         "error",
         "Phone Number Required",
@@ -247,401 +96,55 @@
       return;
     }
 
-    // Format phone number for Monime API
-    // Monime expects: +232XXXXXXXX (exactly 8 digits after country code)
-    let formattedPhone = phoneNumber.trim();
-
-    // Remove any spaces, dashes, or other characters
-    formattedPhone = formattedPhone.replace(/[\s\-\(\)]/g, "");
-
-    // Handle different phone number formats
-    if (formattedPhone.startsWith("+")) {
-      // Already has country code, use as is
-      // Remove leading 0 if present after +232 (e.g., +232078002221 -> +23278002221)
-      if (formattedPhone.startsWith("+2320") && formattedPhone.length === 13) {
-        formattedPhone = formattedPhone.replace("+2320", "+232");
-      }
-    } else if (formattedPhone.startsWith("232")) {
-      // Has country code without +
-      formattedPhone = `+${formattedPhone}`;
-      // Remove leading 0 if present (e.g., +232078002221 -> +23278002221)
-      if (formattedPhone.startsWith("+2320") && formattedPhone.length === 13) {
-        formattedPhone = formattedPhone.replace("+2320", "+232");
-      }
-    } else {
-      // Local number - remove leading 0 if present, then add +232
-      // Sierra Leone numbers often start with 0 (e.g., 078002221 -> 78002221 -> +23278002221)
-      if (formattedPhone.startsWith("0")) {
-        formattedPhone = formattedPhone.substring(1); // Remove leading 0
-      }
-      formattedPhone = `+232${formattedPhone}`;
-    }
-
-    // Validate format: +232 followed by exactly 8 digits
-    const phoneRegex = /^\+232\d{8}$/;
-    if (!phoneRegex.test(formattedPhone)) {
-      showToast(
-        "error",
-        "Invalid Phone Number",
-        `Phone number must be in the format +232XXXXXXXX (exactly 8 digits after +232). You entered: ${phoneNumber}`,
-        6000
-      );
-      return;
-    }
-
     isWithdrawing = true;
-
     try {
-      // Get currency from latest mobile money order for events created by this user
-      let currency = "NLe"; // Default to NLe for mobile money
-      const userEvents = await loadUserEvents(userId, "traditional");
-      const eventIds = userEvents.map((e: any) => e.id);
-
-      if (eventIds.length > 0) {
-        const mmResult = await walletDataGet("organizer-orders", {
-          payment_methods: "orange_money,afrimoney",
-          payment_statuses: "paid,completed",
-          limit: 1,
-        });
-        const mmOrder = mmResult?.success ? mmResult.data?.[0] : null;
-        if (mmOrder?.currency) currency = mmOrder.currency;
-      }
-
-      // Calculate withdrawal fees
-      const feeDetails = calculateWithdrawalFee(mobileMoneyTotal);
-      const platformFee = feeDetails.platformFee;
-      const monimeFee = feeDetails.monimeFee;
-      const netAmountAfterPlatformFee = feeDetails.netAmountAfterPlatformFee;
-      const finalNetAmount = feeDetails.netAmount; // Final amount user receives (after both fees)
-
-      // Validate net amount is sufficient
-      if (finalNetAmount <= 0) {
-        showToast(
-          "error",
-          "Insufficient Amount",
-          "Withdrawal amount is too small after fees. Please try a larger amount.",
-          6000
-        );
-        isWithdrawing = false;
-        return;
-      }
-
-      // Request wallet signature for withdrawal authorization
-      const withdrawalMessage = `Authorize withdrawal of ${currency} ${finalNetAmount.toFixed(2)} to ${formattedPhone} via ${withdrawalProvider}\n\nAmount: ${currency} ${mobileMoneyTotal.toFixed(2)}\nPlatform Fee: ${currency} ${platformFee.toFixed(2)}\nProcessing Fee: ${currency} ${estimatedMonimeFee.toFixed(2)}\nNet Amount: ${currency} ${finalNetAmount.toFixed(2)}\n\nTimestamp: ${new Date().toISOString()}\nWallet: ${wallet}`;
-
-      const signResult = await signMessageWithWallet(withdrawalMessage);
-
-      if (!signResult.success || !signResult.signature) {
-        showToast(
-          "error",
-          "Signature Failed",
-          signResult.error ||
-            "Failed to sign withdrawal authorization. Please try again.",
-          6000
-        );
-        isWithdrawing = false;
-        return;
-      }
-
-      // Convert signature to base64 for storage
-      const signatureBase64 = Array.from(signResult.signature)
-        .map((byte) => String.fromCharCode(byte))
-        .join("");
-      const signatureBase64Encoded = btoa(signatureBase64);
-
-      // Check if multisig is enabled for this wallet
-      const { data: multisigConfig } = await supabase.rpc(
-        "get_multisig_config",
-        {
-          p_wallet_address: wallet,
-        }
-      );
-
-      const isMultisigEnabled =
-        multisigConfig &&
-        multisigConfig.length > 0 &&
-        multisigConfig[0].is_enabled === true;
-
-      if (isMultisigEnabled) {
-        // MULTISIG FLOW: Create pending withdrawal
-        const pendingToken = `wd_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-        // Create pending withdrawal record
-        const insertResult = await walletDataPost({
-          action: "insert",
-          row: {
-            wallet_address: wallet,
-            type: "withdrawal",
-            source: "mobile_money",
-            amount: -Number(mobileMoneyTotal || 0),
-            currency: currency,
-            status: "pending_approval",
-            multisig_enabled: true,
-            required_signatures: multisigConfig[0].required_signatures,
-            collected_signatures: [
-              {
-                wallet: wallet,
-                signature: signatureBase64Encoded,
-                public_key: signResult.publicKey || wallet,
-                signed_at: new Date().toISOString(),
-              },
-            ],
-            pending_token: pendingToken,
-            expires_at: expiresAt.toISOString(),
-            metadata: {
-              note: "Multi-signature withdrawal pending approval",
-              provider: withdrawalProvider,
-              phone_number: formattedPhone,
-              gross_amount: String(mobileMoneyTotal.toFixed(2)),
-              platform_fee: String(platformFee.toFixed(2)),
-              estimated_monime_fee: String(monimeFee.toFixed(2)),
-              net_amount_after_platform_fee: String(
-                netAmountAfterPlatformFee.toFixed(2)
-              ),
-              final_net_amount: String(finalNetAmount.toFixed(2)),
-              fees_breakdown: {
-                platform_fee: String(platformFee.toFixed(2)),
-                estimated_monime_fee: String(monimeFee.toFixed(2)),
-                total_fees: String((platformFee + monimeFee).toFixed(2)),
-              },
-              wallet_signature: {
-                message: withdrawalMessage,
-                signature: signatureBase64Encoded,
-                public_key: signResult.publicKey,
-                signed_at: new Date().toISOString(),
-              },
-              user_id: userId,
-            },
-          },
-        });
-
-        const pendingError = insertResult?.success
-          ? null
-          : insertResult?.error || "Insert failed";
-
-        if (pendingError) {
-          showToast(
-            "error",
-            "Error",
-            "Failed to create pending withdrawal. Please try again.",
-            6000
-          );
-          isWithdrawing = false;
-          return;
-        }
-
-        // Send notifications to all authorized signers using RPC function to bypass RLS
-        // Fetch signers using RPC function to bypass RLS policies
-        const { data: signersData, error: signersError } = await supabase.rpc(
-          "get_multisig_signers",
-          {
-            p_wallet_address: wallet,
-          }
-        );
-
-        // Ensure notifications are created - retry if initial attempt fails
-        let notificationsCreated = false;
-
-        if (!signersError && signersData && signersData.length > 0) {
-          // Create notifications immediately
-          const sentCount = await createWithdrawalNotifications(
-            signersData,
-            wallet,
-            currency,
-            finalNetAmount,
-            formattedPhone,
-            pendingToken
-          );
-          notificationsCreated = sentCount > 0;
-        }
-
-        // If initial creation failed or no signers found, retry after a short delay
-        if (!notificationsCreated || signersError) {
-          setTimeout(async () => {
-            const retryResult = await supabase.rpc("get_multisig_signers", {
-              p_wallet_address: wallet,
-            });
-            if (
-              !retryResult.error &&
-              retryResult.data &&
-              retryResult.data.length > 0
-            ) {
-              await createWithdrawalNotifications(
-                retryResult.data,
-                wallet,
-                currency,
-                finalNetAmount,
-                formattedPhone,
-                pendingToken
-              );
-            }
-          }, 500);
-        }
-
-        // Close modal and show success message
-        closeWithdrawalModal();
-
-        // Calculate remaining signatures needed
-        const remainingSigs = multisigConfig[0].required_signatures - 1;
-        const sigMessage =
-          remainingSigs === 1
-            ? "Waiting for 1 more signature. Notification sent to authorized signer."
-            : `Waiting for ${remainingSigs} more signature(s). Notifications sent to authorized signers.`;
-
-        showToast("info", "Withdrawal Pending", sigMessage, 8000);
-
-        // Refresh balances and transactions
-        await loadMobileMoneyTotal();
-        await loadRecentTransactions();
-        await loadPendingWithdrawals();
-
-        // Ensure notifications are created (backup in case initial creation failed)
-        // This will create notifications for any signers that might have been missed
-        if (wallet) {
-          await ensurePendingWithdrawalNotifications(wallet);
-        }
-
-        isWithdrawing = false;
-        return;
-      }
-
-      // STANDARD FLOW: Execute withdrawal immediately
-      // Map provider to Monime provider code
-      const providerCode =
-        withdrawalProvider === "orange_money" ? "m17" : "m18";
-
-      // Convert currency from "NLe" to "SLE" for Monime API (Monime uses ISO currency codes)
-      const monimeCurrency = currency === "NLe" ? "SLE" : currency;
-
-      // Create payout via Monime API (send amount after platform fee - Monime will deduct their 1% fee)
-      const payout = await monimeService.createPayout(
-        {
-          currency: monimeCurrency,
-          value: netAmountAfterPlatformFee, // Send amount after platform fee (Monime will deduct their 1% from this)
-        },
-        {
-          providerCode: providerCode,
-          accountId: formattedPhone,
-        },
-        undefined, // source (optional)
-        {
-          wallet_address: wallet,
-          user_id: userId,
-          withdrawal_type: "mobile_money",
-          gross_amount: String(mobileMoneyTotal.toFixed(2)),
-          platform_fee: String(platformFee.toFixed(2)),
-          estimated_monime_fee: String(monimeFee.toFixed(2)),
-          net_amount_after_platform_fee: String(
-            netAmountAfterPlatformFee.toFixed(2)
-          ),
-          final_net_amount: String(finalNetAmount.toFixed(2)),
-        },
-        `withdrawal_${Date.now()}_${wallet}`
-      );
-
-      // Calculate total fees (platform fee + Monime fees)
-      const monimeFees =
-        payout.fees?.reduce((sum: number, fee: any) => {
-          const feeValue =
-            typeof fee.amount?.value === "number"
-              ? fee.amount.value / 100 // Convert from cents
-              : parseFloat(fee.amount?.value || 0) / 100;
-          return sum + feeValue;
-        }, 0) || 0;
-
-      // Create withdrawal record in wallet_transactions with payout details
-      const insertResult = await walletDataPost({
-        action: "insert",
-        row: {
-          wallet_address: wallet,
-          type: "withdrawal",
-          source: "mobile_money",
-          amount: -Number(mobileMoneyTotal || 0), // Deduct full amount from balance
-          currency: currency,
-          status: payout.status === "completed" ? "completed" : "pending",
-          external_id: payout.id,
-          metadata: {
-            note: "User-initiated withdrawal from wallet page",
-            payout_id: payout.id,
-            payout_status: payout.status,
-            provider: withdrawalProvider,
-            phone_number: formattedPhone,
-            gross_amount: String(mobileMoneyTotal.toFixed(2)),
-            platform_fee: String(platformFee.toFixed(2)),
-            monime_fees: String((monimeFees || 0).toFixed(2)),
-            estimated_monime_fee: String(monimeFee.toFixed(2)),
-            net_amount_after_platform_fee: String(
-              netAmountAfterPlatformFee.toFixed(2)
-            ),
-            final_net_amount: String(finalNetAmount.toFixed(2)),
-            fees_breakdown: {
-              platform_fee: String(platformFee.toFixed(2)),
-              estimated_monime_fee: String(monimeFee.toFixed(2)),
-              actual_monime_fees: String((monimeFees || 0).toFixed(2)),
-              total_fees: String(
-                (platformFee + (monimeFees || monimeFee)).toFixed(2)
-              ),
-            },
-            wallet_signature: {
-              message: withdrawalMessage,
-              signature: signatureBase64Encoded,
-              public_key: signResult.publicKey,
-              signed_at: new Date().toISOString(),
-            },
-            monime_response: payout,
-          },
-        },
+      const result = await requestWithdrawal({
+        phone,
+        provider: withdrawalProvider,
       });
 
-      const error = insertResult?.success
-        ? null
-        : insertResult?.error || "Insert failed";
-
-      if (error) {
-        console.error("Error creating withdrawal record:", error);
+      if (!result?.success) {
         showToast(
           "error",
-          "Record Save Failed",
-          "Withdrawal initiated but failed to save record. Please contact support.",
+          "Withdrawal Failed",
+          result?.error || "Failed to process withdrawal. Please try again.",
           8000
         );
         return;
       }
 
-      // Close modal and refresh
+      const w = result.data;
       closeWithdrawalModal();
-      const actualMonimeFee = monimeFees || monimeFee; // Use actual from Monime if available, otherwise use estimate
       const feesInfo =
-        platformFee > 0 || actualMonimeFee > 0
-          ? ` (Platform Fee: ${platformFee.toFixed(2)}, Monime Fee: ${actualMonimeFee.toFixed(2)})`
+        w.platformFee > 0 || w.monimeFee > 0
+          ? ` (Platform Fee: ${w.platformFee.toFixed(2)}, Monime Fee: ${w.monimeFee.toFixed(2)})`
           : "";
 
-      if (payout.status === "completed") {
+      if (w.status === "completed") {
         showToast(
           "success",
           "Withdrawal Successful",
-          `${currency} ${finalNetAmount.toFixed(2)} has been sent to ${formattedPhone}.${feesInfo}`,
+          `${w.currency} ${w.netAmount.toFixed(2)} has been sent to ${w.phone}.${feesInfo}`,
           8000
         );
       } else {
         showToast(
           "info",
           "Withdrawal Submitted",
-          `Status: ${payout.status}. You'll be notified when it completes. Amount to receive: ${currency} ${finalNetAmount.toFixed(2)}${feesInfo}`,
+          `Status: ${w.payoutStatus || w.status}. Amount to receive: ${w.currency} ${w.netAmount.toFixed(2)}${feesInfo}`,
           10000
         );
       }
 
-      // Refresh balances and transactions
-      await loadMobileMoneyTotal();
-      await loadRecentTransactions();
-      await loadPendingWithdrawals();
+      await refreshWalletData();
     } catch (error: any) {
       console.error("Withdrawal error:", error);
-      const errorMessage =
-        error.message || "Failed to process withdrawal. Please try again.";
-      showToast("error", "Withdrawal Failed", errorMessage, 8000);
+      showToast(
+        "error",
+        "Withdrawal Failed",
+        error?.message || "Failed to process withdrawal. Please try again.",
+        8000
+      );
     } finally {
       isWithdrawing = false;
     }
@@ -650,54 +153,20 @@
   async function loadMobileMoneyTotal() {
     isLoadingMobileMoney = true;
     try {
-      // Get user ID from session store (same as dashboard)
-      const userId = $sessionFromDb;
+      const result = await getWithdrawable();
+      mobileMoneyTotal = result?.success ? Number(result.data?.available) || 0 : 0;
+    } catch (err) {
+      console.error("Error loading withdrawable balance:", err);
+      mobileMoneyTotal = 0;
+    } finally {
+      isLoadingMobileMoney = false;
+    }
+  }
 
-      if (!userId) {
-        mobileMoneyTotal = 0;
-        isLoadingMobileMoney = false;
-        return;
-      }
-
-      // Get wallet address for withdrawals
-      const session = await verifyWeb3Session();
-      let wallet =
-        session?.success && session.user?.wallet_address
-          ? session.user.wallet_address
-          : null;
-      if (!wallet) {
-        wallet = getActiveWalletAddress();
-      }
-
-      // Load events created by this user
-      const userEvents = await loadUserEvents(userId, "traditional");
-      const eventIds = userEvents.map((e: any) => e.id);
-
-      if (eventIds.length === 0) {
-        mobileMoneyTotal = 0;
-        isLoadingMobileMoney = false;
-        return;
-      }
-
-      // Step 1: Calculate total deposits from completed mobile money orders
-      const ordersResult = await walletDataGet("organizer-orders", {
-        payment_methods: "orange_money,afrimoney",
-        payment_statuses: "paid,completed",
-      });
-      const rows = ordersResult?.success ? ordersResult.data : null;
-      const error = ordersResult?.success
-        ? null
-        : ordersResult?.error || "Failed to load orders";
-
-      if (error) {
-        console.error("Error loading mobile money orders:", error);
-        mobileMoneyTotal = 0;
-        isLoadingMobileMoney = false;
-        return;
-      }
-
-      // Sum all deposits (orders = deposits)
-      const totalDeposits = (rows || []).reduce((sum: number, r: any) => {
+  const sumOrders = (rows: any[], method: string) =>
+    rows
+      .filter((r: any) => r.payment_method === method)
+      .reduce((sum: number, r: any) => {
         const amt =
           typeof r.total_amount === "string"
             ? parseFloat(r.total_amount)
@@ -705,259 +174,80 @@
         return sum + (isFinite(amt) ? amt : 0);
       }, 0);
 
-      // Step 2: Calculate total withdrawals from wallet_transactions
-      // (withdrawals are stored as negative amounts, so we sum them to get total withdrawn)
-      // IMPORTANT: Only count completed/paid withdrawals - pending withdrawals should NOT affect balance
-      // because the money hasn't actually been withdrawn yet
-      let totalWithdrawals = 0;
-      if (wallet) {
-        const wdResult = await walletDataGet("transactions", {
-          wallet,
-          type: "withdrawal",
-          limit: 500,
-        });
-        const withdrawals = (wdResult?.success ? wdResult.data || [] : []).filter(
-          (t: any) =>
-            ["mobile_money", "orange_money", "afrimoney"].includes(t.source) &&
-            ["completed", "paid"].includes(t.status)
-        );
-        const withdrawalsError = wdResult?.success
-          ? null
-          : wdResult?.error || "Failed";
-
-        if (withdrawalsError) {
-          console.error("Error loading withdrawals:", withdrawalsError);
-        } else if (withdrawals && withdrawals.length > 0) {
-          // Sum withdrawals (they're already negative, so we need to make them positive to get total withdrawn)
-          totalWithdrawals = withdrawals.reduce((sum: number, t: any) => {
-            const amt =
-              typeof t.amount === "string"
-                ? parseFloat(t.amount)
-                : t.amount || 0;
-            // Withdrawals are negative, so we take absolute value to get total withdrawn
-            return sum + Math.abs(isFinite(amt) ? amt : 0);
-          }, 0);
-        }
-      }
-
-      // Step 3: Calculate balance = deposits - withdrawals
-      mobileMoneyTotal = Math.max(0, totalDeposits - totalWithdrawals);
-    } catch (err) {
-      console.error("Error in loadMobileMoneyTotal:", err);
-      mobileMoneyTotal = 0;
-    } finally {
-      isLoadingMobileMoney = false;
-    }
-  }
-
   async function loadOrderTotals() {
     isLoadingSolana = true;
     isLoadingTotal = true;
     try {
-      // Get user ID from session store (same as dashboard)
-      const userId = $sessionFromDb;
-
-      if (!userId) {
-        solanaOrdersTotal = 0;
-        totalRevenue = mobileMoneyTotal;
-        totalDisplay = totalRevenue.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
-        isLoadingSolana = false;
-        isLoadingTotal = false;
-        return;
-      }
-
-      // Load events created by this user
-      const userEvents = await loadUserEvents(userId, "traditional");
-      const eventIds = userEvents.map((e: any) => e.id);
-
-      if (eventIds.length === 0) {
-        solanaOrdersTotal = 0;
-        totalRevenue = mobileMoneyTotal || 0;
-        totalDisplay = totalRevenue.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
-        isLoadingSolana = false;
-        isLoadingTotal = false;
-        return;
-      }
-
-      // Query orders for events created by this user
-      const totalsResult = await walletDataGet("organizer-orders", {
+      const result = await walletDataGet("organizer-orders", {
         payment_statuses: "paid,completed",
       });
-      const rows = totalsResult?.success ? totalsResult.data : null;
-      const error = totalsResult?.success
-        ? null
-        : totalsResult?.error || "Failed to load orders";
-
-      if (error) {
-        console.error("Error loading order totals:", error);
-        solanaOrdersTotal = 0;
-        totalRevenue = mobileMoneyTotal || 0;
-        totalDisplay = totalRevenue.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
-        isLoadingSolana = false;
-        isLoadingTotal = false;
-        return;
+      const rows = result?.success ? result.data || [] : [];
+      if (!result?.success) {
+        console.error("Error loading order totals:", result?.error);
       }
-
-      const sumBy = (method: string) =>
-        (rows || [])
-          .filter((r: any) => r.payment_method === method)
-          .reduce((sum: number, r: any) => {
-            const amt =
-              typeof r.total_amount === "string"
-                ? parseFloat(r.total_amount)
-                : r.total_amount || 0;
-            return sum + (isFinite(amt) ? amt : 0);
-          }, 0);
-
-      solanaOrdersTotal = sumBy("solana");
-      // Calculate total revenue (gross revenue from all orders)
-      // Note: mobileMoneyTotal is already calculated in loadMobileMoneyTotal() 
-      // as deposits - withdrawals (available balance), so we need to calculate 
-      // gross mobile money revenue separately for totalRevenue
-      const mobileMoneyGrossRevenue = sumBy("orange_money") + sumBy("afrimoney");
-      totalRevenue = (solanaOrdersTotal || 0) + (mobileMoneyGrossRevenue || 0);
-      totalDisplay = totalRevenue.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
+      solanaOrdersTotal = sumOrders(rows, "solana");
+      totalRevenue =
+        solanaOrdersTotal + sumOrders(rows, "orange_money") + sumOrders(rows, "afrimoney");
     } catch (err) {
       console.error("Error in loadOrderTotals:", err);
-      // On error, use mobileMoneyTotal for revenue calculation (fallback)
-      // But don't overwrite mobileMoneyTotal itself - it's calculated separately
-      totalRevenue = (solanaOrdersTotal || 0) + (mobileMoneyTotal || 0);
-      totalDisplay = totalRevenue.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
+      totalRevenue = solanaOrdersTotal + mobileMoneyTotal;
     } finally {
+      totalDisplay = formatMoney(totalRevenue);
       isLoadingSolana = false;
       isLoadingTotal = false;
     }
   }
 
+  const isMobileMoney = (method: string) =>
+    method === "orange_money" || method === "afrimoney" || method === "mobile_money";
+
   async function loadRecentTransactions() {
     isLoadingTransactions = true;
     try {
-      // Get user ID from session store (same as balances)
-      const userId = $sessionFromDb;
-      if (!userId) {
-        recentTx = [];
-        isLoadingTransactions = false;
-        return;
-      }
-
-      // Load events created by this user
-      const userEvents = await loadUserEvents(userId, "traditional");
-      const eventIds = userEvents.map((e: any) => e.id);
-
-      // Get wallet address for wallet_transactions
-      const session = await verifyWeb3Session();
-      let wallet =
-        session?.success && session.user?.wallet_address
-          ? session.user.wallet_address
-          : null;
-      if (!wallet) {
-        wallet = getActiveWalletAddress();
-      }
-
-      // Query revenue orders (orders for events created by this user)
-      let fromOrders: any[] = [];
-      if (eventIds.length > 0) {
-        const ordersResult = await walletDataGet("organizer-orders", {
+      const [ordersResult, ledgerResult] = await Promise.all([
+        walletDataGet("organizer-orders", {
           payment_statuses: "paid,completed",
           limit: 10,
-        });
-        const orders = ordersResult?.success ? ordersResult.data : null;
-        const ordersError = ordersResult?.success
-          ? null
-          : ordersResult?.error || "Failed";
+        }),
+        walletDataGet("transactions", { limit: 10 }),
+      ]);
 
-        if (ordersError) {
-          console.error("Error loading revenue orders:", ordersError);
-        } else {
-          fromOrders = (orders || []).map((o: any) => {
-            // Normalize currency for display - use "NLe" for mobile money, keep original for Web3
-            const displayCurrency =
-              o.payment_method === "orange_money" ||
-              o.payment_method === "afrimoney"
-                ? "NLe"
-                : o.currency || "";
-
-            return {
-              id: o.id,
-              type: o.payment_method,
-              description: `${o.payment_method === "orange_money" || o.payment_method === "afrimoney" ? "Mobile Money" : "Web3"}: ${o.events?.name || "Event"} #${o.order_number}`,
-              date: new Date(o.created_at).toLocaleString(),
-              amount:
-                `+ ${Number(o.total_amount || 0).toFixed(2)} ${displayCurrency}`.trim(),
-              status: o.payment_status || "completed",
-              icon:
-                o.payment_method === "orange_money" ||
-                o.payment_method === "afrimoney"
-                  ? "deposit"
-                  : "ticket",
-              transactionType: "order",
-            };
-          });
+      const fromOrders = (ordersResult?.success ? ordersResult.data || [] : []).map(
+        (o: any) => {
+          const mm = isMobileMoney(o.payment_method);
+          return {
+            id: o.id,
+            type: o.payment_method,
+            description: `${mm ? "Mobile Money" : "Web3"}: ${o.events?.name || "Event"} #${o.order_number}`,
+            date: new Date(o.created_at).toLocaleString(),
+            amount: `+ ${Number(o.total_amount || 0).toFixed(2)} ${mm ? "NLe" : o.currency || ""}`.trim(),
+            status: o.payment_status || "completed",
+            icon: mm ? "deposit" : "ticket",
+            transactionType: "order",
+          };
         }
-      }
+      );
 
-      // Query wallet_transactions (withdrawals, deposits)
-      let fromLedger: any[] = [];
-      if (wallet) {
-        const ledgerResult = await walletDataGet("transactions", {
-          wallet,
-          limit: 10,
-        });
-        const ledger = ledgerResult?.success ? ledgerResult.data : null;
-        const ledgerError = ledgerResult?.success
-          ? null
-          : ledgerResult?.error || "Failed";
+      const fromLedger = (ledgerResult?.success ? ledgerResult.data || [] : []).map(
+        (t: any) => ({
+          id: t.id,
+          type: t.type,
+          description: `${t.type === "withdrawal" ? "Withdrawal" : t.type === "deposit" ? "Deposit" : t.type}: ${t.source}`,
+          date: new Date(t.created_at).toLocaleString(),
+          amount: `${t.amount >= 0 ? "+ " : ""}${Number(t.amount || 0).toFixed(2)} ${isMobileMoney(t.source) ? "NLe" : t.currency || ""}`.trim(),
+          status: t.status || "pending",
+          icon:
+            t.type === "withdrawal"
+              ? "withdrawal"
+              : t.type === "deposit"
+                ? "deposit"
+                : "ticket",
+          source: t.source,
+          external_id: t.external_id,
+          transactionType: "wallet_transaction",
+        })
+      );
 
-        if (ledgerError) {
-          console.error("Error loading wallet transactions:", ledgerError);
-        } else {
-          fromLedger = (ledger || []).map((t: any) => {
-            // Normalize currency for display - use "NLe" for mobile money transactions
-            const displayCurrency =
-              t.source === "mobile_money" ||
-              t.source === "orange_money" ||
-              t.source === "afrimoney"
-                ? "NLe"
-                : t.currency || "";
-
-            return {
-              id: t.id,
-              type: t.type,
-              description: `${t.type === "withdrawal" ? "Withdrawal" : t.type === "deposit" ? "Deposit" : t.type}: ${t.source}`,
-              date: new Date(t.created_at).toLocaleString(),
-              amount:
-                `${t.amount >= 0 ? "+ " : ""}${Number(t.amount || 0).toFixed(2)} ${displayCurrency}`.trim(),
-              status: t.status || "pending",
-              icon:
-                t.type === "withdrawal"
-                  ? "withdrawal"
-                  : t.type === "deposit"
-                    ? "deposit"
-                    : "ticket",
-              source: t.source,
-              external_id: t.external_id,
-              transactionType: "wallet_transaction",
-            };
-          });
-        }
-      }
-
-      // Combine and sort by date (most recent first)
       recentTx = [...fromLedger, ...fromOrders]
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 10);
@@ -969,182 +259,15 @@
     }
   }
 
-  // Helper function to ensure wallet exists in web3_users (required for notifications)
-  async function ensureWalletUser(walletAddress: string): Promise<boolean> {
-    try {
-      // Check if wallet exists using RPC function
-      const { data: checkResult, error: checkError } = await supabase.rpc(
-        "check_wallet_exists",
-        {
-          wallet_address_param: walletAddress,
-        }
-      );
-
-      // check_wallet_exists returns a table with 'exists' field
-      // If wallet exists, return true
-      if (
-        !checkError &&
-        checkResult &&
-        checkResult.length > 0 &&
-        checkResult[0].exists === true
-      ) {
-        return true;
-      }
-
-      // If wallet doesn't exist, create it using RPC function
-      const { data: createResult, error: createError } = await supabase.rpc(
-        "create_web3_user",
-        {
-          wallet_address_param: walletAddress,
-          username_param: null, // No username required
-          display_name_param: null, // No display name required
-        }
-      );
-
-      // Return true if created successfully (check result array first element success field)
-      return (
-        !createError &&
-        createResult &&
-        createResult.length > 0 &&
-        createResult[0].success === true
-      );
-    } catch (err) {
-      return false;
-    }
-  }
-
-  // Helper function to create withdrawal notifications for signers
-  async function createWithdrawalNotifications(
-    signersData: any[],
-    primaryWallet: string,
-    currency: string,
-    finalNetAmount: number,
-    formattedPhone: string,
-    pendingToken: string
-  ): Promise<number> {
-    let notificationsSent = 0;
-    const notificationPromises = [];
-
-    // Send notifications to all active signers (excluding the primary wallet who already signed)
-    for (const signer of signersData) {
-      if (signer.is_active && signer.signer_wallet_address !== primaryWallet) {
-        notificationPromises.push(
-          (async () => {
-            try {
-              // Ensure the signer wallet exists in web3_users (required for notifications)
-              // Do this BEFORE attempting to create notification
-              const walletExists = await ensureWalletUser(
-                signer.signer_wallet_address
-              );
-
-              if (!walletExists) {
-                // Wallet doesn't exist and couldn't be created - try one more time
-                const retryWallet = await ensureWalletUser(
-                  signer.signer_wallet_address
-                );
-                if (!retryWallet) {
-                  return { error: new Error("Wallet not found in web3_users") };
-                }
-              }
-
-              // Create notification
-              const result = await supabase.rpc("create_notification", {
-                p_user_wallet_address: signer.signer_wallet_address,
-                p_title: "Withdrawal Signature Required",
-                p_message: `A withdrawal of ${currency} ${finalNetAmount.toFixed(2)} to ${formattedPhone} needs your signature.`,
-                p_type: "warning",
-                p_action_url: `/dashboard/wallet/pending-withdrawal/${pendingToken}`,
-                p_is_read: false,
-              });
-
-              // Check if notification was created successfully
-              if (result.error) {
-                // If error, ensure wallet exists again and retry once more
-                await ensureWalletUser(signer.signer_wallet_address);
-                const retryResult = await supabase.rpc("create_notification", {
-                  p_user_wallet_address: signer.signer_wallet_address,
-                  p_title: "Withdrawal Signature Required",
-                  p_message: `A withdrawal of ${currency} ${finalNetAmount.toFixed(2)} to ${formattedPhone} needs your signature.`,
-                  p_type: "warning",
-                  p_action_url: `/dashboard/wallet/pending-withdrawal/${pendingToken}`,
-                  p_is_read: false,
-                });
-                if (!retryResult.error && retryResult.data) {
-                  notificationsSent++;
-                }
-                return retryResult;
-              } else if (result.data) {
-                // Success - notification created
-                notificationsSent++;
-              }
-              return result;
-            } catch (err: any) {
-              // Individual notification error - don't block others
-              return { error: err };
-            }
-          })()
-        );
-      }
-    }
-
-    // Send all notifications (errors are handled individually to not block withdrawal creation)
-    if (notificationPromises.length > 0) {
-      await Promise.allSettled(notificationPromises);
-    }
-
-    return notificationsSent;
-  }
-
   async function loadPendingWithdrawals() {
     isLoadingPendingWithdrawals = true;
     try {
-      const session = await verifyWeb3Session();
-      let wallet =
-        session?.success && session.user?.wallet_address
-          ? session.user.wallet_address
-          : null;
-      if (!wallet) {
-        wallet = getActiveWalletAddress();
-      }
-
-      if (!wallet) {
-        pendingWithdrawals = [];
-        isLoadingPendingWithdrawals = false;
-        return;
-      }
-
-      // Load pending withdrawals for this wallet
-      // Include both multisig (pending_approval) and standard (pending) withdrawals
-      // Exclude cancelled withdrawals
-      const pendingResult = await walletDataGet("transactions", {
-        wallet,
+      const result = await walletDataGet("transactions", {
         type: "withdrawal",
-        limit: 100,
+        status: "pending",
+        limit: 20,
       });
-      const pending = (pendingResult?.success ? pendingResult.data || [] : []).filter(
-        (w: any) => ["pending_approval", "pending"].includes(w.status)
-      );
-      const error = pendingResult?.success
-        ? null
-        : pendingResult?.error || "Failed";
-
-      if (error) {
-        console.error("Error loading pending withdrawals:", error);
-        pendingWithdrawals = [];
-      } else {
-        // Filter out expired and cancelled withdrawals
-        const now = new Date();
-        pendingWithdrawals = (pending || []).filter((w: any) => {
-          // Exclude cancelled withdrawals
-          if (w.status === "cancelled") return false;
-          // Filter out expired withdrawals
-          if (!w.expires_at) return true;
-          return new Date(w.expires_at) > now;
-        });
-      }
-
-      // Ensure notifications exist for pending withdrawals that need signers
-      await ensurePendingWithdrawalNotifications(wallet);
+      pendingWithdrawals = result?.success ? result.data || [] : [];
     } catch (err) {
       console.error("Error in loadPendingWithdrawals:", err);
       pendingWithdrawals = [];
@@ -1153,122 +276,6 @@
     }
   }
 
-  // Ensure notifications exist for pending withdrawals that need signers
-  async function ensurePendingWithdrawalNotifications(currentWallet: string) {
-    try {
-      // Find all pending withdrawals where this wallet is a potential signer
-      // Use the security definer function to bypass RLS
-      const { data: signerConfigs, error: signerError } = await supabase.rpc(
-        "get_multisig_signers_by_signer_wallet",
-        {
-          p_signer_wallet_address: currentWallet,
-        }
-      );
-
-      if (signerError) {
-        return;
-      }
-
-      if (!signerConfigs || signerConfigs.length === 0) {
-        return;
-      }
-      const primaryWallets = (signerConfigs || []).map(
-        (c: any) => c.primary_wallet_address
-      );
-
-      // Find pending withdrawals for these primary wallets
-      const pendingResult = await walletDataGet("signer-pending", {
-        wallets: primaryWallets.join(","),
-      });
-      const pendingWithdrawals = pendingResult?.success
-        ? pendingResult.data || []
-        : [];
-      const withdrawalError = pendingResult?.success
-        ? null
-        : pendingResult?.error || "Failed";
-
-      if (withdrawalError) {
-        return;
-      }
-
-      if (!pendingWithdrawals || pendingWithdrawals.length === 0) {
-        return;
-      }
-
-      let notificationsCreated = 0;
-
-      // Check each pending withdrawal and create notifications if needed
-      for (const withdrawal of pendingWithdrawals) {
-        // Check if withdrawal is expired
-        if (
-          withdrawal.expires_at &&
-          new Date(withdrawal.expires_at) < new Date()
-        ) {
-          continue;
-        }
-
-        // Check if this wallet has already signed
-        const collectedSignatures = withdrawal.collected_signatures || [];
-        const hasSigned = collectedSignatures.some(
-          (sig: any) => sig.wallet === currentWallet
-        );
-
-        if (hasSigned) {
-          continue;
-        }
-
-        // Check if notification already exists (regardless of read status)
-        const { data: existingNotifications, error: notifCheckError } =
-          await supabase
-            .from("notifications")
-            .select("id")
-            .eq("user_wallet_address", currentWallet)
-            .eq(
-              "action_url",
-              `/dashboard/wallet/pending-withdrawal/${withdrawal.pending_token}`
-            )
-            .limit(1);
-
-        if (notifCheckError) {
-          continue;
-        }
-
-        if (existingNotifications && existingNotifications.length > 0) {
-          continue;
-        }
-
-        // Create notification for this pending withdrawal
-        const metadata = withdrawal.metadata || {};
-        const finalAmount =
-          metadata.final_net_amount || Math.abs(withdrawal.amount);
-        const currency = withdrawal.currency || "NLe";
-        const phoneNumber = metadata.phone_number || "N/A";
-
-        const { data: notificationData, error: insertError } =
-          await supabase.rpc("create_notification", {
-            p_user_wallet_address: currentWallet,
-            p_title: "Withdrawal Signature Required",
-            p_message: `A withdrawal of ${currency} ${finalAmount.toFixed(2)} to ${phoneNumber} needs your signature.`,
-            p_type: "warning",
-            p_action_url: `/dashboard/wallet/pending-withdrawal/${withdrawal.pending_token}`,
-            p_is_read: false,
-          });
-
-        if (!insertError) {
-          notificationsCreated++;
-        }
-      }
-
-      if (notificationsCreated > 0) {
-        // Trigger a refresh of notifications in the UI (they auto-refresh every 30s, but this helps)
-        // We could dispatch an event here if needed, but the auto-refresh should catch it
-      }
-    } catch (err) {
-      // Error ensuring pending withdrawal notifications
-    }
-  }
-
-  // Handle Escape key to close modal
   function handleEscapeKey(e: KeyboardEvent) {
     if (e.key === "Escape" && showWithdrawalModal) {
       closeWithdrawalModal();
@@ -1276,44 +283,16 @@
   }
 
   onMount(() => {
-    // Trigger entrance animations
     setTimeout(() => {
       isLoaded = true;
     }, 100);
-
     setTimeout(() => {
       showContent = true;
     }, 300);
 
-    // Add Escape key listener for modal
     window.addEventListener("keydown", handleEscapeKey);
 
-    // Load balances and wallet address
     (async () => {
-      // Get wallet address first - retry a few times if not found immediately
-      let attempts = 0;
-      const maxAttempts = 3;
-      while (attempts < maxAttempts && !currentWalletAddress) {
-        currentWalletAddress = await getCurrentWallet();
-        if (!currentWalletAddress && attempts < maxAttempts - 1) {
-          // Wait a bit before retrying (wallet extension might need time to load)
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * (attempts + 1))
-          );
-        }
-        attempts++;
-      }
-
-      // Get wallet address first for notification checking
-      const session = await verifyWeb3Session();
-      let walletForNotifications =
-        session?.success && session.user?.wallet_address
-          ? session.user.wallet_address
-          : null;
-      if (!walletForNotifications) {
-        walletForNotifications = getActiveWalletAddress();
-      }
-
       await Promise.all([
         loadMobileMoneyTotal(),
         loadOrderTotals(),
@@ -1321,42 +300,13 @@
         loadPendingWithdrawals(),
       ]);
 
-      // Check and update status of pending withdrawals
-      await checkAndUpdateWithdrawalStatus();
-
-      // Ensure notifications exist for pending withdrawals (for signers)
-      if (walletForNotifications) {
-        await ensurePendingWithdrawalNotifications(walletForNotifications);
-      }
-      // Load SOL balance from chain
-      isLoadingSolBalance = true;
-      try {
-        const session = await verifyWeb3Session();
-        let wallet =
-          session?.success && session.user?.wallet_address
-            ? session.user.wallet_address
-            : null;
-        if (!wallet) {
-          wallet = getActiveWalletAddress();
-        }
-        if (wallet) {
-          const bal = await getBalance(wallet);
-          if (bal !== null && bal !== undefined) {
-            solBalance = `${bal.toFixed(3)} SOL`;
-          } else {
-            solBalance = "-- SOL";
-          }
-        } else {
-          solBalance = "-- SOL";
-        }
-      } catch (_) {
-        solBalance = "-- SOL";
-      } finally {
-        isLoadingSolBalance = false;
+      // Pick up payouts that finished since the last visit
+      const synced = await syncPayouts().catch(() => null);
+      if (synced?.success && synced.data?.updated > 0) {
+        await refreshWalletData();
       }
     })();
 
-    // Cleanup on destroy
     return () => {
       window.removeEventListener("keydown", handleEscapeKey);
     };
@@ -1492,32 +442,6 @@
         </div>
       </div>
 
-      <!-- Multi-Signature Settings -->
-      {#if currentWalletAddress}
-        <MultisigSettings walletAddress={currentWalletAddress} />
-      {:else if !isLoadingTotal && !isLoadingMobileMoney}
-        <!-- Wait for wallet to be detected -->
-        <div class="bg-gray-800 rounded-lg p-6 text-center space-y-3">
-          <p class="text-gray-400 text-sm">Detecting wallet...</p>
-          <button
-            on:click={async () => {
-              currentWalletAddress = await getCurrentWallet();
-              if (!currentWalletAddress) {
-                showToast(
-                  "error",
-                  "Wallet Not Found",
-                  "Please connect your wallet extension.",
-                  5000
-                );
-              }
-            }}
-            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition-colors"
-          >
-            Retry Detection
-          </button>
-        </div>
-      {/if}
-
       <!-- Pending Withdrawals -->
       {#if pendingWithdrawals.length > 0}
         <div class="space-y-4">
@@ -1528,16 +452,7 @@
             {#each pendingWithdrawals as withdrawal (withdrawal.id)}
               <PendingWithdrawalCard
                 {withdrawal}
-                onCancel={async () => {
-                  await loadMobileMoneyTotal();
-                  await loadRecentTransactions();
-                  await loadPendingWithdrawals();
-                }}
-                onRefresh={async () => {
-                  await loadMobileMoneyTotal();
-                  await loadPendingWithdrawals();
-                  await loadRecentTransactions();
-                }}
+                onRefresh={refreshWalletData}
               />
             {/each}
           </div>

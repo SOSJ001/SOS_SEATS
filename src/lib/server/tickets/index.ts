@@ -65,12 +65,13 @@ export async function claimTickets(
           .from("ticket_types")
           .select("*")
           .eq("id", ticketTypeIdToUse)
-          .single();
+          .eq("event_id", eventId)
+          .maybeSingle();
 
         if (ticketError || !ticketType) {
           return {
             success: false,
-            error: "Failed to get ticket type details",
+            error: "Ticket type not found for this event",
           };
         }
 

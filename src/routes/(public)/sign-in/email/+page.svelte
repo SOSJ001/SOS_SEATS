@@ -7,7 +7,8 @@
   import AuthPrimaryButton from "$lib/components/auth/AuthPrimaryButton.svelte";
   import AuthHeroPanel from "$lib/components/auth/AuthHeroPanel.svelte";
   import AuthPanelShell from "$lib/components/auth/AuthPanelShell.svelte";
-  import AuthWordmark from "$lib/components/auth/AuthWordmark.svelte";
+  import AuthMobileTopRow from "$lib/components/auth/AuthMobileTopRow.svelte";
+  import AuthChangeRoleLink from "$lib/components/auth/AuthChangeRoleLink.svelte";
 
   let identifier = "";
   let password = "";
@@ -17,7 +18,6 @@
   $: role = $page.url.searchParams.get("role");
   $: next = $page.url.searchParams.get("next");
   $: authQuery = authSearchParams({ next, role });
-  $: isStaff = role === "staff";
 
   async function onSubmit() {
     errorMessage = null;
@@ -48,7 +48,7 @@
   <header
     class="flex w-full flex-col items-start gap-5 bg-gradient-to-b from-brand-soft to-paper-cream p-6"
   >
-    <AuthWordmark size="mobile" />
+    <AuthMobileTopRow />
     <div class="flex w-full flex-col items-start gap-2">
       <h1 class="m-0 text-[28px] font-extrabold leading-none text-ink">Sign In</h1>
       <p class="m-0 text-sm leading-[1.4] text-ink-secondary opacity-85">
@@ -117,14 +117,13 @@
         </a>
       </div>
 
-      {#if !isStaff}
-        <p class="m-0 w-full text-center text-sm text-ink-secondary">
-          Don't have an account?
-          <a href="/sign-up{authQuery}" class="font-extrabold text-brand hover:underline"
-            >Sign Up</a
-          >
-        </p>
-      {/if}
+      <p class="m-0 w-full text-center text-sm text-ink-secondary">
+        Don't have an account?
+        <a href="/sign-up{authQuery}" class="font-extrabold text-brand hover:underline"
+          >Sign Up</a
+        >
+      </p>
+      <AuthChangeRoleLink />
     </div>
   </form>
 </div>
@@ -191,14 +190,13 @@
         </a>
       </div>
 
-      {#if !isStaff}
-        <p class="m-0 w-full text-sm text-ink-secondary">
-          New to SOS SEATS?
-          <a href="/sign-up{authQuery}" class="font-bold text-brand hover:underline"
-            >Create an account</a
-          >
-        </p>
-      {/if}
+      <p class="m-0 w-full text-sm text-ink-secondary">
+        New to SOS SEATS?
+        <a href="/sign-up{authQuery}" class="font-bold text-brand hover:underline"
+          >Create an account</a
+        >
+      </p>
+      <AuthChangeRoleLink />
 
       <p class="m-0 w-full text-center text-xs leading-[1.5] text-ink-muted">
         By signing in, you agree to our

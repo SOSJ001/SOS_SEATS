@@ -313,9 +313,7 @@
         const eventImage = eventDetails.images?.[0] || eventDetails.image;
 
         // Use fallback image if no event image is available
-        const imageUrl =
-          eventImage?.file_path ||
-          "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop";
+        const imageUrl = eventImage?.file_path || "/hifi/event-1.png";
 
         if (eventImage?.file_path) {
           try {

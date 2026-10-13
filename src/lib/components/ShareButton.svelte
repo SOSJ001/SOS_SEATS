@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { toDataURL } from "qrcode";
+
   export let url: string = "";
   export let title: string = "";
   export let description: string = "";
@@ -29,8 +31,10 @@
 
   function openQRModal() {
     showShareModal = false;
-    // Generate QR code URL using a free QR code service
-    qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+    qrCodeUrl = "";
+    toDataURL(url, { width: 300, margin: 1 })
+      .then((dataUrl: string) => (qrCodeUrl = dataUrl))
+      .catch(() => (qrCodeUrl = ""));
     showQRModal = true;
   }
 
@@ -506,12 +510,11 @@
           <!-- QR Code Display -->
           <div class="flex flex-col items-center space-y-4">
             <div class="bg-white p-4 rounded-lg">
-              <img
-                src={qrCodeUrl}
-                alt="QR Code for event"
-                class="w-48 h-48"
-                loading="lazy"
-              />
+              {#if qrCodeUrl}
+                <img src={qrCodeUrl} alt="QR Code for event" class="w-48 h-48" />
+              {:else}
+                <div class="w-48 h-48" aria-hidden="true"></div>
+              {/if}
             </div>
             <p class="text-gray-300 text-sm text-center">
               Scan this QR code to access the event page

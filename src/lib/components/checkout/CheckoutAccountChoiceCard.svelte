@@ -70,7 +70,7 @@
   </div>
 
   <div
-    class="flex items-center gap-3 rounded-xl border border-paper-border bg-white p-3 lg:gap-2.5 lg:rounded-lg lg:px-3 lg:py-2.5"
+    class="flex items-start gap-3 rounded-xl border border-paper-border bg-white p-3 lg:items-center lg:gap-2.5 lg:rounded-lg lg:px-3 lg:py-2.5"
   >
     <span class="size-5 shrink-0 rounded-full bg-brand lg:size-4" aria-hidden="true"></span>
     <p class="m-0 text-[13px] leading-[18px] text-ink-secondary lg:text-[12px] lg:leading-snug">

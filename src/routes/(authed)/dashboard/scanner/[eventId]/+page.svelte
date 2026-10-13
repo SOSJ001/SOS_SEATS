@@ -17,4 +17,5 @@
   role={data.role}
   backHref={data.backHref}
   userName={data.userName}
+  staffContact={data.staffContact}
 />

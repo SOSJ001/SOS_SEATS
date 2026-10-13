@@ -6,6 +6,8 @@
    * dark slate, event name + camera status centred, back link on the right.
    */
   import ArrowLeft from "lucide-svelte/icons/arrow-left";
+  import Mail from "lucide-svelte/icons/mail";
+  import Phone from "lucide-svelte/icons/phone";
   import AuthedWordmark from "./AuthedWordmark.svelte";
   import LogoutConfirmModal from "./LogoutConfirmModal.svelte";
   import { authedLogout, initialsFromName } from "./authedLogout.js";
@@ -20,6 +22,8 @@
   export let title = "";
   export let backHref = "";
   export let backLabel = "Back";
+  /** "email" | "phone": staff landing header (487:151 / 721:1434); userName is the contact. */
+  export let contactType = "";
 
   const STATUS = {
     idle: { label: "Camera off", dot: "bg-[#94a3b8]", text: "text-[#94a3b8]" },
@@ -28,16 +32,42 @@
     paused: { label: "Paused", dot: "bg-[#f59e0b]", text: "text-[#f59e0b]" },
     blocked: { label: "Camera blocked", dot: "bg-[#ef4444]", text: "text-[#f87171]" },
     insecure: { label: "Camera needs https", dot: "bg-[#ef4444]", text: "text-[#f87171]" },
+    removed: { label: "Access Removed", dot: "bg-[#ef4444]", text: "text-[#ef4444]" },
   };
 
   let showLogoutConfirm = false;
 
   $: initials = initialsFromName(userName);
   $: scanner = !!title;
+  $: staffHeader = !scanner && !!contactType;
   $: status = STATUS[$doorScannerStatus] || STATUS.idle;
 </script>
 
 <div class="authed-shell min-h-screen flex flex-col bg-public-page text-ink">
+  {#if staffHeader}
+    <header
+      class="sticky top-0 z-30 flex h-11 items-center justify-between gap-4 bg-paper px-5 md:h-auto md:border-b md:border-black/[0.06] md:px-8 md:py-4"
+    >
+      <AuthedWordmark variant="light" href={homeHref} />
+
+      <span class="md:hidden rounded-[20px] bg-brand px-3 py-1.5 text-xs font-bold text-white"
+        >{roleLabel}</span
+      >
+      <div class="hidden md:flex min-w-0 items-center gap-3">
+        <span
+          class="flex size-8 shrink-0 items-center justify-center rounded-2xl bg-brand/10 text-brand"
+          aria-hidden="true"
+        >
+          {#if contactType === "phone"}
+            <Phone size={16} />
+          {:else}
+            <Mail size={16} />
+          {/if}
+        </span>
+        <span class="truncate text-sm font-semibold text-[#262633]">{userName}</span>
+      </div>
+    </header>
+  {:else}
   <header
     class="sticky top-0 z-30 flex items-center justify-between gap-4 border-b px-5 py-3.5 md:px-8 {scanner
       ? 'bg-paper border-black/[0.06] md:bg-slate-public md:border-white/[0.08] md:h-[72px] md:py-0 md:shadow-[0_6px_9px_rgba(0,0,0,0.08)]'
@@ -104,6 +134,7 @@
       </div>
     {/if}
   </header>
+  {/if}
 
   <main class="flex-1 flex flex-col">
     {#if flush}

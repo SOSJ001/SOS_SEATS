@@ -2,6 +2,7 @@
   // @ts-nocheck
   /** Mobile checkout failed — HI-FI checkout-failed 281:110. */
   import X from "lucide-svelte/icons/x";
+  import { LEGAL } from "$lib/legal/legalConfig.js";
 
   export let eventName = "";
   export let amountLabel = "";
@@ -95,10 +96,10 @@
     <p class="m-0 w-full pt-2 text-center text-xs leading-[1.4] text-ink-secondary">
       Need help? Contact support at
       <a
-        href="mailto:support@sosseats.com"
+        href="mailto:{LEGAL.contactEmail}"
         class="text-ink-secondary no-underline hover:text-brand"
       >
-        support@sosseats.com
+        {LEGAL.contactEmail}
       </a>
     </p>
   </div>

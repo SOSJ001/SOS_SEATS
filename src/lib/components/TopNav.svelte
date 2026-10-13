@@ -5,6 +5,7 @@
   import { page } from "$app/stores";
   import { slide, fade, scale } from "svelte/transition";
   import { quintOut } from "svelte/easing";
+  import { WEB3_ENABLED } from "$lib/features.js";
 
   export let signup = false;
 
@@ -217,12 +218,14 @@
   </ul>
 
   <!-- Desktop Wallet Connect Button -->
-  <div
-    class="hidden md:block ml-4 transition-all duration-300 ease-out"
-    class:animate-slideInFromRight={isAuthenticated}
-  >
-    <WalletConnectButton />
-  </div>
+  {#if WEB3_ENABLED}
+    <div
+      class="hidden md:block ml-4 transition-all duration-300 ease-out"
+      class:animate-slideInFromRight={isAuthenticated}
+    >
+      <WalletConnectButton />
+    </div>
+  {/if}
 
   <!-- Desktop Get Started Button -->
   <!-- <button
@@ -237,9 +240,11 @@
   <!-- Mobile Right Side - Wallet Button and Hamburger -->
   <div class="md:hidden flex items-center space-x-2">
     <!-- Mobile Wallet Connect Button -->
-    <div class="mr-2">
-      <WalletConnectButton />
-    </div>
+    {#if WEB3_ENABLED}
+      <div class="mr-2">
+        <WalletConnectButton />
+      </div>
+    {/if}
 
     <!-- Mobile Hamburger Button -->
     <button

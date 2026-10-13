@@ -1,71 +1,29 @@
 /**
- * Utility functions for handling both traditional and Web3 sessions
+ * Map a verified userSession payload to the product session fields.
+ * The payload must come from readUserSessionCookie (signature already checked).
+ * @param {{ id?: string, email?: string | null, user_metadata?: Record<string, any> } | null} sessionData
+ * @returns {{ user_Id: string | null, userName: string | null, sessionType: string | null, walletAddress: string | null }}
  */
-
-/**
- * Parse session data from cookies, supporting both traditional and Web3 sessions
- * @param {Object} cookies - SvelteKit cookies object
- * @returns {Object} - { user_Id, userName, sessionType, walletAddress }
- */
-export function parseSession(cookies) {
-  const userSession = cookies.get("userSession");
-  const web3Session = cookies.get("web3Session");
-
-  let user_Id = null;
-  let userName = null;
-  let sessionType = null;
-  let walletAddress = null;
-
-  // Check traditional / phone session first (same userSession cookie)
-  if (userSession) {
-    try {
-      const sessionData = JSON.parse(userSession);
-      user_Id = sessionData.id;
-      userName =
-        sessionData.user_metadata?.userName || sessionData.user_metadata?.name;
-      const metaType = sessionData.user_metadata?.sessionType;
-      const email =
-        typeof sessionData.email === "string" ? sessionData.email : "";
-      if (
-        metaType === "phone" ||
-        email.toLowerCase().endsWith("@phone.sosseats.internal")
-      ) {
-        sessionType = "phone";
-      } else {
-        sessionType = "traditional";
-      }
-    } catch (error) {
-      }
+export function parseSession(sessionData) {
+  if (!sessionData?.id) {
+    return { user_Id: null, userName: null, sessionType: null, walletAddress: null };
   }
 
-  // Check Web3 session if no traditional session
-  if (!user_Id && web3Session) {
-    try {
-      const sessionData = JSON.parse(web3Session);
-      if (sessionData.type === "web3" && sessionData.user) {
-        user_Id = sessionData.user.id;
-        userName = sessionData.user.username || sessionData.user.display_name;
-        sessionType = "web3";
-        walletAddress = sessionData.wallet_address;
-      }
-    } catch (error) {
-      }
+  const meta = sessionData.user_metadata || {};
+  const email = typeof sessionData.email === "string" ? sessionData.email.toLowerCase() : "";
+
+  let sessionType = "traditional";
+  // Staff by email domain only: user_metadata is user-editable.
+  if (email.endsWith("@staff.sosseats.internal")) {
+    sessionType = "staff";
+  } else if (meta.sessionType === "phone" || email.endsWith("@phone.sosseats.internal")) {
+    sessionType = "phone";
   }
 
-  return { user_Id, userName, sessionType, walletAddress };
-}
-
-/**
- * Validate that a valid session exists
- * @param {Object} cookies - SvelteKit cookies object
- * @returns {{ valid: boolean, user_Id: string | null, sessionType: string | null }} - Session validation result
- */
-export function validateSession(cookies) {
-  const { user_Id, sessionType } = parseSession(cookies);
   return {
-    valid: !!user_Id,
-    user_Id,
+    user_Id: sessionData.id,
+    userName: meta.userName || meta.name || null,
     sessionType,
+    walletAddress: null,
   };
 }
- 

@@ -3,8 +3,13 @@
  * Fixed gateway fee 0.99 NLe per ticket. No organiser 5% / buyer booking fee.
  */
 import { getServerSupabase } from "$lib/server/db";
-import { insertWalletTransaction, listOrganizerOrders } from "$lib/server/wallet";
+import {
+  insertWalletTransaction,
+  listOrganizerOrders,
+  RESERVED_WITHDRAWAL_STATUSES,
+} from "$lib/server/wallet";
 import { assertEventOwnedByUser } from "$lib/server/events";
+import { fetchPaymentCodeFromMonime } from "./fulfillPaymentCode";
 
 export const PRIVATE_ISSUE_FEE_NLE = 0.99;
 export const PRIVATE_INVITE_TYPE_NAME = "Private Invite";
@@ -14,7 +19,10 @@ export function privateIssueFeeTotal(qty: number): number {
   return Math.round(n * PRIVATE_ISSUE_FEE_NLE * 100) / 100;
 }
 
-/** Organiser NLe proceeds: MM order deposits minus completed MM withdrawals. */
+/**
+ * Organiser NLe proceeds: MM order deposits minus MM withdrawals that are paid
+ * out or still pending, so money on its way out cannot be withdrawn twice.
+ */
 export async function getOrganiserNleBalance(
   userId: string,
   walletAddress: string | null | undefined
@@ -42,7 +50,7 @@ export async function getOrganiserNleBalance(
     .select("amount, source, status, type, metadata")
     .eq("wallet_address", wallet)
     .eq("type", "withdrawal")
-    .in("status", ["completed", "paid"])
+    .in("status", RESERVED_WITHDRAWAL_STATUSES)
     .limit(500);
 
   for (const t of txs || []) {
@@ -64,7 +72,7 @@ export async function getOrganiserNleBalance(
       .select("amount, source, status, type, metadata")
       .eq("wallet_address", `user:${userId}`)
       .eq("type", "withdrawal")
-      .in("status", ["completed", "paid"])
+      .in("status", RESERVED_WITHDRAWAL_STATUSES)
       .limit(200);
     for (const t of userTxs || []) {
       const meta = t.metadata || {};
@@ -118,8 +126,91 @@ export type PrivateIssueResult =
   | { success: false; error: string };
 
 /**
+ * Verify a mobile money private-issue payment with Monime and mark it used.
+ * Must succeed before issuePrivateGuests on the MM path, so one payment
+ * cannot be replayed to issue guests more than once.
+ */
+export async function claimPrivateIssuePayment(opts: {
+  paymentCodeId: string;
+  eventId: string;
+  userId: string;
+  walletAddress: string | null | undefined;
+  qty: number;
+}): Promise<{ success: true } | { success: false; error: string; status: number }> {
+  const paymentCodeId = String(opts.paymentCodeId || "").trim();
+  if (!paymentCodeId) {
+    return { success: false, error: "Payment code required", status: 400 };
+  }
+
+  const code = await fetchPaymentCodeFromMonime(paymentCodeId);
+  if (!code) {
+    return { success: false, error: "Payment not found", status: 404 };
+  }
+
+  const status = String(code.status || "").toLowerCase();
+  if (status !== "completed" && status !== "paid") {
+    return { success: false, error: "Payment is not completed yet", status: 402 };
+  }
+
+  const meta = (code.metadata || {}) as Record<string, unknown>;
+  if (
+    meta.purpose !== "private_issue" ||
+    String(meta.event_id || "") !== opts.eventId ||
+    String(meta.buyer_id || "") !== opts.userId ||
+    Math.floor(Number(meta.qty) || 0) !== opts.qty
+  ) {
+    return { success: false, error: "Payment does not match this request", status: 403 };
+  }
+
+  const amount = (code.amount || {}) as { value?: number | string };
+  const paid = (Number(amount.value) || 0) / 100;
+  const due = privateIssueFeeTotal(opts.qty);
+  if (paid + 0.005 < due) {
+    return { success: false, error: "Payment amount is too low", status: 402 };
+  }
+
+  const db = getServerSupabase();
+  const { data: used } = await db
+    .from("wallet_transactions")
+    .select("id")
+    .eq("type", "private_issue_payment")
+    .eq("external_id", paymentCodeId)
+    .limit(1);
+  if (used && used.length > 0) {
+    return { success: false, error: "This payment has already been used", status: 409 };
+  }
+
+  const { error } = await insertWalletTransaction({
+    wallet_address: opts.walletAddress || `user:${opts.userId}`,
+    type: "private_issue_payment",
+    source: "private_issue",
+    status: "completed",
+    amount: Math.round(paid * 100) / 100,
+    currency: "NLe",
+    external_id: paymentCodeId,
+    description: `Private ticket issue × ${opts.qty} (mobile money)`,
+    metadata: {
+      purpose: "private_issue",
+      event_id: opts.eventId,
+      qty: opts.qty,
+      user_id: opts.userId,
+    },
+  });
+  if (error) {
+    const duplicate = /duplicate key|one_use_per_private_issue_payment/i.test(error);
+    return {
+      success: false,
+      error: duplicate ? "This payment has already been used" : error,
+      status: duplicate ? 409 : 500,
+    };
+  }
+
+  return { success: true };
+}
+
+/**
  * Insert qty private-issued guests. Caller must have already collected payment
- * (wallet debit or MM fulfill).
+ * (wallet debit or verified MM payment via claimPrivateIssuePayment).
  */
 export async function issuePrivateGuests(opts: {
   eventId: string;

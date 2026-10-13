@@ -5,6 +5,29 @@
  */
 import { getServerSupabase } from "$lib/server/db";
 
+/**
+ * The wallet_transactions.wallet_address an organiser's ledger rows live under.
+ * Always derived from the signed session, never from the request.
+ */
+export function getLedgerKey(locals: {
+  userId: string | null;
+  linkedWalletAddress?: string | null;
+  walletAddress?: string | null;
+}): string | null {
+  if (!locals.userId) return null;
+  return (
+    locals.linkedWalletAddress || locals.walletAddress || `user:${locals.userId}`
+  );
+}
+
+/** Withdrawal statuses that hold money: paid out or on its way. */
+export const RESERVED_WITHDRAWAL_STATUSES = [
+  "completed",
+  "paid",
+  "pending",
+  "processing",
+];
+
 export async function listWalletTransactions(
   walletAddress: string,
   opts?: { limit?: number; type?: string; status?: string }

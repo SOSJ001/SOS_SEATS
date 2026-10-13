@@ -6,7 +6,7 @@
  */
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { getServerSupabase } from "$lib/server/db";
-import { assertEventOwnedByUser } from "$lib/server/events";
+import { canScanEvent } from "$lib/server/staff";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -119,7 +119,7 @@ function toTicketInfo(raw: any): ScanTicketInfo {
 
 /**
  * Shared POST handler for /api/scanner/validate and /api/scanner/check-in.
- * Body: { eventId, token, location? }. Owner-only until 7.3 adds assigned staff.
+ * Body: { eventId, token, location? }. The event owner or door staff assigned to it.
  */
 export async function handleScanRequest(
   { request, locals }: Pick<RequestEvent, "request" | "locals">,
@@ -143,9 +143,12 @@ export async function handleScanRequest(
       );
     }
 
-    // 7.3: also allow door staff assigned to this event
-    const owned = await assertEventOwnedByUser(eventId, userId);
-    if (!owned) {
+    const allowed = await canScanEvent(
+      eventId,
+      userId,
+      (locals as any)?.sessionType ?? null
+    );
+    if (!allowed) {
       return json(
         { success: false, code: "forbidden", message: "Unauthorized" },
         { status: 403 }

@@ -2,6 +2,7 @@ import { json } from "@sveltejs/kit";
 import {
   issuePrivateTicketsWithWallet,
   issuePrivateGuests,
+  claimPrivateIssuePayment,
   privateIssueFeeTotal,
   PRIVATE_ISSUE_FEE_NLE,
 } from "$lib/server/payments";
@@ -11,7 +12,7 @@ import { assertEventOwnedByUser } from "$lib/server/events";
  * POST /api/events/[eventId]/private-issue
  * body: { qty, method: "wallet" | "fulfill", paymentCodeId? }
  * - wallet: debit NLe proceeds + insert guests
- * - fulfill: after MM poll paid; insert guests only (payment already taken by Monime)
+ * - fulfill: verify the MM payment code with Monime (once per code), then insert guests
  */
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ params, request, locals }) {
@@ -73,7 +74,16 @@ export async function POST({ params, request, locals }) {
   }
 
   if (method === "fulfill") {
-    // MM path: payment already completed via Monime poll on client
+    const claim = await claimPrivateIssuePayment({
+      paymentCodeId: String(body?.paymentCodeId || ""),
+      eventId,
+      userId,
+      walletAddress: locals.linkedWalletAddress || locals.walletAddress || null,
+      qty,
+    });
+    if (!claim.success) {
+      return json({ success: false, error: claim.error }, { status: claim.status });
+    }
     const result = await issuePrivateGuests({ eventId, userId, qty });
     if (!result.success) {
       return json({ success: false, error: result.error }, { status: 400 });

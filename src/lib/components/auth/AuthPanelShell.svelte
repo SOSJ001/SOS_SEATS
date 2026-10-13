@@ -5,20 +5,27 @@
    * Density: min panel inset --auth-panel-inset; card uses --auth-* tokens.
    */
   import AuthPanelDecor from "$lib/components/auth/AuthPanelDecor.svelte";
+  import AuthBackLink from "$lib/components/auth/AuthBackLink.svelte";
 
   /** Match Figma AuthCard border (sign-up); sign-in omits it. */
   export let bordered = false;
 </script>
 
 <div
-  class="relative flex-1 min-h-screen bg-white lg:h-full lg:min-h-0 lg:overflow-hidden"
+  class="relative flex-1 min-h-screen bg-white lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden"
 >
   <div class="pointer-events-none absolute inset-0 z-0 hidden lg:block">
     <AuthPanelDecor />
   </div>
 
   <div
-    class="relative z-[1] flex min-h-full w-full items-center justify-center px-6 py-8 lg:h-full lg:overflow-hidden lg:px-[var(--auth-panel-inset)] lg:py-[var(--auth-panel-inset)]"
+    class="relative z-[1] flex shrink-0 px-[var(--auth-panel-inset)] pt-[var(--auth-panel-inset)]"
+  >
+    <AuthBackLink />
+  </div>
+
+  <div
+    class="relative z-[1] flex min-h-full w-full items-center justify-center px-6 py-8 lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-[var(--auth-panel-inset)] lg:pt-4 lg:pb-[var(--auth-panel-inset)]"
   >
     <div
       class="flex w-full max-w-[var(--auth-card-max)] flex-col overflow-hidden bg-white lg:max-h-full lg:min-h-0 lg:max-w-[min(var(--auth-card-max),31.25vw)] lg:rounded-[var(--auth-card-radius)] lg:shadow-[0px_2px_4px_rgba(0,0,0,0.03),0px_12px_14px_rgba(0,0,0,0.06)] {bordered

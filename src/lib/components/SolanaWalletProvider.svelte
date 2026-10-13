@@ -9,6 +9,7 @@
     clearWeb3Session,
     verifyWeb3Session,
   } from "$lib/supabase.js";
+  import { WEB3_ENABLED } from "$lib/features.js";
 
   // Simple wallet detection and connection
   let walletConnected = false;
@@ -24,6 +25,11 @@
   let authError: string | null = null;
 
   onMount(async () => {
+    if (!WEB3_ENABLED) {
+      updateStore();
+      return;
+    }
+
     // Check for available wallets
     checkAvailableWallets();
 
@@ -417,6 +423,11 @@
   }
 
   async function connectToSpecificWallet(walletName: string) {
+    if (!WEB3_ENABLED) {
+      connectionError = "Wallet sign-in is turned off.";
+      updateStore();
+      return false;
+    }
     connectionError = "";
     selectedWallet = walletName;
 
@@ -520,6 +531,11 @@
   }
 
   async function connectWallet() {
+    if (!WEB3_ENABLED) {
+      connectionError = "Wallet sign-in is turned off.";
+      updateStore();
+      return false;
+    }
     // If only one wallet is available, connect to it directly
     if (availableWallets.length === 1) {
       return await connectToSpecificWallet(availableWallets[0]);

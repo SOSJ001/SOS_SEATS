@@ -3,18 +3,16 @@
   /**
    * About + organiser for marketplace event detail.
    * Figma 759:1333 AboutSection.
-   * Verified / past events / bio are static placeholders for now (777:1399, 779:1332).
+   * Verified / past events / bio render only when real values are passed (777:1399, 779:1332).
    */
   import CircleCheck from "lucide-svelte/icons/circle-check";
 
   export let description = "";
   export let organizerName = "";
-  /** Static for now — wire to real data later */
-  export let verified = true;
+  export let verified = false;
   /** @type {number | null} */
-  export let pastEventsCount = 12;
-  export let bio =
-    "Bringing world-class entertainment to Sierra Leone since 2019.";
+  export let pastEventsCount = null;
+  export let bio = "";
 
   $: trimmedDescription = (description || "").trim();
   $: trimmedOrganizer = (organizerName || "").trim();

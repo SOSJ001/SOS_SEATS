@@ -1,17 +1,51 @@
 import { json } from "@sveltejs/kit";
 import { loadOrderItemsForOrder, getTicketType } from "$lib/server/tickets";
 import { getServerSupabase } from "$lib/server/db";
+import { assertEventOwnedByUser } from "$lib/server/events";
+
+const ORDER_ACTIONS = new Set([
+  "get-order-with-items",
+  "list-order-items",
+  "get-order-guest-ids",
+]);
+
+/**
+ * Only the buyer or the event's organiser may read an order.
+ * @param {ReturnType<typeof getServerSupabase>} db
+ * @param {unknown} orderId
+ * @param {string} userId
+ */
+async function canReadOrder(db, orderId, userId) {
+  if (typeof orderId !== "string" || !orderId) return false;
+  const { data: order } = await db
+    .from("orders")
+    .select("buyer_id, event_id")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order) return false;
+  if (order.buyer_id === userId) return true;
+  return !!order.event_id && (await assertEventOwnedByUser(order.event_id, userId));
+}
 
 /**
  * Confirmation / post-purchase read helpers (service role).
- * Read-only: the legacy Orange Money confirmation page calls these outside /dashboard.
+ * Read-only, signed-in callers only.
  */
 /** @type {import('./$types').RequestHandler} */
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
+  const userId = locals.userId;
+  if (!userId) {
+    return json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { action } = body;
     const db = getServerSupabase();
+
+    if (ORDER_ACTIONS.has(action) && !(await canReadOrder(db, body.orderId, userId))) {
+      return json({ success: false, error: "Order not found" }, { status: 404 });
+    }
 
     if (action === "get-order-with-items") {
       const { data, error } = await db.rpc("get_order_with_items_by_id", {

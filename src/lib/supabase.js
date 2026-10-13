@@ -66,68 +66,6 @@ export async function signOutbtnFunction() {
   return error;
 }
 
-//load all guest rows
-export async function loadGuestsRows(user_id) {
-  try {
-    // Use the database function that handles both Web3 and Orange Money users
-    const { data: guests, error: guestsError } = await supabase.rpc(
-      "get_guests_for_user",
-      { user_id_param: user_id }
-    );
-
-    if (guestsError) {
-      return { data: [], error: guestsError };
-    }
-
-    // The database function already returns all the data we need
-    if (guests && guests.length > 0) {
-      // Transform the data to match the expected format
-      const transformedGuests = guests.map((guest) => {
-        return {
-          id: guest.id,
-          name: `${guest.first_name} ${guest.last_name}`,
-          email: guest.email,
-          status:
-            guest.status === "checked-in"
-              ? "Checked In"
-              : guest.status === "pending"
-              ? "Pending"
-              : guest.status === "confirmed"
-              ? "Confirmed"
-              : guest.status === "cancelled"
-              ? "Cancelled"
-              : "Pending",
-          avatar:
-            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMCIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44MyAyLjE2IDQuODMgNC44M1MxNC42NyAxNC42NyAxMiAxNC42N1M3LjE3IDEyLjUxIDcuMTcgOS44M1M5LjMzIDUgMTIgNXptMCAxMmM0LjQyIDAgOC4xNy0yLjE2IDEwLjQyLTUuNDJDMjAuMTUgMTUuNjYgMTYuNDIgMTggMTIgMThzLTguMTUtMi4zNC0xMC40Mi01LjQyQzMuODMgMTQuODQgNy41OCAxNyAxMiAxN3oiLz4KPC9zdmc+Cjwvc3ZnPgo=",
-          ticket_number: guest.ticket_number,
-          phone: guest.phone,
-          wallet_address: guest.wallet_address,
-          seat_number: guest.seat_number,
-          check_in_time: guest.check_in_time,
-          event_id: guest.event_id,
-          event_title: guest.event_name,
-          event_date: guest.event_date,
-          ticket_type: guest.ticket_type_name || "General",
-          ticket_price: guest.ticket_type_price || 0,
-          venue_section: guest.venue_section_name || null,
-          special_requirements: guest.special_requirements,
-          created_at: guest.created_at,
-          order_number: guest.order_number || `GUEST-${guest.id}`,
-          payment_method: guest.payment_method || "Free",
-          payment_status: guest.payment_status || "Completed",
-          current_owner: guest.current_owner,
-          order_item_id: guest.order_item_id,
-        };
-      });
-
-      return { data: transformedGuests, error: null };
-    } else {
-      return { data: [], error: null };
-    }
-  } catch (error) {
-    return { data: [], error: error.message };
-  }
-}
 //load Specific Event's guest rows
 export async function loadEventGuestsRows(event_id) {
   try {
@@ -350,38 +288,6 @@ export async function recordWeb3SignIn(walletAddress) {
   }
 }
 
-// Update Web3 user profile
-export async function updateWeb3UserProfile(
-  walletAddress,
-  username = null,
-  displayName = null,
-  avatarUrl = null
-) {
-  try {
-    const { data, error } = await supabase.rpc("update_web3_user_profile", {
-      wallet_address_param: walletAddress,
-      username_param: username,
-      display_name_param: displayName,
-      avatar_url_param: avatarUrl,
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    if (data && data.length > 0 && data[0].success) {
-      return { success: true, error: null };
-    }
-
-    return {
-      success: false,
-      error: data?.[0]?.message || "Failed to update profile",
-    };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
 // Get Web3 user profile
 export async function getWeb3UserProfile(walletAddress) {
   try {
@@ -403,35 +309,15 @@ export async function getWeb3UserProfile(walletAddress) {
 
 // ===== WEB3 SESSION MANAGEMENT FUNCTIONS =====
 
-// Create Web3 session (sets cookie via API)
-export async function createWeb3Session(walletAddress, userData) {
-  try {
-    const sessionData = {
-      type: "web3",
-      wallet_address: walletAddress,
-      user: userData,
-      created_at: new Date().toISOString(),
-    };
-
-    const response = await fetch("/web3LoginApi", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ sessionData }),
-    });
-
-    if (response.ok) {
-      // Update the session store to match traditional auth
-      sessionFromDb.set(userData.id);
-      return { success: true, error: null };
-    } else {
-      const error = await response.text();
-      return { success: false, error };
-    }
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+// Wallet sign-in is switched off (see $lib/features.js): the old web3Session
+// cookie was unsigned, so the server no longer accepts or issues it.
+/**
+ * @param {string} _walletAddress
+ * @param {any} _userData
+ * @returns {Promise<{ success: boolean, error?: string }>}
+ */
+export async function createWeb3Session(_walletAddress, _userData) {
+  return { success: false, error: "Wallet sign-in is turned off" };
 }
 
 // Clear Web3 session
@@ -457,29 +343,10 @@ export async function clearWeb3Session() {
   }
 }
 
-// Verify Web3 session on page load
+// Wallet sessions are switched off; callers fall back to the signed userSession.
+/** @returns {Promise<{ success: boolean, user: any, error?: string }>} */
 export async function verifyWeb3Session() {
-  try {
-    const response = await fetch("/web3VerifyApi", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.valid && data.user) {
-        // Update session store
-        sessionFromDb.set(data.user.id);
-        return { success: true, user: data.user, error: null };
-      }
-    }
-
-    return { success: false, user: null, error: "Invalid session" };
-  } catch (error) {
-    return { success: false, user: null, error: error.message };
-  }
+  return { success: false, user: null, error: "Wallet sign-in is turned off" };
 }
 
 // =====================================================
@@ -630,87 +497,14 @@ export async function updateEventWithDetails(
   }
 }
 
-export async function createEventWithDetails(eventData, userId) {
-  try {
-    const {
-      name,
-      description,
-      date,
-      time,
-      location,
-      venue_address,
-      category,
-      tags,
-      organizer,
-      contact_email,
-      website,
-      social_media,
-      image_id,
-      is_free_event,
-      seating_type,
-      total_capacity,
-      audience_type,
-      event_visibility,
-      status,
-      ticket_design_config,
-      ticket_types,
-      venue_sections,
-      seating_options,
-    } = eventData;
-
-    const functionParams = {
-      p_user_id: userId,
-      p_name: name,
-      p_description: description,
-      p_date: date,
-      p_time: time,
-      p_location: location,
-      p_venue_address: venue_address,
-      p_category: category,
-      p_tags: tags,
-      p_organizer: organizer,
-      p_contact_email: contact_email,
-      p_website: website,
-      p_social_media: social_media,
-      p_image_id: image_id,
-      p_is_free_event: is_free_event,
-      p_seating_type: seating_type,
-      p_total_capacity: total_capacity,
-      p_audience_type: audience_type,
-      p_event_visibility: event_visibility,
-      p_status: status || "draft",
-      p_ticket_design_config: ticket_design_config,
-      p_ticket_types: ticket_types,
-      p_venue_sections: venue_sections,
-      p_seating_options: seating_options,
-    };
-
-    const { data, error } = await supabase.rpc(
-      "create_event_with_details",
-      functionParams
-    );
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return {
-      success: true,
-      event_id: data[0].event_id,
-      message: data[0].message,
-    };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
 // Load all public events for marketplace
 export async function loadPublicEvents() {
   try {
-    // Now try the full query without joins first
     const { data: events, error } = await supabase
       .from("events")
-      .select("*")
+      .select(
+        "id, name, date, time, location, image_id, is_free_event, category, description, organizer, total_capacity"
+      )
       .eq("event_visibility", "public")
       .eq("status", "published")
       .gte("date", new Date().toISOString().split("T")[0]) // Show events from today onwards
@@ -780,113 +574,16 @@ export async function loadPublicEvents() {
   }
 }
 
-// Load events for a user (Kit service-role path after 3.2 RLS harden)
-export async function loadUserEvents(userId, sessionType = "traditional") {
+// Load events for the signed-in user through the Kit API (browser only; server code uses $lib/server/events)
+export async function loadUserEvents(_userId, _sessionType = "traditional") {
+  if (typeof window === "undefined") return [];
   try {
-    // Browser / shared callers: cookie session is not auth.uid(), so use Kit API
-    if (typeof window !== "undefined") {
-      const response = await fetch("/loadUserEventsApi");
-      const result = await response.json();
-      if (!result.success) return [];
-      return result.events || [];
-    }
-
-    // Server transitional fallback (prefer $lib/server/events in Kit loads)
-    const { data: events, error } = await supabase
-      .from("events")
-      .select(
-        `
-        *,
-        ticket_types(*),
-        venue_sections(*),
-        seating_options(*)
-      `
-      )
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      return [];
-    }
-
-    // Load images and real-time statistics for each event
-    const eventsWithImagesAndStats = await Promise.all(
-      events.map(async (event) => {
-        let eventWithImage = event;
-
-        // Load image data if event has an image_id
-        if (event.image_id) {
-          try {
-            const { data: imageData, error: imageError } = await supabase
-              .from("images")
-              .select("*")
-              .eq("id", event.image_id)
-              .single();
-
-            if (!imageError && imageData) {
-              eventWithImage = { ...event, image: imageData };
-            }
-          } catch (imageError) {}
-        }
-
-        // Get real-time statistics for this event
-        try {
-          const { data: stats, error: statsError } = await supabase.rpc(
-            "get_event_statistics",
-            {
-              p_event_id: event.id,
-            }
-          );
-
-          if (!statsError && stats && stats.length > 0) {
-            const statistics = stats[0];
-            eventWithImage = {
-              ...eventWithImage,
-              realTimeStats: {
-                totalTicketsSold: statistics.total_tickets_sold || 0,
-                totalRevenue: statistics.total_revenue || 0,
-                attendeesCheckedIn: statistics.checked_in_guests || 0,
-                totalGuests: statistics.total_guests || 0,
-              },
-            };
-          }
-        } catch (statsError) {
-          // If stats fail, continue without them
-          eventWithImage = {
-            ...eventWithImage,
-            realTimeStats: {
-              totalTicketsSold: 0,
-              totalRevenue: 0,
-              attendeesCheckedIn: 0,
-              totalGuests: 0,
-            },
-          };
-        }
-
-        return eventWithImage;
-      })
-    );
-
-    return eventsWithImagesAndStats;
+    const response = await fetch("/loadUserEventsApi");
+    const result = await response.json();
+    if (!result.success) return [];
+    return result.events || [];
   } catch (error) {
     return [];
-  }
-}
-
-// Get event statistics
-export async function getEventStatistics(eventId) {
-  try {
-    const { data, error } = await supabase.rpc("get_event_statistics", {
-      p_event_id: eventId,
-    });
-
-    if (error) {
-      return null;
-    }
-
-    return data[0];
-  } catch (error) {
-    return null;
   }
 }
 
@@ -1155,102 +852,6 @@ export async function loadEventTicketTypes(eventId) {
   }
 }
 
-// Load user orders
-export async function loadUserOrders(userId, walletAddress = null) {
-  try {
-    // Determine the wallet address to use
-    let walletAddressToUse = walletAddress;
-
-    // If no wallet address provided but we have a user ID, use "anonymous" for Orange Money users
-    if (!walletAddressToUse && userId) {
-      walletAddressToUse = "anonymous";
-    }
-
-    if (walletAddressToUse) {
-      const { data: walletOrders, error: walletError } = await supabase.rpc(
-        "load_orders_by_wallet",
-        { p_wallet_address: walletAddressToUse }
-      );
-
-      if (!walletError && walletOrders && walletOrders.length > 0) {
-        // Transform the RPC result to match the expected format
-        const ordersWithData = walletOrders.map((order) => {
-          return {
-            id: order.order_id,
-            event_id: order.event_id,
-            buyer_wallet_address: order.buyer_wallet_address,
-            buyer_name: order.buyer_name,
-            order_number: order.order_number,
-            total_amount: order.total_amount,
-            currency: order.currency,
-            payment_method: order.payment_method,
-            payment_status: order.payment_status,
-            order_status: order.order_status,
-            created_at: order.created_at,
-            events: {
-              name: order.event_name || "Unknown Event",
-              date: order.event_date,
-              location: order.event_location || "Unknown",
-            },
-            order_items: [
-              {
-                ticket_types: {
-                  name: order.ticket_type_name || "Free Ticket",
-                  price: order.ticket_type_price || 0,
-                },
-              },
-            ],
-          };
-        });
-
-        return ordersWithData;
-      }
-    }
-
-    // Fallback to traditional query
-    let query = supabase
-      .from("orders")
-      .select(
-        `
-        *,
-        events(name, date, location),
-        order_items(
-          *,
-          ticket_types(name, price),
-          venue_sections(name, price),
-          guests(first_name, last_name, email)
-        )
-      `
-      )
-      .order("created_at", { ascending: false });
-
-    if (userId) {
-      query = query.eq("buyer_id", userId);
-    } else if (walletAddress) {
-      query = query.eq("buyer_wallet_address", walletAddress);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    return [];
-  }
-}
-
-export async function listAllOrders() {
-  try {
-    const { data: orders, error } = await supabase.rpc("list_all_orders");
-    return { orders, error };
-  } catch (error) {
-    return { orders: [], error };
-  }
-}
-
 // Upload event image with new schema
 export async function uploadEventImageNew(imageFile, userId) {
   try {
@@ -1299,21 +900,6 @@ export async function uploadEventImageNew(imageFile, userId) {
     return { success: true, image_id: imageData[0].id, url: urlData.publicUrl };
   } catch (error) {
     return { success: false, error: error.message };
-  }
-}
-
-// Generate ticket number
-export async function generateTicketNumber() {
-  try {
-    const { data, error } = await supabase.rpc("generate_ticket_number");
-
-    if (error) {
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    return null;
   }
 }
 
@@ -1469,188 +1055,6 @@ async function authenticateUserForDatabase(userData) {
   }
 }
 
-// Create paid ticket order (for Orange Money, card payments, etc.)
-export async function createPaidTicketOrder(
-  eventId,
-  selectedTickets,
-  userData,
-  paymentInfo,
-  ticketDetails = null
-) {
-  try {
-    // Generate a unique order number
-    const orderNumber = `PAID-${Date.now()}-${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
-
-    // Calculate total amount and get ticket type details
-    let totalAmount = 0;
-    let ticketTypeDetails = [];
-
-    // Use pre-processed ticketDetails if available, otherwise process selectedTickets
-    if (ticketDetails && ticketDetails.length > 0) {
-      ticketTypeDetails = ticketDetails;
-      totalAmount = ticketDetails.reduce(
-        (sum, ticket) => sum + ticket.price * ticket.quantity,
-        0
-      );
-    } else {
-      for (const [selectedTicketTypeId, quantity] of Object.entries(
-        selectedTickets
-      )) {
-        if (quantity > 0) {
-          const ticketTypeIdToUse =
-            typeof selectedTicketTypeId === "string"
-              ? selectedTicketTypeId
-              : selectedTicketTypeId.toString();
-
-          let { data: ticketType, error: ticketError } = await supabase
-            .from("ticket_types")
-            .select("*")
-            .eq("id", ticketTypeIdToUse)
-            .single();
-
-          if (ticketError) {
-            return {
-              success: false,
-              error: "Failed to get ticket type details",
-            };
-          }
-
-          // Use actual price from database, convert to number if it's a string
-          const ticketPrice =
-            typeof ticketType.price === "string"
-              ? parseFloat(ticketType.price)
-              : ticketType.price;
-
-          totalAmount += ticketPrice * quantity;
-          ticketTypeDetails.push({
-            id: ticketType.id,
-            name: ticketType.name,
-            price: ticketPrice,
-            quantity: quantity,
-          });
-        }
-      }
-    }
-
-    // Create the order with user data
-    const orderData = {
-      event_id: eventId,
-      buyer_id: userData.id || null,
-      buyer_wallet_address: userData.wallet_address || null,
-      buyer_email: userData.email || null,
-      buyer_name: userData.name || userData.display_name || "Anonymous",
-      order_number: orderNumber,
-      total_amount: totalAmount,
-      currency: paymentInfo.currency || "USDC",
-      payment_method: paymentInfo.paymentMethod,
-      payment_status: "completed",
-      transaction_hash: paymentInfo.transactionSignature,
-      order_status: "confirmed",
-    };
-
-    // Try to authenticate user for database operations
-    const authResult = await authenticateUserForDatabase(userData);
-    if (authResult.success) {
-      orderData.buyer_id = authResult.user.id;
-      orderData.buyer_wallet_address = authResult.user.wallet_address;
-      orderData.buyer_name =
-        authResult.user.display_name || authResult.user.username;
-    } else {
-      // If authentication fails, use the provided user data directly
-      const fallbackData = authResult.fallbackData || userData;
-      orderData.buyer_wallet_address = fallbackData.wallet_address;
-      orderData.buyer_name =
-        fallbackData.name || fallbackData.display_name || "Anonymous";
-    }
-
-    // Create one order with multiple order items
-    let orderId = null;
-    let totalTicketsClaimed = 0;
-
-    // Call the paid ticket order function
-    const { data: rpcResult, error: rpcError } = await supabase.rpc(
-      "create_paid_ticket_order_with_items",
-      {
-        p_event_id: eventId,
-        p_buyer_wallet_address: orderData.buyer_wallet_address || "anonymous",
-        p_buyer_name: orderData.buyer_name,
-        p_order_number: orderNumber,
-        p_ticket_details: ticketTypeDetails,
-        p_total_amount: totalAmount,
-        p_currency: paymentInfo.currency || "USDC",
-        p_transaction_hash: paymentInfo.transactionSignature,
-        p_payment_method: paymentInfo.paymentMethod || "solana",
-      }
-    );
-
-    if (rpcError) {
-      console.error("createPaidTicketOrder - Function call error:", rpcError);
-      return {
-        success: false,
-        error: `Database function error: ${rpcError.message}`,
-      };
-    }
-
-    const paidResult = rpcResult;
-    const paidError = rpcError;
-
-    if (
-      paidError ||
-      !paidResult ||
-      paidResult.length === 0 ||
-      !paidResult[0].success
-    ) {
-      console.error(
-        "createPaidTicketOrder - Paid ticket order creation failed:",
-        {
-          paidError,
-          paidResult,
-          orderData,
-          ticketTypeDetails,
-        }
-      );
-
-      // Check if it's a quantity error
-      const errorMessage =
-        paidResult?.[0]?.error_message ||
-        paidError?.message ||
-        "Failed to create paid ticket order";
-      if (errorMessage.includes("Not enough tickets available")) {
-        return {
-          success: false,
-          error:
-            "Sorry, some tickets are no longer available. Please refresh the page and try again.",
-        };
-      }
-
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
-
-    // Success! Extract the order details
-    const orderResult = paidResult[0];
-    orderId = orderResult.order_id;
-    totalTicketsClaimed = orderResult.tickets_claimed;
-
-    return {
-      success: true,
-      orderId: orderId,
-      totalTicketsClaimed: totalTicketsClaimed,
-      orderNumber: orderNumber,
-    };
-  } catch (error) {
-    console.error("createPaidTicketOrder - Error:", error);
-    return {
-      success: false,
-      error: error.message || "Failed to create paid ticket order",
-    };
-  }
-}
-
 // Claim free/paid tickets (Kit service-role path after 3.2 RLS harden)
 export async function claimFreeTickets(
   eventId,
@@ -1680,175 +1084,3 @@ export async function claimFreeTickets(
   }
 }
 
-// Transfer a ticket to another wallet
-export async function transferTicket(
-  orderItemId,
-  fromWallet,
-  toWallet,
-  reason = null
-) {
-  try {
-    const { data, error } = await supabase.rpc("transfer_ticket", {
-      p_order_item_id: orderItemId,
-      p_from_wallet: fromWallet,
-      p_to_wallet: toWallet,
-      p_reason: reason,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    // The database function returns a table with success and message
-    // We need to check if the first row indicates success
-    if (data && data.length > 0) {
-      const result = data[0];
-
-      if (result.success) {
-        return { success: true, error: null, message: result.message };
-      } else {
-        return { success: false, error: result.message || "Transfer failed" };
-      }
-    } else {
-      return { success: false, error: "No response from database" };
-    }
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
-// Load tickets by current owner (including transferred tickets)
-export async function loadTicketsByCurrentOwner(walletAddress) {
-  try {
-    const { data, error } = await supabase.rpc(
-      "load_tickets_by_current_owner",
-      {
-        p_wallet_address: walletAddress,
-      }
-    );
-
-    if (error) throw error;
-    return { data, error: null };
-  } catch (error) {
-    console.error("Error loading tickets by current owner:", error);
-    return { data: null, error: error.message };
-  }
-}
-
-// Web3 Auth Helper Functions
-export function extractWeb3UserId(web3Session) {
-  try {
-    if (!web3Session) return null;
-
-    const sessionData = JSON.parse(web3Session);
-
-    if (sessionData.user && sessionData.user.id) {
-      return sessionData.user.id;
-    }
-
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
-
-export function extractTraditionalUserId(userSession) {
-  try {
-    if (!userSession) return null;
-
-    const sessionData = JSON.parse(userSession);
-
-    if (sessionData.id) {
-      return sessionData.id;
-    }
-
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
-
-export function getUserIdFromCookies(cookies) {
-  // Try traditional session first
-  const traditionalUserId = extractTraditionalUserId(
-    cookies.get("userSession")
-  );
-  if (traditionalUserId) return traditionalUserId;
-
-  // Try Web3 session
-  const web3UserId = extractWeb3UserId(cookies.get("web3Session"));
-  if (web3UserId) return web3UserId;
-
-  // No authenticated user
-  return null;
-}
-
-// Bypass function for development - uses direct SQL to get around RLS
-export async function loadGuestsRowsBypass(user_id) {
-  try {
-    // Use direct SQL to bypass RLS
-    const { data: guests, error: guestsError } = await supabase.rpc(
-      "get_guests_for_user",
-      {
-        user_id_param: user_id,
-      }
-    );
-
-    if (guestsError) {
-      console.error("loadGuestsRowsBypass: Database error:", guestsError);
-      return { data: [], error: guestsError };
-    }
-
-    if (guests && guests.length > 0) {
-      // Transform the data to match the expected format
-      const transformedGuests = guests.map((guest) => {
-        // The bypass function should already return current_owner from the database function
-        const currentOwner = guest.current_owner || guest.wallet_address;
-
-        return {
-          id: guest.id,
-          name: `${guest.first_name} ${guest.last_name}`,
-          email: guest.email,
-          status: guest.status, // Keep original status
-          avatar:
-            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMCIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44MyAyLjE2IDQuODMgNC44M1MxNC42NyAxNC42NyAxMiAxNC42N1M3LjE3IDEyLjUxIDcuMTcgOS44M1M5LjMzIDUgMTIgNXptMCAxMmM0LjQyIDAgOC4xNy0yLjE2IDEwLjQyLTUuNDJDMjAuMTUgMTUuNjYgMTYuNDIgMTggMTIgMThzLTguMTUtMi4zNC0xMC40Mi01LjQyQzMuODMgMTQuODQgNy41OCAxNyAxMiAxN3oiLz4KPC9zdmc+Cjwvc3ZnPgo=",
-          ticket_number:
-            guest.order_item_id ||
-            guest.ticket_number ||
-            `TIX-${guest.id?.slice(0, 8)}`, // Use order_item_id as ticket number, fallback to ticket_number or generated ID
-          phone: guest.phone,
-          wallet_address: currentOwner, // Use current owner instead of original buyer
-          seat_number: guest.seat_number,
-          check_in_time: guest.check_in_time,
-          event_id: guest.event_id,
-          event_title: guest.event_name || "Unknown Event",
-          event_date: guest.event_date || null,
-          ticket_type: guest.ticket_type_name || "General",
-          ticket_price: guest.ticket_type_price || 0,
-          venue_section: guest.venue_section_name || null,
-          special_requirements: guest.special_requirements,
-          created_at: guest.created_at,
-          order_number: guest.order_number || `GUEST-${guest.id}`,
-          payment_method: guest.payment_method || "Free",
-          payment_status: guest.payment_status || "Completed",
-          // Add original fields for client-side processing
-          first_name: guest.first_name,
-          last_name: guest.last_name,
-          current_owner: guest.current_owner,
-          ticket_type_name: guest.ticket_type_name,
-          ticket_type_price: guest.ticket_type_price,
-          venue_section_name: guest.venue_section_name,
-          event_name: guest.event_name,
-          order_item_id: guest.order_item_id, // Include order_item_id
-        };
-      });
-
-      return { data: transformedGuests, error: null };
-    } else {
-      return { data: [], error: null };
-    }
-  } catch (error) {
-    console.error("loadGuestsRowsBypass: Exception:", error);
-    return { data: [], error: error.message };
-  }
-}

@@ -47,11 +47,10 @@
     </div>
 
     <div
-      class="relative z-10 flex w-full flex-col gap-6 px-6 pb-8 pt-5 lg:max-w-[440px] lg:gap-4 lg:px-0 lg:py-0"
+      class="relative z-10 flex w-full flex-col gap-5 px-6 pb-6 pt-0 lg:max-w-[440px] lg:gap-4 lg:px-0 lg:py-0"
     >
-      <div class="flex items-center justify-between gap-3">
-        <span class="lg:hidden"><AuthWordmark size="mobile" /></span>
-        <span class="hidden lg:inline-flex"><AuthWordmark /></span>
+      <div class="flex h-[60px] items-center justify-between gap-3 lg:h-auto">
+        <AuthWordmark />
         <a
           href={eventHref}
           class="inline-flex items-center gap-1.5 text-[13px] text-ink-secondary no-underline hover:text-ink lg:text-[12px]"

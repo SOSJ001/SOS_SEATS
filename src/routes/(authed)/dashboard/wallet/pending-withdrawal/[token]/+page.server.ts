@@ -1,8 +1,11 @@
 import { getPendingWithdrawalByToken } from "$lib/server/wallet";
 import { getServerSupabase } from "$lib/server/db";
-import { error } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
+import { WEB3_ENABLED } from "$lib/features.js";
 
 export async function load({ params }) {
+  if (!WEB3_ENABLED) throw redirect(303, "/dashboard/wallet");
+
   try {
     const { token } = params;
 

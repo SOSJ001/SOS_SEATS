@@ -3,6 +3,10 @@
   /** Desktop left hero panel from HI-FI 96:20. Scales with 100dvh. */
   import AuthIllustration from "$lib/components/auth/AuthIllustration.svelte";
   import PublicIcon from "$lib/components/public/PublicIcon.svelte";
+
+  export let tagline = "Event ticketing for Sierra Leone";
+  export let trustLeft = "Secure event check-in";
+  export let trustRight = "Mobile-first access";
 </script>
 
 <aside
@@ -27,8 +31,10 @@
   </div>
 
   <!-- Brand lockup 96:22 — bottom 19.89% of hero -->
-  <div
-    class="absolute left-[8.75%] bottom-[19.89%] z-[2] flex flex-col gap-2.5 items-start"
+  <a
+    href="/"
+    aria-label="SOS SEATS home"
+    class="absolute left-[8.75%] bottom-[19.89%] z-[2] flex flex-col gap-2.5 items-start text-white no-underline"
   >
     <div class="flex items-center gap-2.5 overflow-hidden">
       <span
@@ -42,9 +48,9 @@
       </p>
     </div>
     <p class="text-sm leading-[1.5] text-white/80 m-0 max-w-[400px]">
-      Sierra Leone's premier event ticketing platform
+      {tagline}
     </p>
-  </div>
+  </a>
 
   <!-- Trust strip 726:1461 — 56px / 900 = 6.22% -->
   <div
@@ -58,7 +64,7 @@
         <PublicIcon name="shield-check" size={16} color="#fff" strokeWidth={2} />
       </span>
       <p class="m-0 whitespace-nowrap text-xs font-normal leading-none text-white/80">
-        Secure event check-in
+        {trustLeft}
       </p>
     </div>
     <div class="flex items-center gap-2">
@@ -69,7 +75,7 @@
         <PublicIcon name="lock" size={16} color="#fff" strokeWidth={2} />
       </span>
       <p class="m-0 whitespace-nowrap text-xs font-normal leading-none text-white/80">
-        Mobile-first access
+        {trustRight}
       </p>
     </div>
   </div>

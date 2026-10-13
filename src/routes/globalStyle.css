@@ -1,10 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Alkatra:wght@600&display=swap");
-
 :global(body) {
     font-family: "Roboto", "Open Sans", "Helvetica", sans-serif;
-}
-.fontText {
-    font-family: "Alkatra", cursive;
 }
 #hover1 div a :hover {
     color: rgb(255, 238, 2);

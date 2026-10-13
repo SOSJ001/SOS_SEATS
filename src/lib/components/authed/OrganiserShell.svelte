@@ -22,6 +22,7 @@
   $: initials = initialsFromName(userName);
   $: linkedWalletLabel = truncateWallet(linkedWalletAddress);
   $: topbarTitle = $organiserTopbarTitle || titleForPath(path);
+  $: mobileTitle = $organiserTopbarTitle || mobileTitleForPath(path);
   $: isCreateEvent = path.startsWith("/dashboard/events/createEvent");
 
   /**
@@ -52,6 +53,12 @@
     if (p.startsWith("/dashboard/scanner")) return "Door Scanner";
     if (p === "/dashboard" || p === "/dashboard/") return "Dashboard Overview";
     return "Organiser";
+  }
+
+  /** Mobile top-header titles; null keeps the wordmark (471:86). */
+  function mobileTitleForPath(p) {
+    if (p.startsWith("/dashboard/invite-staff")) return "Invite Door Staff";
+    return null;
   }
 
   const primary = [
@@ -108,13 +115,14 @@
     },
   ];
 
-  function isActive(item) {
+  /** Reactive so the {#each} nav blocks re-run when `path` changes. */
+  $: isActive = (item) => {
     const cleanPath = path.endsWith("/") && path.length > 1 ? path.slice(0, -1) : path;
     const cleanHref = item.href.endsWith("/") && item.href.length > 1 ? item.href.slice(0, -1) : item.href;
 
     if (item.exact) return cleanPath === cleanHref;
     return cleanPath === cleanHref || cleanPath.startsWith(cleanHref + "/");
-  }
+  };
 
   function openMenu() {
     menuOpen = true;
@@ -182,11 +190,11 @@
       <header
         class="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-3 bg-paper border-b border-paper-border px-5 py-3.5"
       >
-        {#if $organiserTopbarTitle}
+        {#if mobileTitle}
           <h1
             class="m-0 min-w-0 flex-1 truncate text-[22px] font-bold leading-7 text-ink"
           >
-            {$organiserTopbarTitle}
+            {mobileTitle}
           </h1>
         {:else}
           <AuthedWordmark variant="light" />

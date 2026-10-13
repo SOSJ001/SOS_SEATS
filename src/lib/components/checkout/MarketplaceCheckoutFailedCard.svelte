@@ -2,6 +2,7 @@
   // @ts-nocheck
   /** Buyer MM checkout failed — Figma FailedCard 787:1598 (+ hifi-density). */
   import X from "lucide-svelte/icons/x";
+  import { LEGAL } from "$lib/legal/legalConfig.js";
 
   export let eventName = "";
   export let amountLabel = "";
@@ -99,10 +100,10 @@
   <p class="m-0 text-center text-xs leading-4 text-ink-secondary">
     Need help? Contact support at
     <a
-      href="mailto:support@sosseats.com"
+      href="mailto:{LEGAL.contactEmail}"
       class="font-semibold text-ink-secondary underline decoration-paper-border underline-offset-2 hover:text-brand"
     >
-      support@sosseats.com
+      {LEGAL.contactEmail}
     </a>
   </p>
 </div>

@@ -58,7 +58,7 @@
 
   $: ctaLabel = freeOnlySelected ? "Claim Free" : "Mobile money";
   $: disclaimer = freeOnlySelected
-    ? "By claiming, you agree to the event terms and venue entry rules. Your free ticket will be issued instantly and saved to your My Tickets dashboard."
+    ? "By claiming, you agree to the SOS SEATS Terms and the event's entry rules. Your free ticket will be issued instantly and saved to your My Tickets dashboard."
     : "";
 
   $: heroBadge = (() => {

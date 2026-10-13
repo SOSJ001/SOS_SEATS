@@ -46,7 +46,7 @@ export function parseSelectedTickets(raw: unknown): Record<string, number> | nul
   return Object.keys(out).length ? out : null;
 }
 
-async function fetchPaymentCodeFromMonime(
+export async function fetchPaymentCodeFromMonime(
   codeId: string
 ): Promise<Record<string, unknown> | null> {
   const creds = getMonimeCredentials();

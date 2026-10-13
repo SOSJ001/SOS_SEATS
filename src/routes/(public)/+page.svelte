@@ -8,27 +8,26 @@
   import PublicUpcomingEmptyState from "$lib/components/public/PublicUpcomingEmptyState.svelte";
   import { sessionFromDb } from "$lib/store";
   import { goto } from "$app/navigation";
+  import { signInHref } from "$lib/auth/postAuthRedirect.js";
   import {
     formatBookingFeePercent,
     formatPlatformFeePercent,
+    formatWithdrawalMonimeFeePercent,
   } from "$lib/fees";
 
   export let data;
 
   const CATEGORIES = ["Music", "Tech", "Comedy", "Sports", "Workshops", "Food"];
   const HERO_IMG = "/hifi/hero.png";
-  const HERO_FALLBACK =
-    "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=1600&h=900&fit=crop";
 
   let searchQuery = "";
   let activeCategory = "Music";
-  let heroSrc = HERO_IMG;
-
   $: events = normalizeEvents(data?.events || []);
   $: upcoming = events.slice(0, 3);
   $: isLoggedIn = !!$sessionFromDb;
   $: platformFeeLabel = formatPlatformFeePercent();
   $: bookingFeeLabel = formatBookingFeePercent();
+  $: withdrawalFeeLabel = formatWithdrawalMonimeFeePercent();
 
   function normalizeEvents(raw) {
     return (raw || []).map((row) => {
@@ -48,9 +47,9 @@
     });
   }
 
-  function goOrLogin(path) {
+  function goOrLogin(path, role = null) {
     if (isLoggedIn) goto(path);
-    else goto(`/sign-in?next=${encodeURIComponent(path)}`);
+    else goto(signInHref(path, role));
   }
 
   function onSearch() {
@@ -86,9 +85,8 @@
 >
   <img
     class="absolute inset-0 w-full h-full object-cover"
-    src={heroSrc}
+    src={HERO_IMG}
     alt=""
-    on:error={() => (heroSrc = HERO_FALLBACK)}
   />
   <div class="absolute inset-0 bg-public-hero-shade"></div>
   <div
@@ -135,33 +133,11 @@
       <span
         class="inline-flex items-center bg-white/15 border border-white/25 backdrop-blur-sm text-white text-[11px] font-extrabold px-2.5 py-1.5 rounded-full"
       >
-        2,500+ events
-      </span>
-      <span
-        class="inline-flex items-center bg-white/15 border border-white/25 backdrop-blur-sm text-white text-[11px] font-extrabold px-2.5 py-1.5 rounded-full"
-      >
-        50k+ tickets
-      </span>
-      <span
-        class="inline-flex items-center bg-white/15 border border-white/25 backdrop-blur-sm text-white text-[11px] font-extrabold px-2.5 py-1.5 rounded-full"
-      >
         Secure payments
       </span>
     </div>
     <!-- Desktop stats (55:8) -->
     <div class="hidden md:flex flex-wrap gap-3">
-      <span
-        class="inline-flex items-center gap-2 bg-white/15 border border-white/25 backdrop-blur-sm text-white text-[13px] font-extrabold px-3.5 py-2.5 rounded-full"
-      >
-        <PublicIcon name="calendar" size={16} color="#fff" strokeWidth={2.5} />
-        2,500+ events hosted
-      </span>
-      <span
-        class="inline-flex items-center gap-2 bg-white/15 border border-white/25 backdrop-blur-sm text-white text-[13px] font-extrabold px-3.5 py-2.5 rounded-full"
-      >
-        <PublicIcon name="users" size={16} color="#fff" strokeWidth={2.5} />
-        50k+ tickets sold
-      </span>
       <span
         class="inline-flex items-center gap-2 bg-white/15 border border-white/25 backdrop-blur-sm text-white text-[13px] font-extrabold px-3.5 py-2.5 rounded-full"
       >
@@ -288,7 +264,7 @@
       <div class="flex flex-col gap-0.5 min-w-0">
         <h3 class="m-0 text-base font-bold text-ink">Pay.</h3>
         <p class="m-0 text-ink-body text-sm leading-[1.4]">
-          Orange Money or Afrimoney. Instantly settled local money.
+          Orange Money or Afrimoney, processed by Monime.
         </p>
       </div>
     </div>
@@ -333,7 +309,7 @@
       </div>
       <h3 class="m-0 text-xl font-extrabold">Pay.</h3>
       <p class="m-0 text-ink-body text-sm leading-5">
-        Orange Money or Afrimoney. Instantly settled local money.
+        Orange Money or Afrimoney, processed by Monime.
       </p>
     </div>
     <div class="w-6 h-6 flex items-center justify-center" aria-hidden="true">
@@ -364,7 +340,7 @@
       <button
         type="button"
         class="bg-brand text-white font-bold md:font-extrabold text-[13px] md:text-sm border-0 rounded-[10px] md:rounded-xl px-[18px] py-2.5 md:px-6 md:py-3 cursor-pointer shadow-none"
-        on:click={() => goOrLogin("/dashboard/my-tickets")}
+        on:click={() => goOrLogin("/dashboard/my-tickets", "attendee")}
       >
         View My Tickets
       </button>
@@ -428,9 +404,9 @@
           <PublicIcon name="shield-check" size={16} color="#ff5a1f" />
         </div>
         <div class="flex flex-col gap-1 min-w-0">
-          <h3 class="m-0 text-[15px] md:text-lg font-bold md:font-extrabold">Proceeds Guarantee</h3>
+          <h3 class="m-0 text-[15px] md:text-lg font-bold md:font-extrabold">Organiser payouts</h3>
           <p class="m-0 text-ink-body text-[13px] md:text-sm leading-[1.4] md:leading-5">
-            Organiser proceeds are securely processed after they clear.
+            Withdraw your ticket sales to mobile money.
           </p>
         </div>
       </div>
@@ -449,7 +425,8 @@
         <h2 class={h2}>Transparent Fees</h2>
       </div>
       <p class="m-0 text-[13px] md:text-base leading-6 text-ink-secondary">
-        No hidden charges. What you see is what you pay.
+        No hidden charges. What you see is what you pay. Organisers also pay the payment provider's
+        withdrawal fee (currently {withdrawalFeeLabel}) when they withdraw.
       </p>
     </div>
 

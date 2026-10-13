@@ -1,6 +1,7 @@
 // @ts-nocheck
 import * as web3 from "@solana/web3.js";
 import { env } from "$env/dynamic/public";
+import { WEB3_ENABLED } from "$lib/features.js";
 
 // create a new connection instance with robust fallbacks
 const network = (env.PUBLIC_SOLANA_NETWORK as any) || "mainnet-beta";
@@ -58,6 +59,7 @@ export async function getBalance(publickey: string) {
 
 // Get an active wallet address from any injected provider if available
 export function getActiveWalletAddress(): string | null {
+  if (!WEB3_ENABLED) return null;
   try {
     const w: any = typeof window !== "undefined" ? (window as any) : null;
     if (!w) return null;

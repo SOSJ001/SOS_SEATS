@@ -82,3 +82,31 @@ export function getWithdrawalFeeMin() {
 export function getWithdrawalFeeMax() {
   return parsePercent(readEnv("PUBLIC_WITHDRAWAL_FEE_MAX"), 0);
 }
+
+/**
+ * Withdrawal fees: platform fee on the gross, then Monime's fee on what is left.
+ * Shared by the wallet page (display) and /api/wallet/withdraw (payout).
+ */
+export function calculateWithdrawalFee(withdrawalAmount) {
+  const amount = Number(withdrawalAmount) || 0;
+  const platformRate = getPlatformFeeRate();
+  const feeMin = getWithdrawalFeeMin();
+  const feeMax = getWithdrawalFeeMax();
+
+  let platformFee = amount * platformRate;
+  if (platformRate > 0) {
+    if (feeMin > 0 && platformFee < feeMin) platformFee = feeMin;
+    if (feeMax > 0 && platformFee > feeMax) platformFee = feeMax;
+  }
+
+  const netAmountAfterPlatformFee = Math.max(0, amount - platformFee);
+  const monimeFee = netAmountAfterPlatformFee * getWithdrawalMonimeFeeRate();
+
+  return {
+    platformFee,
+    monimeFee,
+    totalFees: platformFee + monimeFee,
+    netAmountAfterPlatformFee,
+    netAmount: Math.max(0, netAmountAfterPlatformFee - monimeFee),
+  };
+}

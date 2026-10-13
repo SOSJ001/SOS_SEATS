@@ -20,6 +20,11 @@ export {
   PHONE_SYNTHETIC_DOMAIN,
 } from "./phone";
 export {
+  STAFF_SYNTHETIC_DOMAIN,
+  staffAuthEmail,
+  isStaffSyntheticEmail,
+} from "./staff";
+export {
   normalizeUsername,
   isUsernameTaken,
   provisionAuthUsername,
@@ -31,6 +36,7 @@ export {
 } from "./username";
 export {
   setUserSessionCookie,
+  readUserSessionCookie,
   clearUserSessionCookie,
   cookieOptions,
 } from "./cookies";

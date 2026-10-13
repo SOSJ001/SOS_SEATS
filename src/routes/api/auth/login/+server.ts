@@ -11,6 +11,7 @@ import {
   resolveLoginEmail,
   ensureAuthUsernameProvisioned,
   withRegistryUserName,
+  isStaffSyntheticEmail,
 } from "$lib/server/auth";
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
@@ -45,7 +46,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     return json({ error: message }, { status: 503 });
   }
 
-  if (!resolved.ok) {
+  // Staff logins only sign in through /api/auth/staff/login.
+  if (!resolved.ok || isStaffSyntheticEmail(resolved.email)) {
     return json(
       { error: "Invalid username or email or password" },
       { status: 401 },

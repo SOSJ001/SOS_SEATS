@@ -6,6 +6,7 @@
   import { onMount } from "svelte";
   import Check from "lucide-svelte/icons/check";
   import EventCover from "$lib/components/event/EventCover.svelte";
+  import LegalConsentNote from "$lib/components/legal/LegalConsentNote.svelte";
   import {
     loadEventDraft,
     saveEventDraft,
@@ -393,6 +394,8 @@
           I confirm these details are correct.
         </span>
       </button>
+
+      <LegalConsentNote action="publishing" />
 
       <!-- Desktop publish -->
       <button

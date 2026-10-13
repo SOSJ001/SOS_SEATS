@@ -1,5 +1,6 @@
 <script>
   import { createEventDispatcher } from "svelte";
+  import { toDataURL } from "qrcode";
 
   const dispatch = createEventDispatcher();
 
@@ -16,8 +17,17 @@
       const baseUrl = window.location.origin;
       // Use the same link structure as the new implementation
       eventLink = `${baseUrl}/marketplace/eventDetails/${event.id}`;
-      // Generate QR code URL using a free QR code service
-      qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(eventLink)}`;
+      renderQrCode(eventLink);
+    }
+  }
+
+  /** @param {string} link */
+  async function renderQrCode(link) {
+    try {
+      const dataUrl = await toDataURL(link, { width: 300, margin: 1 });
+      if (link === eventLink) qrCodeUrl = dataUrl;
+    } catch {
+      if (link === eventLink) qrCodeUrl = "";
     }
   }
 
@@ -286,12 +296,11 @@
         <h4 class="text-white font-medium mb-4">QR Code</h4>
         <div class="flex flex-col items-center space-y-4">
           <div class="bg-white p-4 rounded-lg">
-            <img
-              src={qrCodeUrl}
-              alt="QR Code for event"
-              class="w-48 h-48"
-              loading="lazy"
-            />
+            {#if qrCodeUrl}
+              <img src={qrCodeUrl} alt="QR Code for event" class="w-48 h-48" />
+            {:else}
+              <div class="w-48 h-48" aria-hidden="true"></div>
+            {/if}
           </div>
           <p class="text-gray-300 text-sm text-center">
             Scan this QR code to access the event page

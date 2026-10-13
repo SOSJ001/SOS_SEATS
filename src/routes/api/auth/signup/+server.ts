@@ -11,6 +11,7 @@ import {
   normalizeUsername,
   isUsernameTaken,
   provisionAuthUsername,
+  isStaffSyntheticEmail,
 } from "$lib/server/auth";
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
@@ -35,6 +36,10 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
       { error: "Username, email, and password are required" },
       { status: 400 },
     );
+  }
+
+  if (isStaffSyntheticEmail(email)) {
+    return json({ error: "Use your own email address" }, { status: 400 });
   }
 
   if (password.length < 6) {

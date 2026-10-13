@@ -60,7 +60,11 @@
     <div class="flex min-w-0 flex-1 flex-col gap-1.5">
       <div class="flex items-center gap-2.5">
         {#if icon}
-          <svelte:component this={icon} class="size-5 shrink-0 {valueColor}" aria-hidden="true" />
+          <svelte:component
+            this={icon}
+            class="size-5 shrink-0 {valueColor}"
+            aria-hidden="true"
+          />
         {/if}
         <p class="m-0 text-2xl font-extrabold leading-none {valueColor}">{value}</p>
       </div>

@@ -2,15 +2,12 @@
   // @ts-nocheck
   import { goto } from "$app/navigation";
   import { sessionFromDb } from "$lib/store";
+  import { LEGAL } from "$lib/legal/legalConfig.js";
 
   $: isLoggedIn = !!$sessionFromDb;
 
-  const socials = [
-    { name: "Instagram", href: "#", src: "/hifi/social/instagram.svg" },
-    { name: "Facebook", href: "#", src: "/hifi/social/facebook.svg" },
-    { name: "Twitter", href: "#", src: "/hifi/social/twitter.svg" },
-    { name: "LinkedIn", href: "#", src: "/hifi/social/linkedin.svg" },
-  ];
+  /** Only accounts that exist; the row is hidden while this is empty. */
+  const socials = [];
 
   function goOrLogin(next) {
     if (isLoggedIn) goto(next);
@@ -31,8 +28,8 @@
       <div class="max-w-[360px]">
         <div class="w-16 h-1 bg-brand rounded-sm mb-4" aria-hidden="true"></div>
         <p class="m-0 text-base font-bold leading-[26px] text-white">
-          Sierra Leone's premier secure event ticketing platform. Directly integrated with Orange
-          Money and Afrimoney.
+          Event ticketing for Sierra Leone, currently in a test phase. Pay with Orange Money or
+          Afrimoney, processed by Monime.
         </p>
       </div>
 
@@ -50,36 +47,40 @@
           <a href="/#fees" class={colLink}>Pricing &amp; Fees</a>
         </div>
         <div class="flex flex-col gap-3 min-w-[100px]">
-          <h3 class="m-0 mb-1 text-sm font-extrabold text-white">Local Integration</h3>
+          <h3 class="m-0 mb-1 text-sm font-extrabold text-white">Payment methods</h3>
           <span class="text-[13px] text-ink-muted">Orange Money</span>
           <span class="text-[13px] text-ink-muted">Afrimoney</span>
           <span class="text-[13px] text-ink-muted">Mobile Money</span>
         </div>
         <div class="flex flex-col gap-3 min-w-[100px]">
           <h3 class="m-0 mb-1 text-sm font-extrabold text-white">Support</h3>
-          <span class="text-[13px] text-ink-muted">Help Centre</span>
-          <span class="text-[13px] text-ink-muted">Terms of Service</span>
-          <span class="text-[13px] text-ink-muted">Privacy Policy</span>
+          <a href="mailto:{LEGAL.contactEmail}" class={colLink}>Help Centre</a>
+          <a href="/terms" class={colLink}>Terms of Service</a>
+          <a href="/privacy" class={colLink}>Privacy Policy</a>
         </div>
       </div>
     </div>
 
-    <div class="flex gap-3 items-center" aria-label="Social links">
-      {#each socials as s}
-        <a
-          class="w-10 h-10 rounded-xl bg-slate-chip inline-flex items-center justify-center hover:bg-slate-600"
-          href={s.href}
-          aria-label={s.name}
-        >
-          <img src={s.src} alt="" width="18" height="18" />
-        </a>
-      {/each}
-    </div>
+    {#if socials.length}
+      <div class="flex gap-3 items-center" aria-label="Social links">
+        {#each socials as s}
+          <a
+            class="w-10 h-10 rounded-xl bg-slate-chip inline-flex items-center justify-center hover:bg-slate-600"
+            href={s.href}
+            aria-label={s.name}
+          >
+            <img src={s.src} alt="" width="18" height="18" />
+          </a>
+        {/each}
+      </div>
+    {/if}
 
     <div class="h-px bg-white/10" aria-hidden="true"></div>
 
     <div class="flex flex-col items-start gap-4 pt-1 sm:flex-row sm:items-center sm:justify-between">
-      <p class="m-0 text-[13px] text-ink-muted">© 2026 SOS SEATS Ltd. Freetown, Sierra Leone.</p>
+      <p class="m-0 text-[13px] text-ink-muted">
+        © 2026 SOS SEATS. A test project, not a registered company.
+      </p>
       <div class="flex gap-2">
         <span class="text-[11px] font-semibold px-2.5 py-1 rounded bg-slate-chip text-white"
           >Orange Money</span

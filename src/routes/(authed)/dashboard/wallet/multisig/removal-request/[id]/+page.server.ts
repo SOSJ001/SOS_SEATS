@@ -1,7 +1,10 @@
 import { supabase } from "$lib/supabase";
-import { error } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
+import { WEB3_ENABLED } from "$lib/features.js";
 
 export async function load({ params }) {
+  if (!WEB3_ENABLED) throw redirect(303, "/dashboard/wallet");
+
   const { id } = params;
 
   // Load removal request

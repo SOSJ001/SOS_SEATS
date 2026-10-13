@@ -9,6 +9,7 @@
   import Smartphone from "lucide-svelte/icons/smartphone";
   import ShieldCheck from "lucide-svelte/icons/shield-check";
   import MmProviderLogo from "$lib/components/public/MmProviderLogo.svelte";
+  import LegalConsentNote from "$lib/components/legal/LegalConsentNote.svelte";
   import { formatBookingFeePercent } from "$lib/fees";
 
   /** @type {Array<{ name: string, quantity: number, lineTotal: number }>} */
@@ -176,6 +177,7 @@
     >
       {loading ? "Creating…" : "Generate Payment Code"}
     </button>
+    <LegalConsentNote action="paying" class="-mt-1 text-center" />
 
     <div
       class="flex flex-col gap-2 rounded-xl border border-brand bg-[#fff5f0] px-4 py-3 lg:gap-2 lg:border-[rgba(255,90,31,0.1)] lg:bg-[#fff7ed] lg:py-2"
@@ -202,10 +204,10 @@
       >
         <ShieldCheck size={18} />
       </span>
-      <p class="m-0 font-display text-base font-bold text-ink">Secure Payment</p>
+      <p class="m-0 font-display text-base font-bold text-ink">Mobile money payment</p>
     </div>
     <p class="m-0 text-xs text-[#808080]">
-      Encrypted checkout · Fraud protection · On the guest list
+      Payments processed by Monime · On the guest list
     </p>
   </div>
 </div>

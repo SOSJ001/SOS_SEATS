@@ -13,6 +13,7 @@
   import EventCover from "$lib/components/event/EventCover.svelte";
   import AttendeeDateTile from "./AttendeeDateTile.svelte";
   import TransferResultNote from "./TransferResultNote.svelte";
+  import { LEGAL } from "$lib/legal/legalConfig.js";
 
   /**
    * @type {{
@@ -149,8 +150,8 @@
     >
       Need help? Contact
       <a
-        href="mailto:support@sosseats.com"
-        class="no-underline hover:underline lg:font-bold lg:text-brand">support@sosseats.com</a
+        href="mailto:{LEGAL.contactEmail}"
+        class="no-underline hover:underline lg:font-bold lg:text-brand">{LEGAL.contactEmail}</a
       >
     </p>
   {/if}

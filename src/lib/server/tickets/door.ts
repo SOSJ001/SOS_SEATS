@@ -1,6 +1,6 @@
 /**
  * Door events + scanner data (roadmap 7.2).
- * Organiser scope: events they own. 7.3 adds door staff and their assigned events.
+ * Organiser scope: events they own. Staff scope (7.3): their assigned events.
  * Counts use exact head queries, never downloaded rows (API row cap).
  */
 import { getServerSupabase } from "$lib/server/db";
@@ -20,6 +20,7 @@ export type DoorEvent = {
   time: string | null;
   location: string | null;
   imageUrl: string | null;
+  organizer: string | null;
   phase: DoorEventPhase;
   checkedIn: number;
   total: number;
@@ -55,7 +56,7 @@ export function doorToday(now = new Date()): string {
   }).format(now);
 }
 
-function phaseFor(date: string | null, today: string): DoorEventPhase {
+export function phaseFor(date: string | null, today: string): DoorEventPhase {
   if (!date) return "upcoming";
   const day = String(date).slice(0, 10);
   if (day === today) return "active";
@@ -80,26 +81,50 @@ async function countGuests(
   return count || 0;
 }
 
-export async function loadDoorEvents(
-  userId: string
-): Promise<{ events: DoorEvent[]; summary: DoorEventsSummary }> {
+const DOOR_EVENT_COLUMNS = "id, name, date, time, location, image_id, organizer";
+
+type DoorEventsResult = { events: DoorEvent[]; summary: DoorEventsSummary };
+
+function emptyDoorEvents(): DoorEventsResult {
+  return {
+    events: [],
+    summary: { activeEvents: 0, scannedToday: 0, notCheckedIn: 0 },
+  };
+}
+
+/** Organiser scope: their own published events. */
+export async function loadDoorEvents(userId: string): Promise<DoorEventsResult> {
   const db = getServerSupabase();
   const { data: rows, error } = await db
     .from("events")
-    .select("id, name, date, time, location, image_id")
+    .select(DOOR_EVENT_COLUMNS)
     .eq("user_id", userId)
     .eq("status", "published")
     .order("date", { ascending: true });
 
   if (error) throw new Error(error.message);
-  const list = rows || [];
-  if (list.length === 0) {
-    return {
-      events: [],
-      summary: { activeEvents: 0, scannedToday: 0, notCheckedIn: 0 },
-    };
-  }
+  return buildDoorEvents(rows || []);
+}
 
+/** Staff scope: the given events that are published. Call only with assigned ids. */
+export async function loadDoorEventsByIds(eventIds: string[]): Promise<DoorEventsResult> {
+  if (eventIds.length === 0) return emptyDoorEvents();
+  const db = getServerSupabase();
+  const { data: rows, error } = await db
+    .from("events")
+    .select(DOOR_EVENT_COLUMNS)
+    .in("id", eventIds)
+    .eq("status", "published")
+    .order("date", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return buildDoorEvents(rows || []);
+}
+
+async function buildDoorEvents(list: any[]): Promise<DoorEventsResult> {
+  if (list.length === 0) return emptyDoorEvents();
+
+  const db = getServerSupabase();
   const today = doorToday();
   const eventIds = list.map((e: any) => e.id);
   const imageIds = [...new Set(list.map((e: any) => e.image_id).filter(Boolean))];
@@ -139,6 +164,7 @@ export async function loadDoorEvents(
     time: e.time || null,
     location: e.location || null,
     imageUrl: e.image_id ? imageById.get(e.image_id) || null : null,
+    organizer: e.organizer || null,
     phase: phaseFor(e.date, today),
     checkedIn: counts[i].checkedIn,
     total: counts[i].total,
@@ -166,6 +192,17 @@ export async function loadScannerEvent(eventId: string, userId: string) {
     .select("id, name, date, time, location")
     .eq("id", eventId)
     .eq("user_id", userId)
+    .maybeSingle();
+  return data || null;
+}
+
+/** Any event by id. Call only after canScanEvent has allowed it. */
+export async function loadScannerEventById(eventId: string) {
+  const db = getServerSupabase();
+  const { data } = await db
+    .from("events")
+    .select("id, name, date, time, location")
+    .eq("id", eventId)
     .maybeSingle();
   return data || null;
 }

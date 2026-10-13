@@ -32,7 +32,7 @@ export async function resolveLinkedIdentity(
     return base;
   }
 
-  if (session.sessionType === "phone") {
+  if (session.sessionType === "phone" || session.sessionType === "staff") {
     return base;
   }
 

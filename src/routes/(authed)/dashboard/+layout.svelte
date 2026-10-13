@@ -10,6 +10,7 @@
   import OrganiserShell from "$lib/components/authed/OrganiserShell.svelte";
   import AttendeeShell from "$lib/components/authed/AttendeeShell.svelte";
   import DoorShell from "$lib/components/authed/DoorShell.svelte";
+  import { staffContactLabel } from "$lib/components/staff/staffFormat.js";
 
   export let data;
 
@@ -32,6 +33,9 @@
   // Scanner header comes from the page's own load data so it renders on the server.
   $: scannerEvent = isScannerEvent ? $page.data?.event : null;
   $: doorRole = isStaff || $page.data?.role === "staff" ? "staff" : "organiser";
+  // Staff session names are the raw contact; show phones masked like everywhere else.
+  $: staffContact = $page.data?.staffContact || null;
+  $: doorUserName = staffContact ? staffContactLabel(staffContact) : userName;
 </script>
 
 {#if shell === "none"}
@@ -42,13 +46,14 @@
   </AttendeeShell>
 {:else if shell === "door"}
   <DoorShell
-    {userName}
+    userName={doorUserName}
     roleLabel={doorRole === "staff" ? "STAFF" : "ORGANISER"}
-    homeHref={isStaff ? "/dashboard/staff" : "/dashboard/scanner"}
-    flush={!!scannerEvent}
+    homeHref={doorRole === "staff" ? "/dashboard/staff" : "/dashboard/scanner"}
+    flush={!!scannerEvent || isStaff}
     title={scannerEvent?.name || ""}
     backHref={scannerEvent ? $page.data?.backHref || "/dashboard/scanner" : ""}
-    backLabel="Back to Door events"
+    backLabel={$page.data?.backLabel || "Back to Door events"}
+    contactType={isStaff ? staffContact?.type || "" : ""}
   >
     <slot />
   </DoorShell>

@@ -5,16 +5,16 @@
    * Mobile HI-FI 261:60; desktop uses shared AuthHeroPanel + AuthPanelShell chrome.
    */
   import { page } from "$app/stores";
-  import { authSearchParams } from "$lib/auth/postAuthRedirect.js";
-  import AuthWordmark from "$lib/components/auth/AuthWordmark.svelte";
+  import { authSearchParams, signInHref } from "$lib/auth/postAuthRedirect.js";
+  import AuthMobileTopRow from "$lib/components/auth/AuthMobileTopRow.svelte";
   import AuthHeroPanel from "$lib/components/auth/AuthHeroPanel.svelte";
   import AuthPanelShell from "$lib/components/auth/AuthPanelShell.svelte";
   import RoleCard from "$lib/components/auth/RoleCard.svelte";
 
   $: next = $page.url.searchParams.get("next");
-  $: attendeeHref = `/sign-in/phone${authSearchParams({ next, role: "attendee" })}`;
-  $: organizerHref = `/sign-in/email${authSearchParams({ next, role: "organizer" })}`;
-  $: staffHref = `/sign-in/email${authSearchParams({ next, role: "staff" })}`;
+  $: attendeeHref = signInHref(next, "attendee");
+  $: organizerHref = signInHref(next, "organizer");
+  $: staffHref = `/sign-in/staff${authSearchParams({ next })}`;
 </script>
 
 <!-- Mobile role-selector (HI-FI 261:60) -->
@@ -23,7 +23,7 @@
     <header
       class="flex w-full flex-col items-start gap-5 bg-gradient-to-b from-[#fff7ed] to-paper-cream p-6"
     >
-      <AuthWordmark size="mobile" />
+      <AuthMobileTopRow />
       <div class="flex w-full flex-col items-start gap-2">
         <h1 class="m-0 w-full text-[28px] font-extrabold leading-none text-ink">
           Welcome to SOS SEATS

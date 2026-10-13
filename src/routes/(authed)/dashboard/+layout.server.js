@@ -1,6 +1,19 @@
 //@ts-nocheck
 import { loadUserEvents, getRecentActivities } from "$lib/server/events";
 
+function emptyDashboard() {
+  return {
+    EventTableResult: [],
+    events: [],
+    dashboardStats: {
+      liveEvents: 0,
+      totalTicketsSold: 0,
+      totalRevenue: 0,
+      guestsCheckedIn: 0,
+    },
+  };
+}
+
 export async function load({ locals }) {
   const user_Id = locals.userId;
   const userName = locals.userName;
@@ -9,17 +22,22 @@ export async function load({ locals }) {
 
   if (!user_Id) {
     return {
-      EventTableResult: [],
-      events: [],
-      dashboardStats: {
-        liveEvents: 0,
-        totalTicketsSold: 0,
-        totalRevenue: 0,
-        guestsCheckedIn: 0,
-      },
+      ...emptyDashboard(),
       user_Id: null,
       userName: null,
       sessionType: null,
+      linkedWalletAddress: null,
+    };
+  }
+
+  // Staff never see organiser events or activity (roadmap 7.3).
+  if (sessionType === "staff") {
+    return {
+      ...emptyDashboard(),
+      recentActivities: [],
+      user_Id,
+      userName,
+      sessionType,
       linkedWalletAddress: null,
     };
   }

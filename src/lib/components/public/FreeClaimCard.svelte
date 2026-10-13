@@ -6,6 +6,7 @@
   import Lock from "lucide-svelte/icons/lock";
   import ArrowRight from "lucide-svelte/icons/arrow-right";
   import CircleCheck from "lucide-svelte/icons/circle-check";
+  import LegalConsentNote from "$lib/components/legal/LegalConsentNote.svelte";
 
   export let eventName = "";
   /** Primary badge label, e.g. ticket type name or "2 types" */
@@ -74,6 +75,7 @@
       <ArrowRight size={16} />
     {/if}
   </button>
+  <LegalConsentNote action="claiming" class="-mt-2 text-center" />
 
   <div
     class="flex gap-2.5 rounded-xl border border-[#0fba82] bg-[#edfdf2] p-3"

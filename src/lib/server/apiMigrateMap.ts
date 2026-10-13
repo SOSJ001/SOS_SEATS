@@ -61,32 +61,11 @@ export const apiMigrateMap: MigrateRow[] = [
     status: "already",
   },
   {
-    from: "/web3LoginApi",
-    to: null,
-    methods: ["POST"],
-    status: "skip",
-    note: "2.6 Solana / web3 deferred; leave root (supabase.js callers)",
-  },
-  {
     from: "/web3LogoutApi",
     to: null,
     methods: ["POST"],
     status: "skip",
     note: "2.6 Solana / web3 deferred; leave root (supabase.js callers)",
-  },
-  {
-    from: "/web3VerifyApi",
-    to: null,
-    methods: ["GET"],
-    status: "skip",
-    note: "2.6 Solana / web3 deferred; leave root (supabase.js callers)",
-  },
-  {
-    from: "/dataUrlApi",
-    to: null,
-    methods: ["POST"],
-    status: "skip",
-    note: "Orphan; no callers",
   },
   {
     from: "/publishEventApi",

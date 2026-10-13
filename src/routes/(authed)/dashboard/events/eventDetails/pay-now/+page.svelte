@@ -365,11 +365,11 @@
             <p
               class="m-0 font-display text-base font-bold text-ink lg:text-[13px]"
             >
-              Secure Payment
+              Mobile money payment
             </p>
           </div>
           <p class="m-0 text-[13px] text-ink-secondary lg:text-[11px] lg:text-[#808080]">
-            Encrypted checkout · Fraud protection · On the guest list
+            Payments processed by Monime · On the guest list
           </p>
         </div>
 

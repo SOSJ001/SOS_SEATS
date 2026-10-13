@@ -6,6 +6,7 @@
   import { getActiveWalletAddress } from "$lib/web3";
   import { goto } from "$app/navigation";
   import { walletDataGet } from "$lib/client/walletData";
+  import { WEB3_ENABLED } from "$lib/features.js";
 
   export let userName = "User";
   export let onMenuToggle = () => {}; // Function to toggle sidebar
@@ -297,8 +298,9 @@
 
   <!-- Right side - wallet, notifications, profile -->
   <div class="flex items-center space-x-6">
-    <!-- Wallet Connect Button -->
-    <WalletConnectButton />
+    {#if WEB3_ENABLED}
+      <WalletConnectButton />
+    {/if}
 
     <!-- Notifications -->
     <div class="relative hidden lg:block">

@@ -7,8 +7,9 @@
   import AuthPrimaryButton from "$lib/components/auth/AuthPrimaryButton.svelte";
   import AuthHeroPanel from "$lib/components/auth/AuthHeroPanel.svelte";
   import AuthPanelShell from "$lib/components/auth/AuthPanelShell.svelte";
-  import AuthWordmark from "$lib/components/auth/AuthWordmark.svelte";
+  import AuthMobileTopRow from "$lib/components/auth/AuthMobileTopRow.svelte";
   import { authSearchParams, safeNext } from "$lib/auth/postAuthRedirect.js";
+  import LegalConsentNote from "$lib/components/legal/LegalConsentNote.svelte";
 
   let userName = "";
   let phone = "";
@@ -49,7 +50,7 @@
   <header
     class="flex w-full flex-col items-start gap-5 bg-gradient-to-b from-brand-soft to-paper-cream p-6"
   >
-    <AuthWordmark size="mobile" />
+    <AuthMobileTopRow />
     <div class="flex w-full flex-col items-start gap-2">
       <h1 class="m-0 text-[28px] font-extrabold leading-none text-ink">
         Create Phone Account
@@ -94,14 +95,7 @@
       {/if}
     </div>
 
-    <p class="m-0 w-full text-center text-xs leading-[1.5] text-ink-muted">
-      By creating an account, you agree to our
-      <a href="/terms" class="font-semibold text-brand hover:underline">Terms</a>
-      and
-      <a href="/privacy" class="font-semibold text-brand hover:underline"
-        >Privacy Policy</a
-      >
-    </p>
+    <LegalConsentNote action="creating an account" tone="text-ink-muted" class="w-full text-center" />
 
     <div class="flex w-full flex-col items-start gap-4">
       <AuthPrimaryButton size="mobile" disabled={loading}>
@@ -184,14 +178,7 @@
     </form>
 
     <div class="flex w-full flex-col items-center gap-3 text-center">
-      <p class="m-0 w-full text-center text-xs leading-[1.5] text-ink-muted">
-        By creating an account, you agree to our
-        <a href="/terms" class="font-semibold text-brand hover:underline">Terms</a>
-        and
-        <a href="/privacy" class="font-semibold text-brand hover:underline"
-          >Privacy Policy</a
-        >
-      </p>
+      <LegalConsentNote action="creating an account" tone="text-ink-muted" class="w-full text-center" />
 
       <p class="m-0 w-full text-center text-sm text-ink-muted">
         Already have a phone account?

@@ -1,4 +1,4 @@
-import { redirect, type Handle } from "@sveltejs/kit";
+import { json, redirect, type Handle, type RequestEvent } from "@sveltejs/kit";
 import { resolveSession } from "$lib/server/auth";
 
 const publicPaths = ['/api/monime/webhook'];
@@ -30,5 +30,55 @@ export const handle: Handle = async ({ event, resolve }) => {
     throw redirect(302, `/sign-in?next=${next}`);
   }
 
+  const gated = gateStaff(event);
+  if (gated) return gated;
+
   return resolve(event);
 };
+
+const STAFF_HOME = "/dashboard/staff";
+
+function isStaffRoute(routeId: string | null): boolean {
+  return (
+    routeId === "/(authed)/dashboard/staff" ||
+    !!routeId?.startsWith("/(authed)/dashboard/staff/")
+  );
+}
+
+function isStaffAllowedApi(pathname: string): boolean {
+  return (
+    pathname.startsWith("/api/scanner/") ||
+    pathname === "/api/auth/logout" ||
+    pathname.startsWith("/api/auth/staff/")
+  );
+}
+
+/**
+ * Roadmap 7.3: staff sessions only reach their assigned events and the scanner;
+ * everyone else stays out of the staff landing.
+ */
+function gateStaff(event: RequestEvent): Response | null {
+  const { pathname } = event.url;
+  const routeId = event.route.id;
+  const isStaff = event.locals.sessionType === "staff";
+
+  if (pathname.startsWith("/api/")) {
+    if (isStaff && !isStaffAllowedApi(pathname)) {
+      return json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
+    return null;
+  }
+
+  if (!pathname.startsWith("/dashboard")) return null;
+
+  if (isStaff) {
+    const allowed =
+      isStaffRoute(routeId) ||
+      routeId === "/(authed)/dashboard/scanner/[eventId]";
+    if (!allowed) throw redirect(302, STAFF_HOME);
+  } else if (isStaffRoute(routeId)) {
+    throw redirect(302, "/dashboard");
+  }
+
+  return null;
+}

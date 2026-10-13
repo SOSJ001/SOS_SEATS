@@ -14,9 +14,8 @@
 
   export let data;
 
-  if (data.cookievar1 !== undefined) {
-    sessionFromDb.set(data.cookievar1);
-  }
+  /** Reactive: sign-in finishes with invalidateAll() + goto(), not a full reload. */
+  $: if (data.cookievar1 !== undefined) sessionFromDb.set(data.cookievar1);
 
   onMount(() => {
     setupSmoothScrolling();
@@ -28,7 +27,9 @@
     path === "/" ||
     path.startsWith("/marketplace") ||
     path.startsWith("/sign-in") ||
-    path.startsWith("/sign-up");
+    path.startsWith("/sign-up") ||
+    path === "/terms" ||
+    path === "/privacy";
 </script>
 
 {#if !isDashboardRoute && !isPublicRoute}

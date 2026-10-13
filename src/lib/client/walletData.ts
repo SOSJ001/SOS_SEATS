@@ -14,12 +14,28 @@ export async function walletDataGet(
   return res.json();
 }
 
-export async function walletDataPost(body: Record<string, any>) {
-  const res = await fetch("/api/wallet/data", {
+/** Withdrawable balance and fees, computed on the server. */
+export async function getWithdrawable() {
+  const res = await fetch("/api/wallet/withdraw");
+  return res.json();
+}
+
+/** Pay out the full available balance to a mobile money number. */
+export async function requestWithdrawal(body: {
+  phone: string;
+  provider: "orange_money" | "afrimoney";
+}) {
+  const res = await fetch("/api/wallet/withdraw", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  return res.json();
+}
+
+/** Refresh the signed-in organiser's pending payouts from Monime. */
+export async function syncPayouts() {
+  const res = await fetch("/api/wallet/sync-payouts", { method: "POST" });
   return res.json();
 }
 

@@ -8,6 +8,7 @@
   import NotificationSettings from "$lib/components/NotificationSettings.svelte";
   import SecuritySettings from "$lib/components/SecuritySettings.svelte";
   import MaintenanceWrapper from "$lib/components/MaintenanceWrapper.svelte";
+  import { WEB3_ENABLED } from "$lib/features.js";
 
   // Settings data
   let settings = {
@@ -107,14 +108,15 @@
         <ProfileSettings {settings} onInputChange={handleInputChange} />
       </div>
 
-      <!-- Web3 Settings Section -->
-      <div in:fade={{ duration: 400, delay: 300 }}>
-        <Web3Settings
-          {settings}
-          onInputChange={handleInputChange}
-          onDisconnectWallet={disconnectWallet}
-        />
-      </div>
+      {#if WEB3_ENABLED}
+        <div in:fade={{ duration: 400, delay: 300 }}>
+          <Web3Settings
+            {settings}
+            onInputChange={handleInputChange}
+            onDisconnectWallet={disconnectWallet}
+          />
+        </div>
+      {/if}
 
       <!-- Notifications Section -->
       <div in:fade={{ duration: 400, delay: 400 }}>

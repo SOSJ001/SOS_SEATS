@@ -9,6 +9,7 @@
   import Wallet from "lucide-svelte/icons/wallet";
   import PublicIcon from "$lib/components/public/PublicIcon.svelte";
   import { initialsFromName } from "$lib/components/authed/authedLogout.js";
+  import { signInHref } from "$lib/auth/postAuthRedirect.js";
 
   export let userName = "User";
   export let initials = "USR";
@@ -49,6 +50,7 @@
       icon: "ticket",
       sub: "View your tickets",
       authRequired: true,
+      role: "attendee",
     },
     {
       id: "organiser",
@@ -58,6 +60,7 @@
       icon: "briefcase",
       sub: "Dashboard & Analytics",
       authRequired: true,
+      role: "organizer",
     },
   ];
 
@@ -70,15 +73,10 @@
     if (item.authRequired && !isLoggedIn) {
       e.preventDefault();
       closeMenu();
-      goOrLogin(item.href);
+      goto(signInHref(item.href, item.role));
     } else {
       closeMenu();
     }
-  }
-
-  function goOrLogin(next) {
-    if (isLoggedIn) goto(next);
-    else goto(`/sign-in?next=${encodeURIComponent(next)}`);
   }
 
   function openSignIn() {

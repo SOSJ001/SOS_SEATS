@@ -1,12 +1,6 @@
 // Orange Money payment handler using Monime API
 import { monimeService } from "./monime.js";
-import {
-  calculateBookingFee,
-  getPlatformFeeRate,
-  getWithdrawalFeeMax,
-  getWithdrawalFeeMin,
-  getWithdrawalMonimeFeeRate,
-} from "./fees.js";
+import { calculateBookingFee } from "./fees.js";
 
 /**
  * Calculate platform service fee
@@ -16,50 +10,7 @@ export function calculatePlatformFee(ticketPrice: number): number {
   return 0;
 }
 
-/**
- * Calculate platform withdrawal fee (rates from PUBLIC_WITHDRAWAL_* env)
- */
-export function calculateWithdrawalFee(withdrawalAmount: number): {
-  platformFee: number;
-  monimeFee: number;
-  totalFees: number;
-  netAmountAfterPlatformFee: number;
-  netAmount: number;
-} {
-  const WITHDRAWAL_FEE_PERCENTAGE = getPlatformFeeRate();
-  const MONIME_FEE_PERCENTAGE = getWithdrawalMonimeFeeRate();
-  const WITHDRAWAL_FEE_MIN = getWithdrawalFeeMin();
-  const WITHDRAWAL_FEE_MAX = getWithdrawalFeeMax();
-
-  let platformFee = withdrawalAmount * WITHDRAWAL_FEE_PERCENTAGE;
-
-  if (WITHDRAWAL_FEE_PERCENTAGE > 0) {
-    if (WITHDRAWAL_FEE_MIN > 0 && platformFee < WITHDRAWAL_FEE_MIN) {
-      platformFee = WITHDRAWAL_FEE_MIN;
-    }
-    if (WITHDRAWAL_FEE_MAX > 0 && platformFee > WITHDRAWAL_FEE_MAX) {
-      platformFee = WITHDRAWAL_FEE_MAX;
-    }
-  }
-
-  const netAmountAfterPlatformFee = Math.max(0, withdrawalAmount - platformFee);
-
-  const monimeFee = netAmountAfterPlatformFee * MONIME_FEE_PERCENTAGE;
-
-  // Calculate total fees (platform fee + Monime fee)
-  const totalFees = platformFee + monimeFee;
-
-  // Calculate final net amount user will receive (after both fees)
-  const netAmount = Math.max(0, netAmountAfterPlatformFee - monimeFee);
-
-  return {
-    platformFee,
-    monimeFee,
-    totalFees,
-    netAmountAfterPlatformFee,
-    netAmount,
-  };
-}
+export { calculateWithdrawalFee } from "./fees.js";
 
 interface TicketPurchaseData {
   eventId: string;
@@ -174,73 +125,6 @@ export async function handleMobileMoneyPaymentWithCode(
       status: details.status,
       code: details.code,
       apiMessage: details.apiMessage,
-    };
-  }
-}
-
-/**
- * Process Orange Money payment callback
- */
-export async function processOrangeMoneyCallback(
-  sessionId: string,
-  purchaseData: TicketPurchaseData,
-  paymentMethod: string = "orange_money",
-  skipStatusCheck: boolean = false
-): Promise<{ success: boolean; orderId?: string; error?: string }> {
-  try {
-    const amountInSLE = purchaseData.totalAmount || 0;
-
-    // Payment codes already confirmed as completed, skip status check
-    // The modal handles payment code status polling
-
-    // Import the createPaidTicketOrder function and anonymous key
-    // Cache bust comment - updated to force browser refresh
-    const { createPaidTicketOrder, ANONYMOUS_KEY } = await import(
-      "./supabase.js"
-    );
-
-    // Create payment info for database
-    // Use session/code ID as transaction ID
-    const transactionId = sessionId;
-
-    const paymentInfo = {
-      paymentMethod: paymentMethod,
-      transactionSignature: transactionId,
-      amount: amountInSLE,
-      receivingWallet: `monime_${paymentMethod}`, // Dynamic identifier based on payment method
-      buyerWallet: `mobile_money_${paymentMethod}`, // Use meaningful identifier for mobile money payments
-      provider: "monime",
-      sessionId: sessionId,
-      currency: "SLE", // ISO currency code for Sierra Leonean Leone
-    };
-
-    // Kit service-role claim path (idempotency handled in /api/tickets/claim)
-    const { claimFreeTickets } = await import("./supabase.js");
-
-    const result = await claimFreeTickets(
-      purchaseData.eventId,
-      purchaseData.selectedTickets,
-      purchaseData.buyerInfo,
-      paymentInfo as any
-    );
-
-    if (result.success) {
-      return {
-        success: true,
-        orderId: result.orderId,
-      };
-    } else {
-      return {
-        success: false,
-        error: result.error || "Failed to record purchase",
-      };
-    }
-  } catch (error) {
-    console.error("Orange Money callback processing error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Callback processing failed",
     };
   }
 }

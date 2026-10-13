@@ -2,6 +2,8 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { parseSession } from "$lib/sessionUtils.js";
 import { getAnonSupabase } from "./anon";
 import { resolveLinkedIdentity } from "./linkedIdentity";
+import { isStaffSyntheticEmail } from "./staff";
+import { readUserSessionCookie } from "./cookies";
 
 export type ResolvedSession = {
   userId: string | null;
@@ -40,9 +42,10 @@ export async function resolveBearerSession(
     const user = data.user;
     const meta = user.user_metadata ?? {};
     const email = typeof user.email === "string" ? user.email : "";
-    const sessionType =
-      meta.sessionType === "phone" ||
-      email.toLowerCase().endsWith("@phone.sosseats.internal")
+    const sessionType = isStaffSyntheticEmail(email)
+      ? "staff"
+      : meta.sessionType === "phone" ||
+          email.toLowerCase().endsWith("@phone.sosseats.internal")
         ? "phone"
         : "traditional";
     const base = {
@@ -64,7 +67,7 @@ export async function resolveBearerSession(
 export async function resolveSession(
   event: RequestEvent
 ): Promise<ResolvedSession> {
-  const parsed = parseSession(event.cookies) as {
+  const parsed = parseSession(readUserSessionCookie(event.cookies)) as {
     user_Id: string | null;
     userName: string | null;
     sessionType: string | null;

@@ -169,6 +169,6 @@
 
   <div class="flex items-center justify-center gap-1.5 text-ink-secondary">
     <Lock size={12} class="shrink-0" aria-hidden="true" />
-    <p class="m-0 text-xs leading-4">Secure Payment · Powered by SOS SEATS</p>
+    <p class="m-0 text-xs leading-4">Payment processed by Monime</p>
   </div>
 </div>

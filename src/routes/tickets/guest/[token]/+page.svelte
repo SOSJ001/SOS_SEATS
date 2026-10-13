@@ -4,6 +4,7 @@
   import { goto } from "$app/navigation";
   import BackButton from "$lib/components/BackButton.svelte";
   import GradientButton from "$lib/components/GradientButton.svelte";
+  import { WEB3_ENABLED } from "$lib/features.js";
 
   // Get token from URL params
   $: token = $page.params.token;
@@ -264,7 +265,7 @@ Thank you for using SOS SEATS!
         </div>
       </div>
 
-      <!-- Web3 Upgrade Section -->
+      {#if WEB3_ENABLED}
       <div
         class="bg-gradient-to-br from-[#18122B] via-[#232946] to-[#0A0A0A] border border-[#9D4EDD]/30 rounded-xl p-6 mb-6"
       >
@@ -294,6 +295,7 @@ Thank you for using SOS SEATS!
           </div>
         </div>
       </div>
+      {/if}
 
       <!-- Access Information -->
       <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">

@@ -99,10 +99,15 @@ PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 # Solana
 SOLANA_NETWORK=devnet  # or mainnet-beta
 
-# Monime API (Orange Money payments)
-PUBLIC_MONIME_API_KEY=mon_test_xxxxxxxxxxxxxxxxxxxxxxxxx  # or mon_xxxxxxxxxxxxxxxxxxxxxxxxx for live
-PUBLIC_MONIME_SPACE_ID=spc-xxxxxxxxxxxxxxxx
-PUBLIC_MONIME_ENVIRONMENT=test  # or live for production
+# Session cookie signing (required in production, 32+ characters)
+SESSION_SECRET=long_random_string
+
+# Monime API (server-only; never use PUBLIC_ names for these)
+MONIME_API_KEY=mon_test_xxxxxxxxxxxxxxxxxxxxxxxxx  # or mon_xxxxxxxxxxxxxxxxxxxxxxxxx for live
+MONIME_SPACE_ID=spc-xxxxxxxxxxxxxxxx
+MONIME_ENVIRONMENT=test  # or live for production
+MONIME_PAYOUT_API_KEY=  # optional, falls back to MONIME_API_KEY
+MONIME_WEBHOOK_SECRET=  # 32-256 characters
 ```
 
 ### **Wallet Setup**

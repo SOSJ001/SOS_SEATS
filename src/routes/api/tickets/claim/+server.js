@@ -1,12 +1,13 @@
 import { json } from "@sveltejs/kit";
-import {
-  claimTickets,
-  findOrderByTransactionHash,
-} from "$lib/server/tickets";
+import { claimTickets } from "$lib/server/tickets";
+import { getServerSupabase } from "$lib/server/db";
+
+const MAX_PER_TYPE = 50;
 
 /**
- * Marketplace claim path (FR-17). Auth required.
- * Webhook fulfill calls claimTickets in-process, not this HTTP route.
+ * Marketplace free-claim path (FR-17). Auth required.
+ * Free tickets only: paid orders come from the verified Monime webhook,
+ * which calls claimTickets in-process, never through this route.
  * @type {import('./$types').RequestHandler}
  */
 export async function POST({ request, locals }) {
@@ -19,7 +20,7 @@ export async function POST({ request, locals }) {
     }
 
     const body = await request.json();
-    const { eventId, selectedTickets, paymentInfo } = body;
+    const { eventId, selectedTickets } = body;
     let { userData } = body;
 
     if (!eventId || !selectedTickets || !userData) {
@@ -29,35 +30,64 @@ export async function POST({ request, locals }) {
       );
     }
 
-    userData = { ...userData, id: locals.userId };
-    if (locals.walletAddress) {
-      userData.wallet_address =
-        userData.wallet_address || locals.walletAddress;
-    }
-
-    if (paymentInfo?.transactionSignature) {
-      const existing = await findOrderByTransactionHash(
-        paymentInfo.transactionSignature,
-        eventId,
-        paymentInfo.paymentMethod
-      );
-      if (existing) {
-        return json({
-          success: true,
-          orderId: existing.id,
-          orderNumber: existing.order_number,
-          ticketsClaimed: 0,
-          message: "Order already exists",
-        });
+    /** @type {Record<string, number>} */
+    const quantities = {};
+    for (const [id, raw] of Object.entries(selectedTickets)) {
+      const qty = Math.floor(Number(raw) || 0);
+      if (qty < 0 || qty > MAX_PER_TYPE) {
+        return json(
+          { success: false, error: "Invalid ticket quantity" },
+          { status: 400 }
+        );
       }
+      if (qty > 0) quantities[String(id)] = qty;
+    }
+    const ids = Object.keys(quantities);
+    if (ids.length === 0) {
+      return json(
+        { success: false, error: "Select at least one ticket" },
+        { status: 400 }
+      );
     }
 
-    const result = await claimTickets(
-      eventId,
-      selectedTickets,
-      userData,
-      paymentInfo || null
-    );
+    const db = getServerSupabase();
+    const { data: event } = await db
+      .from("events")
+      .select("id, status")
+      .eq("id", eventId)
+      .maybeSingle();
+    if (!event || !["published", "live"].includes(event.status)) {
+      return json(
+        { success: false, error: "Event not available" },
+        { status: 404 }
+      );
+    }
+
+    const { data: types, error: typesError } = await db
+      .from("ticket_types")
+      .select("id, price")
+      .eq("event_id", eventId)
+      .in("id", ids);
+    if (typesError || !types || types.length !== ids.length) {
+      return json(
+        { success: false, error: "Ticket type not found for this event" },
+        { status: 400 }
+      );
+    }
+    if (types.some((t) => (parseFloat(String(t.price)) || 0) > 0)) {
+      return json(
+        { success: false, error: "Paid tickets must be bought through checkout" },
+        { status: 400 }
+      );
+    }
+
+    userData = {
+      ...userData,
+      id: locals.userId,
+      wallet_address: locals.walletAddress || null,
+    };
+
+    const result = await claimTickets(eventId, quantities, userData, null);
 
     if (!result.success) {
       return json({ success: false, error: result.error }, { status: 400 });
