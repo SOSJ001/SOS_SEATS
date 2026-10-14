@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import { Clock } from "lucide-svelte";
+  import WalletInProgressNote from "$lib/components/wallet/WalletInProgressNote.svelte";
   import { formatNle } from "$lib/client/walletFormat";
 
   /** null while loading or when the summary could not be loaded */
@@ -12,6 +12,8 @@
   export let note: string | null = null;
   /** Amount of the withdrawal that is on its way, if any */
   export let inProgressAmount: number | null = null;
+  /** That withdrawal is on hold while we check with the provider */
+  export let inProgressOnHold = false;
 
   const dispatch = createEventDispatcher<{ withdraw: void }>();
 
@@ -58,16 +60,11 @@
   </div>
 
   {#if inProgressAmount !== null}
-    <div
-      class="mb-1 mt-3 flex items-center gap-2.5 rounded-xl bg-[#fef3c7] px-4 py-3 lg:mb-0 lg:mt-6"
-      role="status"
-    >
-      <Clock size={18} class="shrink-0 text-[#b45309]" aria-hidden="true" />
-      <p class="m-0 min-w-0 flex-1 text-xs font-semibold leading-normal text-[#b45309] lg:text-[13px]">
-        A withdrawal of {formatNle(inProgressAmount)} is on its way. You can withdraw again once it
-        finishes.
-      </p>
-    </div>
+    <WalletInProgressNote
+      amount={inProgressAmount}
+      onHold={inProgressOnHold}
+      class="mb-1 mt-3 lg:mb-0 lg:mt-6"
+    />
   {/if}
 
   <div class="flex flex-col gap-2.5 pt-4 lg:hidden">

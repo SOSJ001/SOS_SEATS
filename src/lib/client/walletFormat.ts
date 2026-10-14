@@ -18,8 +18,9 @@ export type WalletHistoryRow =
       id: string;
       createdAt: string;
       provider: string;
+      phoneMasked: string | null;
       amount: number;
-      status: "completed" | "on_its_way" | "failed";
+      status: "completed" | "on_its_way" | "on_hold" | "failed";
     }
   | {
       kind: "fee";
@@ -32,6 +33,12 @@ export type WalletHistoryRow =
     };
 
 export type WalletHistoryFilter = "all" | "sales" | "withdrawals";
+export type WithdrawProvider = "orange_money" | "afrimoney";
+
+export const WITHDRAW_PROVIDERS: { id: WithdrawProvider; label: string }[] = [
+  { id: "orange_money", label: "Orange Money" },
+  { id: "afrimoney", label: "Afrimoney" },
+];
 export type WalletLayout = "desktop" | "mobile";
 export type WalletStatusTone = "green" | "red" | "amber";
 
@@ -64,6 +71,25 @@ export function formatNle(amount: number): string {
 export function formatWalletDateTime(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : dateTimeFormat.format(d);
+}
+
+const dayKeyFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE });
+const timeFormat = new Intl.DateTimeFormat("en-US", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: TIME_ZONE,
+});
+
+/** "Today • 09:12", "Yesterday • 18:40" or "Apr 12 • 09:12" */
+export function formatWalletDayTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const day = dayKeyFormat.format(d);
+  const today = dayKeyFormat.format(new Date());
+  const yesterday = dayKeyFormat.format(new Date(Date.now() - 86_400_000));
+  const label = day === today ? "Today" : day === yesterday ? "Yesterday" : dateFormat.format(d);
+  return `${label} • ${timeFormat.format(d)}`;
 }
 
 /** "Apr 14" */
@@ -118,6 +144,7 @@ export function rowStatusLabel(row: WalletHistoryRow): string {
   if (row.kind === "withdrawal") {
     if (row.status === "failed") return "Failed";
     if (row.status === "on_its_way") return "On its way";
+    if (row.status === "on_hold") return "On hold";
     return "Completed";
   }
   return "Paid";
@@ -127,7 +154,7 @@ export function rowStatusTone(row: WalletHistoryRow): WalletStatusTone {
   if (row.kind === "sale") return row.status === "held" ? "amber" : "green";
   if (row.kind === "withdrawal") {
     if (row.status === "failed") return "red";
-    if (row.status === "on_its_way") return "amber";
+    if (row.status === "on_its_way" || row.status === "on_hold") return "amber";
   }
   return "green";
 }

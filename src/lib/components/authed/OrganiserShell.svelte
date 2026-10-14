@@ -46,8 +46,6 @@
     if (p.startsWith("/dashboard/events")) return "Events";
     if (p.startsWith("/dashboard/invite-staff")) return "Invite Door Staff & Scanner Accounts";
     if (p.startsWith("/dashboard/guests")) return "Guest List Management";
-    if (p.startsWith("/dashboard/wallet/multisig")) return "Multi-Sig Approval Queue";
-    if (p.includes("/pending-withdrawal") || p.includes("/withdraw")) return "Withdraw Funds";
     if (p.startsWith("/dashboard/wallet")) return "Wallet & Proceeds";
     if (p.startsWith("/dashboard/settings")) return "Settings";
     if (p.startsWith("/dashboard/scanner")) return "Door Scanner";
@@ -58,7 +56,7 @@
   /** Mobile top-header titles; null keeps the wordmark (471:86). */
   function mobileTitleForPath(p) {
     if (p.startsWith("/dashboard/invite-staff")) return "Invite Door Staff";
-    if (p === "/dashboard/wallet" || p === "/dashboard/wallet/") return "Wallet & Proceeds";
+    if (/^\/dashboard\/wallet(\/withdraw)?\/?$/.test(p)) return "Wallet & Proceeds";
     return null;
   }
 

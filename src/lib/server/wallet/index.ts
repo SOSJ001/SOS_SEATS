@@ -68,36 +68,6 @@ export async function getWalletTransactionById(
   }
 }
 
-export async function getPendingWithdrawalByToken(
-  token: string
-): Promise<{ data: any | null; error: string | null; anyStatus?: any }> {
-  try {
-    const db = getServerSupabase();
-
-    const { data: anyStatus, error: checkError } = await db
-      .from("wallet_transactions")
-      .select("status, updated_at, expires_at")
-      .eq("pending_token", token)
-      .eq("type", "withdrawal")
-      .maybeSingle();
-
-    if (checkError) return { data: null, error: checkError.message };
-
-    const { data: withdrawal, error } = await db
-      .from("wallet_transactions")
-      .select("*")
-      .eq("pending_token", token)
-      .eq("type", "withdrawal")
-      .eq("status", "pending_approval")
-      .maybeSingle();
-
-    if (error) return { data: null, error: error.message, anyStatus };
-    return { data: withdrawal, error: null, anyStatus };
-  } catch (err: any) {
-    return { data: null, error: err?.message || "Failed to load withdrawal" };
-  }
-}
-
 export async function insertWalletTransaction(
   row: Record<string, any>
 ): Promise<{ data: any | null; error: string | null }> {
@@ -129,46 +99,6 @@ export async function updateWalletTransaction(
     return { data, error: null };
   } catch (err: any) {
     return { data: null, error: err?.message || "Update failed" };
-  }
-}
-
-export async function getPendingWithdrawalById(
-  withdrawalId: string
-): Promise<{ data: any | null; error: string | null }> {
-  try {
-    const db = getServerSupabase();
-    const { data, error } = await db
-      .from("wallet_transactions")
-      .select("*")
-      .eq("id", withdrawalId)
-      .eq("status", "pending_approval")
-      .eq("multisig_enabled", true)
-      .single();
-    if (error) return { data: null, error: error.message };
-    return { data, error: null };
-  } catch (err: any) {
-    return { data: null, error: err?.message || "Not found" };
-  }
-}
-
-export async function listSignerPendingWithdrawals(
-  walletAddresses: string[]
-): Promise<{ data: any[]; error: string | null }> {
-  try {
-    if (!walletAddresses.length) return { data: [], error: null };
-    const db = getServerSupabase();
-    const { data, error } = await db
-      .from("wallet_transactions")
-      .select("*")
-      .in("wallet_address", walletAddresses)
-      .eq("type", "withdrawal")
-      .eq("status", "pending_approval")
-      .eq("multisig_enabled", true)
-      .order("created_at", { ascending: false });
-    if (error) return { data: [], error: error.message };
-    return { data: data || [], error: null };
-  } catch (err: any) {
-    return { data: [], error: err?.message || "Failed to list" };
   }
 }
 

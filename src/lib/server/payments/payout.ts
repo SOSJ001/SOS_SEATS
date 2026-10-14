@@ -15,26 +15,12 @@ export const PAYOUT_PROVIDERS = {
 
 export type PayoutProvider = keyof typeof PAYOUT_PROVIDERS;
 
-/** Normalise a Sierra Leone number to +232XXXXXXXX, or null if invalid. */
-export function formatSlPhone(raw: string): string | null {
-  let phone = String(raw || "").trim().replace(/[\s\-()]/g, "");
-  if (phone.startsWith("+")) {
-    // keep as is
-  } else if (phone.startsWith("232")) {
-    phone = `+${phone}`;
-  } else {
-    if (phone.startsWith("0")) phone = phone.substring(1);
-    phone = `+232${phone}`;
-  }
-  if (phone.startsWith("+2320") && phone.length === 13) {
-    phone = phone.replace("+2320", "+232");
-  }
-  return /^\+232\d{8}$/.test(phone) ? phone : null;
-}
+export { formatSlPhone } from "$lib/slPhone";
 
 function toStringMap(metadata: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(metadata)) {
+  // Sorted so a retry with the same idempotency key sends a byte-identical body.
+  for (const [key, value] of Object.entries(metadata).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     if (value === null || value === undefined) continue;
     out[key] = typeof value === "object" ? JSON.stringify(value) : String(value);
   }
@@ -47,13 +33,15 @@ export type SendPayoutResult =
 
 /**
  * Send `amountNle` (major units) to a mobile money number.
- * Retries only Monime's transient CROSSSLOT 500s; one idempotency key per call.
+ * Retries only Monime's transient CROSSSLOT 500s. Pass a stored `idempotencyKey`
+ * (with the same input) to retry a payout safely later; otherwise a new key is made.
  */
 export async function sendPayout(input: {
   amountNle: number;
   provider: PayoutProvider;
   phone: string;
   metadata?: Record<string, unknown>;
+  idempotencyKey?: string;
 }): Promise<SendPayoutResult> {
   const creds = getMonimeCredentials({ preferPayoutKey: true });
   if (!creds) {
@@ -70,7 +58,7 @@ export async function sendPayout(input: {
     metadata: toStringMap({ source: "sos_seats", ...(input.metadata || {}) }),
   };
 
-  const idempotencyKey = randomUUID();
+  const idempotencyKey = input.idempotencyKey || randomUUID();
   let lastError: any = null;
   let lastStatus = 500;
 

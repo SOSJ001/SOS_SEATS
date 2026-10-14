@@ -606,7 +606,7 @@
     </div>
 
     <div
-      class="relative flex flex-1 flex-col items-stretch overflow-hidden px-0 lg:w-1/2 lg:items-center lg:justify-center lg:bg-paper lg:px-8 lg:py-8"
+      class="relative flex min-h-0 flex-1 flex-col items-stretch overflow-y-auto px-0 lg:w-1/2 lg:items-center lg:bg-paper lg:px-8 lg:py-8"
     >
       <div
         class="pointer-events-none absolute inset-0 hidden lg:block"
@@ -634,7 +634,7 @@
         </span>
       </div>
 
-      <div class="relative z-10 w-full px-5 pb-5 pt-4 lg:max-w-[440px] lg:px-0 lg:py-0">
+      <div class="relative z-10 w-full px-5 pb-5 pt-4 lg:my-auto lg:max-w-[440px] lg:px-0 lg:py-0">
         <MarketplaceCheckoutCard
           eventName={event.name}
           backHref={eventHref}

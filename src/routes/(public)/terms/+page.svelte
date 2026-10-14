@@ -124,7 +124,8 @@
         <a href="#refunds">section {n("refunds")}</a> may apply to it.
       </li>
       <li>
-        A withdrawal sends your whole available balance to the mobile money number you enter, minus the
+        A withdrawal sends the amount you choose, up to your available balance, to the mobile money
+        number you enter, minus the
         transfer fee. You can have one withdrawal in progress at a time. If a withdrawal fails, the money
         goes back to your available balance. If we can't confirm a withdrawal with Monime, the money stays
         on hold until we have checked it. Balances earn no interest. You must enter the correct payout

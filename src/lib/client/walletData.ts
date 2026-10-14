@@ -20,8 +20,9 @@ export async function getWithdrawable() {
   return res.json();
 }
 
-/** Pay out the full available balance to a mobile money number. */
+/** Pay out the chosen amount (whole available balance if none) to a mobile money number. */
 export async function requestWithdrawal(body: {
+  amount?: number;
   phone: string;
   provider: "orange_money" | "afrimoney";
 }) {

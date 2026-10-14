@@ -4,11 +4,11 @@
    * Figures and history come from /api/wallet/data (summary, history).
    */
   import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
   import WalletBalanceCard from "$lib/components/wallet/WalletBalanceCard.svelte";
   import WalletHistoryTabs from "$lib/components/wallet/WalletHistoryTabs.svelte";
   import WalletHistoryTable from "$lib/components/wallet/WalletHistoryTable.svelte";
   import WalletHistoryList from "$lib/components/wallet/WalletHistoryList.svelte";
-  import WalletWithdrawModal from "$lib/components/wallet/WalletWithdrawModal.svelte";
   import WalletEmptyState from "$lib/components/wallet/WalletEmptyState.svelte";
   import Pagination from "$lib/components/authed/Pagination.svelte";
   import { walletDataGet, syncPayouts } from "$lib/client/walletData";
@@ -21,7 +21,7 @@
     available: number;
     pending: number;
     totalEarned: number;
-    withdrawalInProgress: { id: string; amount: number; createdAt: string } | null;
+    withdrawalInProgress: { id: string; amount: number; createdAt: string; onHold: boolean } | null;
   };
 
   const HISTORY_LIMIT = 1000;
@@ -34,7 +34,6 @@
   let historyError = false;
   let filter: WalletHistoryFilter = "all";
   let historyRequest = 0;
-  let showWithdraw = false;
   let page = 0;
 
   $: pageRows = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -99,7 +98,8 @@
     {canWithdraw}
     note={withdrawNote}
     inProgressAmount={summary?.withdrawalInProgress?.amount ?? null}
-    on:withdraw={() => (showWithdraw = true)}
+    inProgressOnHold={summary?.withdrawalInProgress?.onHold ?? false}
+    on:withdraw={() => goto("/dashboard/wallet/withdraw")}
   />
 
   <section
@@ -166,5 +166,3 @@
     </p>
   </section>
 </div>
-
-<WalletWithdrawModal bind:open={showWithdraw} on:done={loadAll} />

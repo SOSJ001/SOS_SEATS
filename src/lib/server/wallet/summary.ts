@@ -27,7 +27,8 @@ export type WalletSummary = {
   totalEarned: number;
   withdrawn: number;
   privateFees: number;
-  withdrawalInProgress: { id: string; amount: number; createdAt: string } | null;
+  /** `onHold`: no Monime payout id yet, so sync-payouts is still checking it */
+  withdrawalInProgress: { id: string; amount: number; createdAt: string; onHold: boolean } | null;
 };
 
 export type WalletHistoryFilter = "all" | "sales" | "withdrawals";
@@ -49,8 +50,9 @@ export type WalletHistoryRow =
       id: string;
       createdAt: string;
       provider: string;
+      phoneMasked: string | null;
       amount: number;
-      status: "completed" | "on_its_way" | "failed";
+      status: "completed" | "on_its_way" | "on_hold" | "failed";
     }
   | {
       kind: "fee";
@@ -134,7 +136,7 @@ async function loadWithdrawalRows(
   for (let offset = 0; ; offset += PAGE_SIZE) {
     const { data, error } = await db
       .from("wallet_transactions")
-      .select("id, amount, source, status, type, metadata, created_at")
+      .select("id, amount, source, status, type, metadata, external_id, created_at")
       .eq("wallet_address", walletAddress)
       .eq("type", "withdrawal")
       .in("status", statuses)
@@ -205,7 +207,12 @@ export async function getWalletSummary(
     }
     withdrawn += amount;
     if (!withdrawalInProgress && IN_PROGRESS_STATUSES.includes(t.status)) {
-      withdrawalInProgress = { id: t.id, amount: round2(amount), createdAt: t.created_at };
+      withdrawalInProgress = {
+        id: t.id,
+        amount: round2(amount),
+        createdAt: t.created_at,
+        onHold: !t.external_id,
+      };
     }
   }
 
@@ -219,9 +226,16 @@ export async function getWalletSummary(
   };
 }
 
-function withdrawalStatus(status: string): "completed" | "on_its_way" | "failed" {
-  if (status === "failed") return "failed";
-  if (IN_PROGRESS_STATUSES.includes(status)) return "on_its_way";
+/** "+23276543210" to "+232 7X XX XX XX"; the full number stays on the server. */
+function maskPhone(phone: unknown): string | null {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!/^232\d{8}$/.test(digits)) return null;
+  return `+232 ${digits[3]}X XX XX XX`;
+}
+
+function withdrawalStatus(t: any): "completed" | "on_its_way" | "on_hold" | "failed" {
+  if (t.status === "failed") return "failed";
+  if (IN_PROGRESS_STATUSES.includes(t.status)) return t.external_id ? "on_its_way" : "on_hold";
   return "completed";
 }
 
@@ -290,8 +304,9 @@ export async function getWalletHistory(
       id: t.id,
       createdAt: t.created_at,
       provider: String(t.metadata?.provider || t.source || "mobile_money"),
+      phoneMasked: maskPhone(t.metadata?.phone_number),
       amount,
-      status: withdrawalStatus(t.status),
+      status: withdrawalStatus(t),
     });
   }
 
