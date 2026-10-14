@@ -30,6 +30,7 @@
   import House from "lucide-svelte/icons/house";
   import Briefcase from "lucide-svelte/icons/briefcase";
   import CalendarPlus from "lucide-svelte/icons/calendar-plus";
+  import FileText from "lucide-svelte/icons/file-text";
 
   export let name = "search";
   export let size = 20;
@@ -61,6 +62,7 @@
     compass: Compass,
     house: House,
     briefcase: Briefcase,
+    "file-text": FileText,
   };
 
   $: Icon = map[name] || Search;

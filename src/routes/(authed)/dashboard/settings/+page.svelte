@@ -78,14 +78,10 @@
     }
 </script>
 
-<div class="min-h-screen bg-gray-900 text-white p-4 sm:p-6">
+<div class="flex flex-col gap-4">
   <!-- Header -->
-  <div
-    class="mb-6 sm:mb-8"
-    in:fly={{ y: -20, duration: 600, easing: quintOut }}
-  >
-    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">Settings</h1>
-    <p class="text-gray-400 text-sm sm:text-base">
+  <div in:fly={{ y: -20, duration: 600, easing: quintOut }}>
+    <p class="m-0 text-[13px] text-ink-secondary">
       Manage your account preferences and security settings
     </p>
   </div>
@@ -154,27 +150,4 @@
       </button>
     </div>
   </MaintenanceWrapper>
-
-  <!-- Bottom spacing for mobile to account for fixed buttons -->
-  <div class="h-20 sm:h-0"></div>
 </div>
-
-<style>
-  /* Custom scrollbar for webkit browsers */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #374151;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #4b5563;
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #6b7280;
-  }
-</style>

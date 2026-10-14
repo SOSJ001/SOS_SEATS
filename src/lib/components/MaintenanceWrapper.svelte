@@ -1,86 +1,44 @@
 <script lang="ts">
+  import { Wrench } from "lucide-svelte";
+
   export let isUnderMaintenance: boolean = false;
   export let message: string = "This section is currently under maintenance";
   export let showIcon: boolean = true;
   export let variant: "default" | "minimal" | "full" = "default";
   export let disableContent: boolean = false; // If true, shows content but disabled. If false, hides content completely.
   export let compact: boolean = false; // If true, shows a compact overlay (better for buttons). Only works with disableContent=true.
+
+  $: cardClass = `rounded-2xl border border-solid border-paper-border ${variant === "full" ? "p-5" : "p-4"}`;
 </script>
 
 {#if isUnderMaintenance && !disableContent}
   <!-- Hide content completely, show maintenance message -->
-  <div
-    class="relative w-full {variant === 'full'
-      ? 'rounded-xl border-2 border-yellow-500/50 bg-gray-800/90 p-4 sm:p-6 md:p-8'
-      : variant === 'minimal'
-        ? 'rounded-lg border border-yellow-500/30 bg-gray-800/80 p-3 sm:p-4'
-        : 'rounded-lg border border-yellow-500/40 bg-gray-800/90 p-4 sm:p-5 md:p-6'}"
-  >
-    <div
-      class="flex flex-col items-center justify-center text-center space-y-2 sm:space-y-3 md:space-y-4"
-    >
+  <div class="relative w-full bg-paper {cardClass}">
+    <div class="flex flex-col items-center justify-center gap-3 text-center">
       {#if showIcon}
-        <div
-          class="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 {variant ===
-          'full'
-            ? 'mb-2'
-            : ''}"
-        >
-          <svg
-            class="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-yellow-400 animate-pulse"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            />
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-          </svg>
+        <div class="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+          <Wrench class="size-6" aria-hidden="true" />
         </div>
       {/if}
 
-      <div class="space-y-1 sm:space-y-2 px-2 sm:px-0">
-        <h3
-          class="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-yellow-400 {variant ===
-          'minimal'
-            ? 'text-sm sm:text-base md:text-lg'
-            : ''}"
-        >
-          {variant === "full"
-            ? "Under Maintenance"
-            : variant === "minimal"
-              ? "Maintenance"
-              : "Under Maintenance"}
+      <div class="flex flex-col gap-1">
+        <h3 class="m-0 font-bold text-ink {variant === 'minimal' ? 'text-base' : 'text-lg'}">
+          {variant === "minimal" ? "Maintenance" : "Under Maintenance"}
         </h3>
-        <p
-          class="text-xs sm:text-sm md:text-base lg:text-lg text-gray-300 max-w-md mx-auto px-2 sm:px-0 {variant ===
-          'minimal'
-            ? 'text-[11px] sm:text-xs md:text-sm'
-            : ''}"
-        >
+        <p class="m-0 mx-auto max-w-md text-ink-secondary {variant === 'minimal' ? 'text-xs' : 'text-sm'}">
           {message}
         </p>
         {#if variant === "full"}
-          <p class="text-[10px] sm:text-xs md:text-sm text-gray-400 mt-1 sm:mt-2 px-2 sm:px-0">
+          <p class="m-0 mt-1 text-xs text-ink-secondary">
             We're working hard to improve this feature. Please check back soon.
           </p>
         {/if}
       </div>
 
       {#if variant === "full"}
-        <div class="flex items-center gap-1.5 sm:gap-2 mt-3 sm:mt-4 px-2 sm:px-0">
-          <div class="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0"></div>
-          <span class="text-[10px] sm:text-xs md:text-sm text-gray-400"
-            >Estimated completion: Soon</span
-          >
+        <div class="flex items-center gap-2">
+          <span class="size-1.5 shrink-0 rounded-full bg-brand"></span>
+          <span class="text-xs text-ink-secondary">Estimated completion: Soon</span>
         </div>
       {/if}
     </div>
@@ -95,79 +53,28 @@
     <!-- Maintenance overlay -->
     {#if compact}
       <!-- Compact overlay for buttons - shows icon badge -->
-      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-yellow-500/20 backdrop-blur-sm border border-yellow-500/40 shadow-lg">
+      <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <div class="flex items-center gap-1.5 rounded-full border border-solid border-brand/30 bg-brand-soft px-3 py-1 text-brand">
           {#if showIcon}
-            <svg
-              class="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400 animate-pulse flex-shrink-0"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
+            <Wrench class="size-3.5 shrink-0" aria-hidden="true" />
           {/if}
-          <span class="text-[10px] sm:text-xs font-semibold text-yellow-400 whitespace-nowrap">
+          <span class="whitespace-nowrap text-xs font-semibold">
             {message}
           </span>
         </div>
       </div>
     {:else}
       <!-- Full overlay for larger content -->
-      <div
-        class="absolute inset-0 flex items-center justify-center {variant === 'full'
-          ? 'rounded-xl border-2 border-yellow-500/50 bg-gray-800/90 p-4 sm:p-6 md:p-8'
-          : variant === 'minimal'
-            ? 'rounded-lg border border-yellow-500/30 bg-gray-800/80 p-3 sm:p-4'
-            : 'rounded-lg border border-yellow-500/40 bg-gray-800/90 p-4 sm:p-5 md:p-6'}"
-      >
-        <div
-          class="flex flex-col items-center justify-center text-center space-y-2 sm:space-y-3 md:space-y-4"
-        >
+      <div class="absolute inset-0 flex items-center justify-center bg-paper/90 {cardClass}">
+        <div class="flex flex-col items-center justify-center gap-3 text-center">
           {#if showIcon}
-            <div
-              class="w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0"
-            >
-              <svg
-                class="w-5 h-5 sm:w-7 sm:h-7 md:w-8 md:h-8 text-yellow-400 animate-pulse"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                />
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
+            <div class="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+              <Wrench class="size-6" aria-hidden="true" />
             </div>
           {/if}
-          <div class="space-y-1 sm:space-y-2 px-2 sm:px-0">
-            <p
-              class="text-xs sm:text-sm md:text-base text-yellow-400 font-semibold {variant ===
-              'minimal'
-                ? 'text-[10px] sm:text-xs'
-                : ''}"
-            >
-              {message}
-            </p>
-          </div>
+          <p class="m-0 font-semibold text-brand {variant === 'minimal' ? 'text-xs' : 'text-sm'}">
+            {message}
+          </p>
         </div>
       </div>
     {/if}
