@@ -10,7 +10,7 @@
   import ShieldCheck from "lucide-svelte/icons/shield-check";
   import MmProviderLogo from "$lib/components/public/MmProviderLogo.svelte";
   import LegalConsentNote from "$lib/components/legal/LegalConsentNote.svelte";
-  import { formatBookingFeePercent } from "$lib/fees";
+  import { formatBookingFeeNote } from "$lib/fees";
 
   /** @type {Array<{ name: string, quantity: number, lineTotal: number }>} */
   export let lineItems = [];
@@ -25,7 +25,7 @@
   /** @type {() => void} */
   export let onGenerate = () => {};
 
-  $: feeLabel = formatBookingFeePercent();
+  $: feeLabel = formatBookingFeeNote();
   $: totalQty = lineItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
   function formatMoney(n) {

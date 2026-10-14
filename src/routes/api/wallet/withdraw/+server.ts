@@ -36,8 +36,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 /**
  * POST /api/wallet/withdraw  body: { phone, provider: "orange_money" | "afrimoney" }
- * Pays out the organiser's full available balance. Amounts are computed here;
- * nothing money-related is taken from the request.
+ * Pays out the organiser's full available balance minus the 1% mobile money
+ * transfer fee (the 5% platform fee was taken at sale). Amounts are computed
+ * here; nothing money-related is taken from the request.
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
   const userId = locals.userId;
@@ -98,10 +99,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
   const feeMetadata = {
     gross_amount: round2(gross).toFixed(2),
-    platform_fee: round2(fees.platformFee).toFixed(2),
-    estimated_monime_fee: round2(fees.monimeFee).toFixed(2),
-    net_amount_after_platform_fee: round2(fees.netAmountAfterPlatformFee).toFixed(2),
+    transfer_fee: round2(fees.monimeFee).toFixed(2),
     final_net_amount: round2(fees.netAmount).toFixed(2),
+    fee_model: "sale_5pct",
   };
 
   // Reserve the money first; the partial unique index rejects a second pending row.
@@ -137,7 +137,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   let result: Awaited<ReturnType<typeof sendPayout>>;
   try {
     result = await sendPayout({
-      amountNle: round2(fees.netAmountAfterPlatformFee),
+      amountNle: round2(fees.netAmount),
       provider,
       phone,
       metadata: { withdrawal_id: row.id, user_id: userId, ...feeMetadata },
@@ -198,8 +198,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       phone,
       currency: "NLe",
       gross: round2(gross),
-      platformFee: round2(fees.platformFee),
-      monimeFee: round2(monimeFees || fees.monimeFee),
+      platformFee: 0,
+      monimeFee: round2(fees.monimeFee),
+      transferFee: round2(fees.monimeFee),
       netAmount: round2(fees.netAmount),
     },
   });

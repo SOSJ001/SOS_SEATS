@@ -237,7 +237,7 @@
                     {method === 'wallet'
                     ? 'font-bold text-ink'
                     : 'font-normal text-ink-secondary lg:font-bold lg:text-ink'}"
-                  >Wallet Balance</span
+                  >Available Balance</span
                 >
                 <span
                   class="hidden text-[11px] text-ink-secondary lg:block"

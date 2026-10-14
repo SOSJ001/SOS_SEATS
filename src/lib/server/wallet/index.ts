@@ -214,6 +214,7 @@ export async function listOrganizerOrders(
     paymentMethods?: string[];
     paymentStatuses?: string[];
     limit?: number;
+    offset?: number;
     select?: string;
   }
 ): Promise<{ data: any[]; error: string | null }> {
@@ -226,7 +227,8 @@ export async function listOrganizerOrders(
       .from("orders")
       .select(select)
       .eq("events.user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
 
     if (opts?.eventId) query = query.eq("event_id", opts.eventId);
     if (opts?.paymentMethods?.length) {
@@ -235,7 +237,11 @@ export async function listOrganizerOrders(
     if (opts?.paymentStatuses?.length) {
       query = query.in("payment_status", opts.paymentStatuses);
     }
-    if (opts?.limit) query = query.limit(opts.limit);
+    if (opts?.limit && opts?.offset !== undefined) {
+      query = query.range(opts.offset, opts.offset + opts.limit - 1);
+    } else if (opts?.limit) {
+      query = query.limit(opts.limit);
+    }
 
     const { data, error } = await query;
     if (error) return { data: [], error: error.message };

@@ -7,6 +7,11 @@ import {
   getOrderById,
   listOrganizerOrders,
 } from "$lib/server/wallet";
+import {
+  getWalletSummary,
+  getWalletHistory,
+  type WalletHistoryFilter,
+} from "$lib/server/wallet/summary";
 import { assertEventOwnedByUser } from "$lib/server/events";
 
 /**
@@ -100,6 +105,30 @@ export async function GET({ url, locals }) {
       return json({ success: false, error: result.error }, { status: 400 });
     }
     return json({ success: true, data: result.data });
+  }
+
+  if (action === "summary") {
+    try {
+      const data = await getWalletSummary(userId, ledgerKey);
+      return json({ success: true, data });
+    } catch (err: any) {
+      console.error("[wallet/data summary]", err);
+      return json({ success: false, error: "Could not load wallet summary" }, { status: 500 });
+    }
+  }
+
+  if (action === "history") {
+    const filterParam = url.searchParams.get("filter");
+    const filter: WalletHistoryFilter =
+      filterParam === "sales" || filterParam === "withdrawals" ? filterParam : "all";
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 50, 1), 200);
+    try {
+      const data = await getWalletHistory(userId, ledgerKey, { filter, limit });
+      return json({ success: true, data });
+    } catch (err: any) {
+      console.error("[wallet/data history]", err);
+      return json({ success: false, error: "Could not load wallet history" }, { status: 500 });
+    }
   }
 
   if (action === "signer-pending") {

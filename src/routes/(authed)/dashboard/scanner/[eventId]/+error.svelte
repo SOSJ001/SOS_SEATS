@@ -1,6 +1,6 @@
 <script>
   // @ts-nocheck
-  /** Scanner route error, rendered inside DoorShell (no root +error.svelte in the app). */
+  /** Scanner route error, rendered inside DoorShell. */
   import { page } from "$app/stores";
   import ArrowLeft from "lucide-svelte/icons/arrow-left";
 

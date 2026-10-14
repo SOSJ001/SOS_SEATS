@@ -1,10 +1,6 @@
 :global(body) {
     font-family: "Roboto", "Open Sans", "Helvetica", sans-serif;
 }
-#hover1 div a :hover {
-    color: rgb(255, 238, 2);
-}
-
 html {
     scroll-behavior: smooth;
     background-color: #faf8f5;
@@ -41,21 +37,3 @@ html body {
     background-color: #F5F5F5;
   }
     /* scroll bar ends */
-
-
-    #text ul li a {
-      color: white;
-      /* background-color: white; */
-      border-radius: 2rem;
-      padding: 7px;
-      align-items: center;
-  }
-
-  #text ul li a:hover {
-      color: #f59e0b;
-      /* background-color: white; */
-      /* border-width: 1px;
-      border-color: #f5de0b; */
-      /* border-radius: 2rem; */
-      /* padding: 5px; */
-  }

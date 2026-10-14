@@ -193,9 +193,6 @@ export const web3UserStore = writable({
   updateProfile: null as any,
 });
 
-// Active section store for navigation highlighting
-export const activeSectionStore = writable("home");
-
 export let updatedEventsData = writable([]);
 
 // export function createQrCode(data, image, width, height) {

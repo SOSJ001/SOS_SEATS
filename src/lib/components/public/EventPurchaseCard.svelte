@@ -6,7 +6,7 @@
   import Minus from "lucide-svelte/icons/minus";
   import Plus from "lucide-svelte/icons/plus";
   import MmProviderLogo from "$lib/components/public/MmProviderLogo.svelte";
-  import { formatBookingFeePercent } from "$lib/fees";
+  import { formatBookingFeeNote } from "$lib/fees";
 
   /** @type {Array<{ id: string, name: string, price: number, description?: string, available_quantity?: number }>} */
   export let ticketTypes = [];
@@ -32,7 +32,7 @@
   /** @type {() => void} */
   export let onAfrimoney = () => {};
 
-  $: feeLabel = formatBookingFeePercent();
+  $: feeLabel = formatBookingFeeNote();
 
   function formatPrice(price) {
     if (price === 0 || price == null) return "Free";

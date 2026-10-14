@@ -3,12 +3,15 @@
   import LegalSection from "$lib/components/legal/LegalSection.svelte";
   import { LEGAL } from "$lib/legal/legalConfig.js";
   import {
-    formatBookingFeePercent,
+    formatBookingFeeLabel,
     formatPlatformFeePercent,
     formatWithdrawalMonimeFeePercent,
+    isBookingFeeFlat,
   } from "$lib/fees.js";
 
-  const bookingFee = formatBookingFeePercent();
+  const bookingFee = isBookingFeeFlat()
+    ? `${formatBookingFeeLabel()} per order`
+    : formatBookingFeeLabel();
   const platformFee = formatPlatformFeePercent();
   const providerFee = formatWithdrawalMonimeFeePercent();
 
@@ -106,11 +109,13 @@
       </li>
       <li>
         <strong>Fees.</strong> Buyers pay a booking fee of {bookingFee} on paid tickets. Organisers pay a
-        platform fee of {platformFee} when they withdraw, plus the payment provider's fee (currently
-        {providerFee}). The booking fee is non-refundable, except where the law requires otherwise.
+        platform fee of {platformFee} on each paid ticket sale, taken when the sale is made. When they
+        withdraw, the mobile money transfer fee (currently {providerFee}) is taken from the amount
+        withdrawn. The booking fee is non-refundable, except where the law requires otherwise.
       </li>
       <li>
-        <strong>Prompt payout.</strong> Organiser balances can be withdrawn after the event. Organisers
+        <strong>Prompt payout.</strong> Ticket money becomes available to withdraw 24 hours after the
+        event starts. Organisers
         agree to withdraw within {LEGAL.payoutWindowDays} days of their event ending. We may remind you
         and contact you to arrange the payout. If we can't reach you after reasonable attempts, the
         rule in <a href="#refunds">section {n("refunds")}</a> may apply to the unclaimed balance.

@@ -264,7 +264,7 @@
             aria-hidden="true"
           />
           <p class="m-0 text-[13px] font-semibold text-[#1e40af]">
-            Proceeds settle after event completion and verification.
+            Ticket money becomes available 24 hours after your event starts.
           </p>
         </div>
       </section>

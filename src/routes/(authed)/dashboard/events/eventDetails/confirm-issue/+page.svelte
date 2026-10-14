@@ -191,7 +191,7 @@
                 </span>
                 <span
                   class="text-sm font-bold text-ink lg:text-[13px] lg:font-extrabold"
-                  >Wallet Balance</span
+                  >Available Balance</span
                 >
               </div>
               <div
@@ -230,7 +230,7 @@
           <p
             class="m-0 text-sm leading-snug text-ink lg:text-[11px] lg:text-ink-secondary"
           >
-            This amount will be deducted from your wallet balance immediately.
+            This amount will be taken from your available balance immediately.
             Tickets will be permanently created and assigned to the guest.
           </p>
         </div>

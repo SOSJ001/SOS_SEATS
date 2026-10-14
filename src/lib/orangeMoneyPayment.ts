@@ -57,7 +57,7 @@ export async function handleMobileMoneyPaymentWithCode(
     // Calculate base total (ticket price only; no platform fee)
     const baseTotal = purchaseData.totalAmount;
 
-    // Buyer booking fee from PUBLIC_BOOKING_FEE_PERCENT (covers gateway cut)
+    // Buyer booking fee from PUBLIC_BOOKING_FEE_MODE (percent or flat per order)
     const monimeFee = calculateBookingFee(baseTotal);
     const totalAmountWithFee = baseTotal + monimeFee;
 

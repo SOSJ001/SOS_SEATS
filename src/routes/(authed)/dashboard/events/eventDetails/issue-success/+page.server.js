@@ -94,7 +94,7 @@ export async function load({ url, locals }) {
 function paymentMethodLabel(method) {
   if (method === "orange_money") return "Orange Money";
   if (method === "afrimoney") return "Afrimoney";
-  return "Wallet Balance";
+  return "Available Balance";
 }
 
 function formatEventDate(date, time) {

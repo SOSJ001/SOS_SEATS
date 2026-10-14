@@ -180,7 +180,7 @@ For Orange Money mobile payments via Monime:
 
 ### **Typography**
 
-- **Font Family**: Roboto Slab, Roboto
+- **Font Family**: Roboto
 - **Responsive**: Scales appropriately on all devices
 
 ## 🌐 Live Demo

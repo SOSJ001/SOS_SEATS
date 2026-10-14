@@ -10,9 +10,10 @@
   import { goto } from "$app/navigation";
   import { signInHref } from "$lib/auth/postAuthRedirect.js";
   import {
-    formatBookingFeePercent,
+    formatBookingFeeLabel,
     formatPlatformFeePercent,
     formatWithdrawalMonimeFeePercent,
+    isBookingFeeFlat,
   } from "$lib/fees";
 
   export let data;
@@ -26,7 +27,8 @@
   $: upcoming = events.slice(0, 3);
   $: isLoggedIn = !!$sessionFromDb;
   $: platformFeeLabel = formatPlatformFeePercent();
-  $: bookingFeeLabel = formatBookingFeePercent();
+  $: bookingFeeLabel = formatBookingFeeLabel();
+  $: bookingFeeFlat = isBookingFeeFlat();
   $: withdrawalFeeLabel = formatWithdrawalMonimeFeePercent();
 
   function normalizeEvents(raw) {
@@ -425,8 +427,8 @@
         <h2 class={h2}>Transparent Fees</h2>
       </div>
       <p class="m-0 text-[13px] md:text-base leading-6 text-ink-secondary">
-        No hidden charges. What you see is what you pay. Organisers also pay the payment provider's
-        withdrawal fee (currently {withdrawalFeeLabel}) when they withdraw.
+        No hidden charges. What you see is what you pay. Organisers also pay a {withdrawalFeeLabel}
+        mobile money transfer fee when they withdraw.
       </p>
     </div>
 
@@ -453,7 +455,9 @@
         <span class="text-sm font-bold text-ink shrink-0">Buyer</span>
         <div class="ml-auto flex items-center gap-1 whitespace-nowrap">
           <span class="text-base font-extrabold text-brand">{bookingFeeLabel}</span>
-          <span class="text-[13px] text-ink-body">booking fee on face value</span>
+          <span class="text-[13px] text-ink-body"
+            >{bookingFeeFlat ? "booking fee per order" : "booking fee on face value"}</span
+          >
         </div>
       </div>
       <div
@@ -507,7 +511,7 @@
           <div class="flex flex-col gap-1.5">
             <strong class="text-[15px] font-extrabold">Buyer</strong>
             <span class="text-sm text-ink-body"
-              >{bookingFeeLabel} booking fee on ticket</span
+              >{bookingFeeLabel} booking fee {bookingFeeFlat ? "per order" : "on ticket"}</span
             >
           </div>
         </div>

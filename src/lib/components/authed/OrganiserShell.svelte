@@ -58,6 +58,7 @@
   /** Mobile top-header titles; null keeps the wordmark (471:86). */
   function mobileTitleForPath(p) {
     if (p.startsWith("/dashboard/invite-staff")) return "Invite Door Staff";
+    if (p === "/dashboard/wallet" || p === "/dashboard/wallet/") return "Wallet & Proceeds";
     return null;
   }
 

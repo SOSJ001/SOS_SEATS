@@ -1,6 +1,6 @@
 import { signOutbtnFunction } from "$lib/supabase";
 
-/** Same logout path as legacy DashboardSidebar (roadmap 1.4). */
+/** Shared logout for the authed shells (roadmap 1.4). */
 export async function authedLogout() {
   await signOutbtnFunction();
   await fetch("/logoutApi", {

@@ -9,7 +9,7 @@
   $: error = data.error;
   $: qty = data.qty || 1;
   $: feeTotal = data.feeTotal ?? qty * 0.99;
-  $: paymentMethod = data.paymentMethod || "Wallet Balance";
+  $: paymentMethod = data.paymentMethod || "Available Balance";
   $: timestamp = data.timestamp || "";
 
   function formatNle(n) {

@@ -3,11 +3,8 @@
  * Fixed gateway fee 0.99 NLe per ticket. No organiser 5% / buyer booking fee.
  */
 import { getServerSupabase } from "$lib/server/db";
-import {
-  insertWalletTransaction,
-  listOrganizerOrders,
-  RESERVED_WITHDRAWAL_STATUSES,
-} from "$lib/server/wallet";
+import { insertWalletTransaction } from "$lib/server/wallet";
+import { getWalletSummary } from "$lib/server/wallet/summary";
 import { assertEventOwnedByUser } from "$lib/server/events";
 import { fetchPaymentCodeFromMonime } from "./fulfillPaymentCode";
 
@@ -20,72 +17,21 @@ export function privateIssueFeeTotal(qty: number): number {
 }
 
 /**
- * Organiser NLe proceeds: MM order deposits minus MM withdrawals that are paid
- * out or still pending, so money on its way out cannot be withdrawn twice.
+ * Organiser NLe balance that can be withdrawn or spent now: released sale money
+ * after the 5% platform fee, minus withdrawals and private ticket fees.
+ * Returns 0 if the lookup fails, so an error never unlocks money.
  */
 export async function getOrganiserNleBalance(
   userId: string,
   walletAddress: string | null | undefined
 ): Promise<number> {
-  const { data: orders } = await listOrganizerOrders(userId, {
-    paymentMethods: ["orange_money", "afrimoney"],
-    paymentStatuses: ["paid", "completed"],
-    limit: 500,
-    select: "id, total_amount, payment_method, payment_status",
-  });
-
-  const deposits = (orders || []).reduce((sum, r: any) => {
-    const amt =
-      typeof r.total_amount === "string"
-        ? parseFloat(r.total_amount)
-        : r.total_amount || 0;
-    return sum + (isFinite(amt) ? amt : 0);
-  }, 0);
-
-  let withdrawals = 0;
-  const wallet = walletAddress || `user:${userId}`;
-  const db = getServerSupabase();
-  const { data: txs } = await db
-    .from("wallet_transactions")
-    .select("amount, source, status, type, metadata")
-    .eq("wallet_address", wallet)
-    .eq("type", "withdrawal")
-    .in("status", RESERVED_WITHDRAWAL_STATUSES)
-    .limit(500);
-
-  for (const t of txs || []) {
-    const src = String(t.source || "");
-    const meta = t.metadata || {};
-    const isMm = ["mobile_money", "orange_money", "afrimoney"].includes(src);
-    const isIssue =
-      src === "private_issue" || meta?.purpose === "private_issue";
-    if (!isMm && !isIssue) continue;
-    const amt =
-      typeof t.amount === "string" ? parseFloat(t.amount) : t.amount || 0;
-    withdrawals += Math.abs(isFinite(amt) ? amt : 0);
+  try {
+    const summary = await getWalletSummary(userId, walletAddress || `user:${userId}`);
+    return summary.available;
+  } catch (err) {
+    console.error("[getOrganiserNleBalance]", err);
+    return 0;
   }
-
-  // Also count private_issue withdrawals stored under user: id when wallet differs
-  if (walletAddress && walletAddress !== `user:${userId}`) {
-    const { data: userTxs } = await db
-      .from("wallet_transactions")
-      .select("amount, source, status, type, metadata")
-      .eq("wallet_address", `user:${userId}`)
-      .eq("type", "withdrawal")
-      .in("status", RESERVED_WITHDRAWAL_STATUSES)
-      .limit(200);
-    for (const t of userTxs || []) {
-      const meta = t.metadata || {};
-      if (t.source !== "private_issue" && meta?.purpose !== "private_issue") {
-        continue;
-      }
-      const amt =
-        typeof t.amount === "string" ? parseFloat(t.amount) : t.amount || 0;
-      withdrawals += Math.abs(isFinite(amt) ? amt : 0);
-    }
-  }
-
-  return Math.max(0, Math.round((deposits - withdrawals) * 100) / 100);
 }
 
 async function ensurePrivateInviteTicketType(
@@ -188,8 +134,8 @@ export async function claimPrivateIssuePayment(opts: {
     amount: Math.round(paid * 100) / 100,
     currency: "NLe",
     external_id: paymentCodeId,
-    description: `Private ticket issue × ${opts.qty} (mobile money)`,
     metadata: {
+      note: `Private ticket issue × ${opts.qty} (mobile money)`,
       purpose: "private_issue",
       event_id: opts.eventId,
       qty: opts.qty,
@@ -291,7 +237,7 @@ export async function debitWalletForPrivateIssue(opts: {
   if (balance < opts.feeTotal) {
     return {
       success: false,
-      error: `Insufficient wallet balance (NLe ${balance.toFixed(2)} available, NLe ${opts.feeTotal.toFixed(2)} due)`,
+      error: `Not enough available balance (NLe ${balance.toFixed(2)} available, NLe ${opts.feeTotal.toFixed(2)} due)`,
     };
   }
 
@@ -303,8 +249,8 @@ export async function debitWalletForPrivateIssue(opts: {
     status: "completed",
     amount: -Math.abs(opts.feeTotal),
     currency: "NLe",
-    description: `Private ticket issue × ${opts.qty}`,
     metadata: {
+      note: `Private ticket issue × ${opts.qty}`,
       purpose: "private_issue",
       event_id: opts.eventId,
       qty: opts.qty,
