@@ -99,6 +99,25 @@
       const parsed = JSON.parse(savedData);
       eventData = { ...eventData, ...parsed };
     }
+
+    // The server keeps inactive and Private Invite types; they aren't editable here.
+    const editable = (eventData.ticket_types || []).filter(
+      (ticket: any) =>
+        ticket.is_active !== false &&
+        String(ticket.name || "").trim() !== "Private Invite"
+    );
+    eventData.ticket_types =
+      editable.length > 0
+        ? editable
+        : [
+            {
+              name: "",
+              description: "",
+              price: eventData.is_free_event ? 0.0 : 10.0,
+              quantity: null,
+              benefits: [],
+            },
+          ];
   });
 
   function addTicketType() {

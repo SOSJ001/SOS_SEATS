@@ -12,6 +12,9 @@ export async function load({ params }) {
   if (!eventData) {
     throw error(404, "Event not found");
   }
+  eventData.ticket_types = (eventData.ticket_types || []).filter(
+    (/** @type {any} */ ticket) => ticket.is_active !== false
+  );
 
   const isFreeEvent =
     eventData.is_free_event ||

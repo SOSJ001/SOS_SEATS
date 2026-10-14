@@ -2,6 +2,7 @@ import { getServerSupabase } from "$lib/server/db";
 import {
   getOrganiserNleBalance,
   isPrivateIssuedGuest,
+  PRIVATE_INVITE_TYPE_NAME,
 } from "$lib/server/payments";
 
 const supabase = getServerSupabase();
@@ -132,7 +133,10 @@ export async function load({ url, locals }) {
 
     const totalCapacity =
       eventWithImage.ticket_types?.reduce(
-        (sum, ticket) => sum + (ticket.quantity || 0),
+        (sum, ticket) =>
+          ticket.name === PRIVATE_INVITE_TYPE_NAME
+            ? sum
+            : sum + (ticket.quantity || 0),
         0
       ) || 0;
 

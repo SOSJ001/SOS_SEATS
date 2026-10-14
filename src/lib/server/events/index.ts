@@ -6,6 +6,7 @@
 import { getServerSupabase } from "$lib/server/db";
 import { generateUniqueFilename } from "$lib/store";
 import { formatNle, providerLabel } from "$lib/client/walletFormat";
+import { PRIVATE_INVITE_TYPE_NAME } from "$lib/server/payments/privateIssue";
 
 function orderActivityDetails(order: any): string {
   const ref = `Order #${order.order_number}`;
@@ -177,6 +178,156 @@ export async function createEventWithDetails(
   }
 }
 
+type TicketTypeFields = {
+  name: string;
+  price: number;
+  quantity: number;
+  description: string | null;
+  benefits: string[] | null;
+};
+
+type TicketTypePlan = {
+  updates: (TicketTypeFields & { id: string })[];
+  inserts: TicketTypeFields[];
+  deactivateIds: string[];
+  deleteIds: string[];
+};
+
+function isPrivateInviteType(ticket: any): boolean {
+  return String(ticket?.name || "").trim() === PRIVATE_INVITE_TYPE_NAME;
+}
+
+function ticketTypeFields(ticket: any): TicketTypeFields {
+  return {
+    name: ticket.name,
+    price: ticket.price,
+    quantity: ticket.quantity,
+    description: ticket.description,
+    benefits: ticket.benefits,
+  };
+}
+
+/**
+ * Ticket types are updated in place by id, never recreated: guests and
+ * order_items reference them (ON DELETE SET NULL) and sold_quantity lives on
+ * the row. Private Invite is owned by private issue and never touched here.
+ */
+async function planTicketTypeChanges(
+  eventId: string,
+  incomingRaw: any[]
+): Promise<{ ok: true; plan: TicketTypePlan } | { ok: false; error: string }> {
+  const db = getServerSupabase();
+  const { data: existingRows, error } = await db
+    .from("ticket_types")
+    .select("id, name, sold_quantity")
+    .eq("event_id", eventId);
+  if (error) return { ok: false, error: error.message };
+
+  const existing = (existingRows || []).filter((t) => !isPrivateInviteType(t));
+  const existingById = new Map(existing.map((t) => [String(t.id), t]));
+  const incoming = incomingRaw.filter((t) => t && !isPrivateInviteType(t));
+
+  const plan: TicketTypePlan = {
+    updates: [],
+    inserts: [],
+    deactivateIds: [],
+    deleteIds: [],
+  };
+  if (incoming.length === 0) return { ok: true, plan };
+  const keptIds = new Set<string>();
+
+  for (const ticket of incoming) {
+    const match = ticket.id ? existingById.get(String(ticket.id)) : undefined;
+    if (!match || keptIds.has(String(match.id))) {
+      plan.inserts.push(ticketTypeFields(ticket));
+      continue;
+    }
+    const sold = Number(match.sold_quantity) || 0;
+    if ((Number(ticket.quantity) || 0) < sold) {
+      return {
+        ok: false,
+        error: `${ticket.name || match.name}: quantity can't be lower than the ${sold} already sold`,
+      };
+    }
+    keptIds.add(String(match.id));
+    plan.updates.push({ id: String(match.id), ...ticketTypeFields(ticket) });
+  }
+
+  const removed = existing.filter((t) => !keptIds.has(String(t.id)));
+  if (removed.length === 0) return { ok: true, plan };
+
+  const removedIds = removed.map((t) => String(t.id));
+  const [guestRes, itemRes] = await Promise.all([
+    db.from("guests").select("ticket_type_id").in("ticket_type_id", removedIds),
+    db
+      .from("order_items")
+      .select("ticket_type_id")
+      .in("ticket_type_id", removedIds),
+  ]);
+
+  if (guestRes.error || itemRes.error) {
+    plan.deactivateIds = removedIds;
+    return { ok: true, plan };
+  }
+
+  const soldIds = new Set(
+    removed
+      .filter((t) => (Number(t.sold_quantity) || 0) > 0)
+      .map((t) => String(t.id))
+  );
+  for (const row of [...(guestRes.data || []), ...(itemRes.data || [])]) {
+    if (row.ticket_type_id) soldIds.add(String(row.ticket_type_id));
+  }
+
+  for (const id of removedIds) {
+    (soldIds.has(id) ? plan.deactivateIds : plan.deleteIds).push(id);
+  }
+  return { ok: true, plan };
+}
+
+async function applyTicketTypeChanges(
+  eventId: string,
+  plan: TicketTypePlan
+): Promise<string | null> {
+  const db = getServerSupabase();
+
+  for (const { id, ...fields } of plan.updates) {
+    const { error } = await db
+      .from("ticket_types")
+      .update(fields)
+      .eq("id", id)
+      .eq("event_id", eventId);
+    if (error) return error.message;
+  }
+
+  if (plan.inserts.length > 0) {
+    const { error } = await db
+      .from("ticket_types")
+      .insert(plan.inserts.map((t) => ({ event_id: eventId, ...t })));
+    if (error) return error.message;
+  }
+
+  if (plan.deactivateIds.length > 0) {
+    const { error } = await db
+      .from("ticket_types")
+      .update({ is_active: false })
+      .eq("event_id", eventId)
+      .in("id", plan.deactivateIds);
+    if (error) return error.message;
+  }
+
+  if (plan.deleteIds.length > 0) {
+    const { error } = await db
+      .from("ticket_types")
+      .delete()
+      .eq("event_id", eventId)
+      .in("id", plan.deleteIds);
+    if (error) return error.message;
+  }
+
+  return null;
+}
+
 export async function updateEventWithDetails(
   eventId: string,
   eventData: Record<string, any>,
@@ -187,6 +338,19 @@ export async function updateEventWithDetails(
 > {
   try {
     const db = getServerSupabase();
+
+    let ticketPlan: TicketTypePlan | null = null;
+    if (
+      Array.isArray(fullEventData.ticket_types) &&
+      fullEventData.ticket_types.length > 0
+    ) {
+      const planned = await planTicketTypeChanges(
+        eventId,
+        fullEventData.ticket_types
+      );
+      if (!planned.ok) return { success: false, error: planned.error };
+      ticketPlan = planned.plan;
+    }
 
     const { error: eventUpdateError } = await db
       .from("events")
@@ -223,27 +387,9 @@ export async function updateEventWithDetails(
       return { success: false, error: eventUpdateError.message };
     }
 
-    if (fullEventData.ticket_types && fullEventData.ticket_types.length > 0) {
-      await db.from("ticket_types").delete().eq("event_id", eventId);
-
-      const ticketTypesToInsert = fullEventData.ticket_types.map(
-        (ticket: any) => ({
-          event_id: eventId,
-          name: ticket.name,
-          price: ticket.price,
-          quantity: ticket.quantity,
-          description: ticket.description,
-          benefits: ticket.benefits,
-        })
-      );
-
-      const { error: ticketInsertError } = await db
-        .from("ticket_types")
-        .insert(ticketTypesToInsert);
-
-      if (ticketInsertError) {
-        return { success: false, error: ticketInsertError.message };
-      }
+    if (ticketPlan) {
+      const ticketError = await applyTicketTypeChanges(eventId, ticketPlan);
+      if (ticketError) return { success: false, error: ticketError };
     }
 
     if (

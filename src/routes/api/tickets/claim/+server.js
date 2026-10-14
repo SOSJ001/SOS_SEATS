@@ -65,12 +65,18 @@ export async function POST({ request, locals }) {
 
     const { data: types, error: typesError } = await db
       .from("ticket_types")
-      .select("id, price")
+      .select("id, price, is_active")
       .eq("event_id", eventId)
       .in("id", ids);
     if (typesError || !types || types.length !== ids.length) {
       return json(
         { success: false, error: "Ticket type not found for this event" },
+        { status: 400 }
+      );
+    }
+    if (types.some((t) => t.is_active === false)) {
+      return json(
+        { success: false, error: "Ticket type not available" },
         { status: 400 }
       );
     }

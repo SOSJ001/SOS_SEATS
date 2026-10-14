@@ -57,7 +57,7 @@ async function ensurePrivateInviteTicketType(
         price: 0,
         quantity: 999999,
         sold_quantity: 0,
-        is_active: true,
+        is_active: false,
       },
     ])
     .select("id, name")

@@ -17,6 +17,9 @@ export async function load({ params, locals }) {
   if (!eventData) {
     throw error(404, "Event not found");
   }
+  eventData.ticket_types = (eventData.ticket_types || []).filter(
+    (/** @type {any} */ ticket) => ticket.is_active !== false
+  );
 
   const image = eventData.images?.[0]?.file_path || null;
 
