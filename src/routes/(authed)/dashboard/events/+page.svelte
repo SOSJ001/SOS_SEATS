@@ -35,7 +35,7 @@
   let isLoading = true;
   let error = null;
   let searchQuery = "";
-  let activeFilter = "all";
+  let activeFilter = "published";
 
   let showShareModal = false;
   let selectedEventForSharing = null;

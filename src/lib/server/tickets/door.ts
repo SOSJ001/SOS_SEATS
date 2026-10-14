@@ -63,6 +63,19 @@ export function phaseFor(date: string | null, today: string): DoorEventPhase {
   return day > today ? "upcoming" : "past";
 }
 
+const PHASE_RANK: Record<DoorEventPhase, number> = { active: 0, upcoming: 1, past: 2 };
+
+/** Today first, then upcoming closest first (undated last), then past most recent first. */
+function compareDoorEvents(a: DoorEvent, b: DoorEvent): number {
+  const rank = PHASE_RANK[a.phase] - PHASE_RANK[b.phase];
+  if (rank !== 0) return rank;
+  if (!a.date || !b.date) return a.date ? -1 : b.date ? 1 : 0;
+  const aKey = `${String(a.date).slice(0, 10)} ${a.time || ""}`;
+  const bKey = `${String(b.date).slice(0, 10)} ${b.time || ""}`;
+  const diff = aKey.localeCompare(bKey);
+  return a.phase === "past" ? -diff : diff;
+}
+
 async function countGuests(
   eventIds: string | string[],
   filter: "ticketed" | "checkedIn"
@@ -169,6 +182,7 @@ async function buildDoorEvents(list: any[]): Promise<DoorEventsResult> {
     checkedIn: counts[i].checkedIn,
     total: counts[i].total,
   }));
+  events.sort(compareDoorEvents);
 
   const active = events.filter((e) => e.phase === "active");
   return {
