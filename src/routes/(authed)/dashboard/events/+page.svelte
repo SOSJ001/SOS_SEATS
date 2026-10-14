@@ -26,6 +26,7 @@
   const FILTERS = [
     { id: "all", label: "All" },
     { id: "published", label: "Published" },
+    { id: "past", label: "Past" },
     { id: "draft", label: "Draft" },
     { id: "cancelled", label: "Cancelled" },
   ];
@@ -63,8 +64,10 @@
 
   const isActive = isActiveStatus;
 
-  function matchesFilter(status, filter) {
+  function matchesFilter(event, filter) {
+    const { status } = event;
     if (filter === "published") return isActive(status);
+    if (filter === "past") return event.isPast && status !== "draft";
     if (filter === "draft") return status === "draft";
     if (filter === "cancelled") return status === "cancelled";
     return true;
@@ -80,7 +83,7 @@
   $: query = searchQuery.trim().toLowerCase();
   $: filteredEvents = events.filter(
     (e) =>
-      matchesFilter(e.status, activeFilter) &&
+      matchesFilter(e, activeFilter) &&
       (!query || (e.title || "").toLowerCase().includes(query))
   );
 
