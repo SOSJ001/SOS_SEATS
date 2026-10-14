@@ -104,25 +104,31 @@
         collection agent for the organiser. Once we receive a buyer's payment, the buyer has paid the
         organiser in full. The ticket money (minus fees) belongs to the organiser, and we hold it on the
         organiser's behalf only until they withdraw it. SOS SEATS is not a bank and does not take
-        deposits: balances are not savings, earn no interest, and are not used for any other purpose.
-        Our own income is only the booking fee and the platform fee.
+        deposits: balances are not savings, earn no interest, and are not used for any other purpose,
+        except to pay fees you choose to pay from your balance, such as private ticket fees. Our own
+        income is only the booking fee, the platform fee and the private ticket fee.
       </li>
       <li>
         <strong>Fees.</strong> Buyers pay a booking fee of {bookingFee} on paid tickets. Organisers pay a
         platform fee of {platformFee} on each paid ticket sale, taken when the sale is made. When they
         withdraw, the mobile money transfer fee (currently {providerFee}) is taken from the amount
-        withdrawn. The booking fee is non-refundable, except where the law requires otherwise.
+        withdrawn. Organisers who issue private invite tickets pay NLe 0.99 per ticket, from their
+        available balance or by mobile money. The booking fee is non-refundable, except where the law
+        requires otherwise.
       </li>
       <li>
-        <strong>Prompt payout.</strong> Ticket money becomes available to withdraw 24 hours after the
-        event starts. Organisers
-        agree to withdraw within {LEGAL.payoutWindowDays} days of their event ending. We may remind you
-        and contact you to arrange the payout. If we can't reach you after reasonable attempts, the
-        rule in <a href="#refunds">section {n("refunds")}</a> may apply to the unclaimed balance.
+        <strong>When you can withdraw.</strong> Ticket money becomes available to withdraw 24 hours
+        after the event's start time. Until then it shows as pending. Available money does not expire,
+        but we ask organisers to withdraw within {LEGAL.payoutWindowDays} days of it becoming available.
+        If money stays unclaimed and we can't reach you after reasonable attempts, the rule in
+        <a href="#refunds">section {n("refunds")}</a> may apply to it.
       </li>
       <li>
-        Withdrawals can be delayed or held for review, and earn no interest. You must enter the correct
-        payout number. We are not responsible for money sent to a wrong number you entered.
+        A withdrawal sends your whole available balance to the mobile money number you enter, minus the
+        transfer fee. You can have one withdrawal in progress at a time. If a withdrawal fails, the money
+        goes back to your available balance. If we can't confirm a withdrawal with Monime, the money stays
+        on hold until we have checked it. Balances earn no interest. You must enter the correct payout
+        number. We are not responsible for money sent to a wrong number you entered.
       </li>
       <li>
         If a payment is reversed, charged back or found to be fraudulent, the organiser owes that amount,
@@ -138,9 +144,9 @@
       <li>Send refund requests to the event organiser.</li>
       <li>Cancelled, postponed or changed events are the organiser's responsibility.</li>
       <li>
-        If an event is cancelled, the organiser can't be reached, or we suspect fraud, we may freeze that
-        event's balance and return the held money to buyers. This is a right, not an obligation, and
-        organisers authorise it by using SOS SEATS.
+        Money from a cancelled event is held and cannot be withdrawn. If an event is cancelled, the
+        organiser can't be reached, or we suspect fraud, we may return the held money to buyers. This is
+        a right, not an obligation, and organisers authorise it by using SOS SEATS.
       </li>
       <li>Otherwise we may help at our discretion, but we have no obligation to.</li>
       <li>Failed or duplicate payments are first handled through your mobile money provider.</li>
@@ -220,7 +226,7 @@
 
   <LegalSection id="changes" number={n("changes")} title="Changes to these terms">
     <p>
-      We will announce material changes on the site, and email organisers who have a balance. If you
+      We will announce material changes on the site, and contact organisers who have a balance. If you
       keep using SOS SEATS after a change, you accept the new terms.
     </p>
   </LegalSection>
