@@ -9,6 +9,7 @@
   import Crown from "lucide-svelte/icons/crown";
   import Clock from "lucide-svelte/icons/clock";
   import EntryQrOverlay from "./EntryQrOverlay.svelte";
+  import Pagination from "$lib/components/authed/Pagination.svelte";
   import { initialsFromName } from "$lib/components/authed/authedLogout.js";
   import {
     generateTicketPreview,
@@ -23,7 +24,7 @@
 
   let searchQuery = "";
   let pageIndex = 0;
-  const pageSize = 10;
+  const pageSize = 5;
   let qrOpen = false;
   /** @type {any} */
   let qrGuest = null;
@@ -84,8 +85,6 @@
   // Reset to first page when search changes
   $: searchQuery, (pageIndex = 0);
 
-  $: totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  $: if (pageIndex >= totalPages) pageIndex = Math.max(0, totalPages - 1);
   $: pageRows = filtered.slice(
     pageIndex * pageSize,
     pageIndex * pageSize + pageSize
@@ -102,21 +101,6 @@
   $: pending = guests.filter(
     (g) => String(g.status || "").toLowerCase() === "pending"
   ).length;
-
-  /** Up to 5 page numbers centered around current page. */
-  $: pageChips = (() => {
-    const max = totalPages;
-    if (max <= 5) {
-      return Array.from({ length: max }, (_, i) => i);
-    }
-    let start = Math.max(0, pageIndex - 2);
-    let end = start + 5;
-    if (end > max) {
-      end = max;
-      start = max - 5;
-    }
-    return Array.from({ length: end - start }, (_, i) => start + i);
-  })();
 
   function showQr(guest) {
     qrGuest = guest;
@@ -423,54 +407,13 @@
       {/if}
 
       <!-- Mobile pagination -->
-      <div
-        class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-paper-border bg-[#faf8f5] px-4 py-3"
-      >
-        <p class="m-0 text-[13px] text-ink-secondary">
-          Showing {filtered.length === 0
-            ? 0
-            : pageIndex * pageSize + 1}–{Math.min(
-            (pageIndex + 1) * pageSize,
-            filtered.length
-          )} of {filtered.length} guests
-        </p>
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            class="rounded-lg border border-[#e2e8f0] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#64748b] cursor-pointer disabled:opacity-40"
-            disabled={pageIndex === 0}
-            on:click={() => (pageIndex = Math.max(0, pageIndex - 1))}
-          >
-            Previous
-          </button>
-          <div class="flex items-center gap-1">
-            {#each pageChips as p}
-              <button
-                type="button"
-                class="min-w-[36px] rounded-lg px-3 py-2 text-[13px] cursor-pointer
-                  {p === pageIndex
-                  ? 'bg-brand font-bold text-white border-0'
-                  : 'border border-[#e2e8f0] bg-white font-semibold text-ink'}"
-                on:click={() => (pageIndex = p)}
-              >
-                {p + 1}
-              </button>
-            {/each}
-          </div>
-          <button
-            type="button"
-            class="rounded-lg px-3.5 py-2 text-[13px] font-semibold cursor-pointer disabled:opacity-40
-              {pageIndex >= totalPages - 1
-              ? 'border border-[#e2e8f0] bg-white text-[#64748b]'
-              : 'border-0 bg-brand text-white'}"
-            disabled={pageIndex >= totalPages - 1}
-            on:click={() =>
-              (pageIndex = Math.min(totalPages - 1, pageIndex + 1))}
-          >
-            Next
-          </button>
-        </div>
-      </div>
+      <Pagination
+        bind:page={pageIndex}
+        {pageSize}
+        total={filtered.length}
+        label="guests"
+        class="rounded-2xl border border-paper-border bg-[#faf8f5] px-4 py-3"
+      />
     </div>
 
     <!-- Desktop table (527:664) -->
@@ -580,54 +523,13 @@
         </table>
       </div>
 
-      <div
-        class="flex flex-wrap items-center justify-between gap-3 border-t border-[#e2e8f0] bg-[#faf8f5] px-4 py-3"
-      >
-        <p class="m-0 text-[13px] text-ink-secondary">
-          Showing {filtered.length === 0
-            ? 0
-            : pageIndex * pageSize + 1}–{Math.min(
-            (pageIndex + 1) * pageSize,
-            filtered.length
-          )} of {filtered.length} guests
-        </p>
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            class="rounded-lg border border-[#e2e8f0] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#64748b] cursor-pointer disabled:opacity-40"
-            disabled={pageIndex === 0}
-            on:click={() => (pageIndex = Math.max(0, pageIndex - 1))}
-          >
-            Previous
-          </button>
-          <div class="flex items-center gap-1">
-            {#each pageChips as p}
-              <button
-                type="button"
-                class="min-w-[36px] rounded-lg px-3 py-2 text-[13px] cursor-pointer
-                  {p === pageIndex
-                  ? 'bg-brand font-bold text-white border-0'
-                  : 'border border-[#e2e8f0] bg-white font-semibold text-ink'}"
-                on:click={() => (pageIndex = p)}
-              >
-                {p + 1}
-              </button>
-            {/each}
-          </div>
-          <button
-            type="button"
-            class="rounded-lg px-3.5 py-2 text-[13px] font-semibold cursor-pointer disabled:opacity-40
-              {pageIndex >= totalPages - 1
-              ? 'border border-[#e2e8f0] bg-white text-[#64748b]'
-              : 'border-0 bg-brand text-white'}"
-            disabled={pageIndex >= totalPages - 1}
-            on:click={() =>
-              (pageIndex = Math.min(totalPages - 1, pageIndex + 1))}
-          >
-            Next
-          </button>
-        </div>
-      </div>
+      <Pagination
+        bind:page={pageIndex}
+        {pageSize}
+        total={filtered.length}
+        label="guests"
+        class="border-t border-[#e2e8f0] bg-[#faf8f5] px-4 py-3"
+      />
     </div>
   </div>
 

@@ -10,6 +10,7 @@
   import WalletHistoryList from "$lib/components/wallet/WalletHistoryList.svelte";
   import WalletWithdrawModal from "$lib/components/wallet/WalletWithdrawModal.svelte";
   import WalletEmptyState from "$lib/components/wallet/WalletEmptyState.svelte";
+  import Pagination from "$lib/components/authed/Pagination.svelte";
   import { walletDataGet, syncPayouts } from "$lib/client/walletData";
   import { formatPlatformFeePercent, formatWithdrawalMonimeFeePercent } from "$lib/fees";
   import type { WalletHistoryFilter, WalletHistoryRow } from "$lib/client/walletFormat";
@@ -23,7 +24,8 @@
     withdrawalInProgress: { id: string; amount: number; createdAt: string } | null;
   };
 
-  const HISTORY_LIMIT = 50;
+  const HISTORY_LIMIT = 1000;
+  const PAGE_SIZE = 5;
 
   let summary: WalletSummary | null = null;
   let summaryError = false;
@@ -33,6 +35,9 @@
   let filter: WalletHistoryFilter = "all";
   let historyRequest = 0;
   let showWithdraw = false;
+  let page = 0;
+
+  $: pageRows = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   $: canWithdraw =
     !!summary && summary.available > 0 && !summary.withdrawalInProgress;
@@ -112,6 +117,7 @@
         {filter}
         on:change={(e) => {
           filter = e.detail;
+          page = 0;
           loadHistory();
         }}
       />
@@ -140,11 +146,18 @@
       <WalletEmptyState {filter} />
     {:else}
       <div class="hidden lg:block">
-        <WalletHistoryTable {rows} />
+        <WalletHistoryTable rows={pageRows} />
       </div>
       <div class="lg:hidden">
-        <WalletHistoryList {rows} />
+        <WalletHistoryList rows={pageRows} />
       </div>
+      <Pagination
+        bind:page
+        pageSize={PAGE_SIZE}
+        total={rows.length}
+        label="transactions"
+        class="rounded-2xl border border-paper-border bg-paper-cream px-4 py-3 lg:rounded-xl"
+      />
     {/if}
 
     <p class="m-0 pt-1 text-xs leading-[1.4] text-ink-secondary lg:pt-0 lg:leading-normal">

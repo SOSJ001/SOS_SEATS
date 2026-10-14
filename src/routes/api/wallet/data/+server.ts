@@ -121,7 +121,7 @@ export async function GET({ url, locals }) {
     const filterParam = url.searchParams.get("filter");
     const filter: WalletHistoryFilter =
       filterParam === "sales" || filterParam === "withdrawals" ? filterParam : "all";
-    const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 50, 1), 200);
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 50, 1), 1000);
     try {
       const data = await getWalletHistory(userId, ledgerKey, { filter, limit });
       return json({ success: true, data });
