@@ -156,7 +156,7 @@
           Create Event
         </a>
       </div>
-      <div class="order-1 lg:order-2">
+      <div class="order-1 min-w-0 lg:order-2">
         <EventsFilterChips
           options={FILTERS}
           active={activeFilter}
