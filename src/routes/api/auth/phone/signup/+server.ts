@@ -1,5 +1,5 @@
 /**
- * POST /api/auth/phone/signup — phone+password create account (roadmap 2.7).
+ * POST /api/auth/phone/signup: phone+password create account (roadmap 2.7).
  * Body: { phone, password, userName }
  */
 import { json } from "@sveltejs/kit";
@@ -96,7 +96,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     );
   }
 
-  setUserSessionCookie(cookies, data.user, data.session.expires_at);
+  setUserSessionCookie(cookies, data.user);
 
   return json(
     {

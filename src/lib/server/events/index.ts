@@ -5,6 +5,14 @@
  */
 import { getServerSupabase } from "$lib/server/db";
 import { generateUniqueFilename } from "$lib/store";
+import { formatNle, providerLabel } from "$lib/client/walletFormat";
+
+function orderActivityDetails(order: any): string {
+  const ref = `Order #${order.order_number}`;
+  if (order.payment_method === "free") return `${ref} - Free ticket`;
+  const via = order.payment_method === "solana" ? "Solana" : providerLabel(order.payment_method);
+  return `${ref} - ${formatNle(parseFloat(order.total_amount))} via ${via}`;
+}
 
 function formatTimeAgo(dateString: string): string {
   const now = new Date();
@@ -520,9 +528,7 @@ export async function getRecentActivities(userId: string): Promise<any[]> {
           type: "ticket_sale",
           icon: "ticket",
           message: `Ticket Sold: ${order.events.name}`,
-          details: `Order #${order.order_number} - $${parseFloat(
-            order.total_amount
-          ).toFixed(2)} via ${order.payment_method}`,
+          details: orderActivityDetails(order),
           time: formatTimeAgo(order.created_at),
           timestamp: order.created_at,
         });

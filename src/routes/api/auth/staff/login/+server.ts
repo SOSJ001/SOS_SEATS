@@ -58,7 +58,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     return json({ error: INVALID_LOGIN }, { status: 401 });
   }
 
-  setUserSessionCookie(cookies, data.user, data.session.expires_at);
+  setUserSessionCookie(cookies, data.user);
 
   return json(
     {

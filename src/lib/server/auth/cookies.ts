@@ -50,24 +50,15 @@ export function cookieOptions(maxAge = DEFAULT_MAX_AGE) {
   };
 }
 
-export function maxAgeFromExpiresAt(expiresAt: number | null | undefined): number {
-  if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) {
-    return DEFAULT_MAX_AGE;
-  }
-  const remaining = Math.floor(expiresAt - Date.now() / 1000);
-  return remaining > 0 ? remaining : DEFAULT_MAX_AGE;
-}
-
 export function setUserSessionCookie(
   cookies: Cookies,
   user: {
     id: string;
     email?: string | null;
     user_metadata?: Record<string, any> | null;
-  },
-  expiresAt?: number | null
+  }
 ) {
-  const maxAge = maxAgeFromExpiresAt(expiresAt);
+  const maxAge = DEFAULT_MAX_AGE;
   const meta = user.user_metadata || {};
   const payload: UserSessionPayload = {
     id: user.id,

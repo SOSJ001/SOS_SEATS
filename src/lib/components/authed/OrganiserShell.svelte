@@ -62,6 +62,8 @@
 
   /** Mobile top-header titles; null keeps the wordmark (471:86). */
   function mobileTitleForPath(p) {
+    if (/^\/dashboard\/?$/.test(p)) return "Dashboard";
+    if (/^\/dashboard\/events\/?$/.test(p)) return "My Events";
     if (p.startsWith("/dashboard/invite-staff")) return "Invite Door Staff";
     if (/^\/dashboard\/wallet(\/withdraw)?\/?$/.test(p)) return "Wallet & Proceeds";
     if (p.startsWith("/dashboard/settings")) return "Settings";

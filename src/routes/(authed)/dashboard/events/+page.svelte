@@ -1,504 +1,221 @@
 <script>
   // @ts-nocheck
-  import { fade, fly } from "svelte/transition";
+  /**
+   * Organiser events list (HI-FI 55:965 desktop, 4:651 mobile; empty 1627:5191 / 1627:5463).
+   */
+  import { fade } from "svelte/transition";
   import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
+  import Calendar from "lucide-svelte/icons/calendar";
+  import Check from "lucide-svelte/icons/check";
+  import SquarePen from "lucide-svelte/icons/square-pen";
+  import X from "lucide-svelte/icons/x";
+  import Search from "lucide-svelte/icons/search";
+  import SearchX from "lucide-svelte/icons/search-x";
+  import Plus from "lucide-svelte/icons/plus";
   import ShareEventModal from "$lib/components/ShareEventModal.svelte";
-  import EventCover from "$lib/components/event/EventCover.svelte";
+  import EventsStatTile from "$lib/components/organizer/events/EventsStatTile.svelte";
+  import EventsFilterChips from "$lib/components/organizer/events/EventsFilterChips.svelte";
+  import OrganiserEventCard from "$lib/components/organizer/events/OrganiserEventCard.svelte";
+  import RecentEventsEmpty from "$lib/components/organizer/events/RecentEventsEmpty.svelte";
+  import {
+    mapOrganiserEvent,
+    isActiveStatus,
+  } from "$lib/components/organizer/events/mapOrganiserEvent.js";
 
-  // Event data
+  const FILTERS = [
+    { id: "all", label: "All" },
+    { id: "published", label: "Published" },
+    { id: "draft", label: "Draft" },
+    { id: "cancelled", label: "Cancelled" },
+  ];
+
   let events = [];
   let isLoading = true;
   let error = null;
+  let searchQuery = "";
+  let activeFilter = "all";
 
-  // Share modal state
   let showShareModal = false;
   let selectedEventForSharing = null;
 
-  onMount(async () => {
-    await loadEvents();
-  });
+  $: organiserName = $page.data?.userName || "";
+
+  onMount(loadEvents);
 
   async function loadEvents() {
     try {
       isLoading = true;
+      error = null;
       const response = await fetch("/loadUserEventsApi");
       const result = await response.json();
-
       if (result.success) {
-        if (result.events && result.events.length > 0) {
-          events = result.events.map((event) => ({
-            id: event.id,
-            title: event.name,
-            date: formatEventDate(event.date, event.time), // Formatted date for display
-            rawDate: event.date, // Raw date for filtering
-            location: event.location,
-            image: event.image?.file_path || null,
-            status: event.status || "draft", // Keep original case for filtering
-            statusColor: getStatusColor(event.status),
-            ticketsSold: getTicketsSold(event),
-            revenue: getRevenue(event),
-            primaryAction: getPrimaryAction(event.status),
-            primaryActionColor: getPrimaryActionColor(event.status),
-            secondaryAction: getSecondaryAction(event.status),
-            secondaryActionColor:
-              "border-white text-white hover:bg-white hover:text-gray-900",
-          }));
-        } else {
-          events = [];
-        }
+        events = (result.events || []).map(mapOrganiserEvent);
       } else {
-        error = result.error;
+        error = result.error || "Failed to load events";
       }
-    } catch (err) {
+    } catch {
       error = "Failed to load events";
     } finally {
       isLoading = false;
     }
   }
 
-  function formatEventDate(date, time) {
-    if (!date) return "Date not set";
-    const eventDate = new Date(date);
-    const formattedDate = eventDate.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-    return time ? `${formattedDate} at ${time}` : formattedDate;
+  const isActive = isActiveStatus;
+
+  function matchesFilter(status, filter) {
+    if (filter === "published") return isActive(status);
+    if (filter === "draft") return status === "draft";
+    if (filter === "cancelled") return status === "cancelled";
+    return true;
   }
 
-  function getStatusColor(status) {
-    switch (status?.toLowerCase()) {
-      case "live":
-      case "published":
-        return "bg-green-500";
-      case "completed":
-        return "bg-blue-500";
-      case "cancelled":
-        return "bg-red-500";
-      case "draft":
-        return "bg-yellow-500";
-      default:
-        return "bg-gray-500";
-    }
+  $: counts = {
+    total: events.length,
+    active: events.filter((e) => isActive(e.status)).length,
+    draft: events.filter((e) => e.status === "draft").length,
+    ended: events.filter((e) => e.status === "cancelled" || e.status === "completed").length,
+  };
+
+  $: query = searchQuery.trim().toLowerCase();
+  $: filteredEvents = events.filter(
+    (e) =>
+      matchesFilter(e.status, activeFilter) &&
+      (!query || (e.title || "").toLowerCase().includes(query))
+  );
+
+  function clearFilters() {
+    searchQuery = "";
+    activeFilter = "all";
   }
 
-  function getTicketsSold(event) {
-    // Use real-time statistics if available, otherwise fall back to ticket_types
-    if (event.realTimeStats) {
-      return event.realTimeStats.totalTicketsSold.toLocaleString();
-    }
-
-    // Fallback to calculating from ticket_types
-    const totalSold =
-      event.ticket_types?.reduce(
-        (sum, ticket) => sum + (ticket.sold_quantity || 0),
-        0
-      ) || 0;
-    return totalSold.toLocaleString();
-  }
-
-  function getRevenue(event) {
-    // Use real-time statistics if available, otherwise fall back to ticket_types
-    if (event.realTimeStats) {
-      return `NLe ${event.realTimeStats.totalRevenue.toLocaleString()}`;
-    }
-
-    // Fallback to calculating from ticket_types
-    const totalRevenue =
-      event.ticket_types?.reduce((sum, ticket) => {
-        return sum + (ticket.price || 0) * (ticket.sold_quantity || 0);
-      }, 0) || 0;
-    return `NLe ${totalRevenue.toLocaleString()}`;
-  }
-
-  function getPrimaryAction(status) {
-    switch (status?.toLowerCase()) {
-      case "live":
-      case "published":
-        return activeFilter === "upcoming" ? "Share Event" : "Manage Event";
-      case "completed":
-        return "View Report";
-      case "draft":
-        return "Edit Draft";
-      default:
-        return activeFilter === "upcoming" ? "Share Event" : "Manage Event";
-    }
-  }
-
-  function getPrimaryActionColor(status) {
-    switch (status?.toLowerCase()) {
-      case "live":
-      case "published":
-        return "from-blue-500 to-blue-600";
-      case "completed":
-        return "from-blue-500 to-blue-600";
-      case "draft":
-        return "from-purple-500 to-purple-600";
-      default:
-        return "from-blue-500 to-blue-600";
-    }
-  }
-
-  function getSecondaryAction(status) {
-    switch (status?.toLowerCase()) {
-      case "live":
-      case "published":
-        return "View Details";
-      case "completed":
-        return "Archive";
-      case "draft":
-        return "Publish";
-      default:
-        return "View Details";
-    }
-  }
-
-  let searchQuery = "";
-  let activeFilter = "upcoming";
-  let filteredEvents = events;
-
-  // Filter events based on search and filter
-  $: {
-    filteredEvents = events.filter((event) => {
-      const matchesSearch =
-        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.location.toLowerCase().includes(searchQuery.toLowerCase());
-
-      if (!matchesSearch) return false;
-
-      const eventStatus = event.status?.toLowerCase();
-
-      // Parse event date to determine if it's in the past
-      const eventDate = new Date(event.rawDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
-      const isEventInPast = eventDate < today;
-
-      if (activeFilter === "upcoming") {
-        // Upcoming events: live/published status AND not in the past
-        return (
-          (eventStatus === "live" || eventStatus === "published") &&
-          !isEventInPast
-        );
-      } else if (activeFilter === "past") {
-        // Past events: either explicitly completed/cancelled OR event date is in the past
-        return (
-          eventStatus === "completed" ||
-          eventStatus === "cancelled" ||
-          isEventInPast
-        );
-      } else if (activeFilter === "drafts") {
-        // Draft events: only draft status
-        return eventStatus === "draft";
-      }
-      return true;
-    });
-  }
-
-  // Share event functionality
   function shareEvent(event) {
     selectedEventForSharing = event;
     showShareModal = true;
   }
 
-  // Close share modal
   function closeShareModal() {
     showShareModal = false;
     selectedEventForSharing = null;
   }
-
-  // Get appropriate empty state message based on filter
-  function getEmptyStateMessage() {
-    if (searchQuery.trim()) {
-      return {
-        title: "No events found",
-        message:
-          "Try adjusting your search criteria or check a different filter.",
-      };
-    }
-
-    switch (activeFilter) {
-      case "upcoming":
-        return {
-          title: "No upcoming events",
-          message: "You don't have any live or published events scheduled.",
-        };
-      case "past":
-        return {
-          title: "No past events",
-          message: "You haven't completed any events yet.",
-        };
-      case "drafts":
-        return {
-          title: "No drafts found",
-          message: "You don't have any draft events.",
-        };
-      default:
-        return {
-          title: "No events found",
-          message: "Create your first event to get started!",
-        };
-    }
-  }
 </script>
 
-<div class="space-y-6" in:fade={{ duration: 300 }}>
-  <!-- Page Header -->
-  <div class="flex items-center justify-between">
-    <h1 class="text-3xl font-bold text-white">My Events</h1>
-  </div>
-
-  <!-- Search and Filters -->
-  <div
-    class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between"
-  >
-    <!-- Search Bar -->
-    <div class="relative flex-1 max-w-md">
-      <div
-        class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-      >
-        <svg
-          class="h-5 w-5 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
-      </div>
-      <input
-        bind:value={searchQuery}
-        type="text"
-        placeholder="Search events..."
-        class="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-      />
-    </div>
-
-    <!-- Filter Buttons -->
-    <div class="flex flex-wrap items-center gap-2">
+<div class="flex flex-col gap-6 pb-24 lg:pb-0" in:fade={{ duration: 200 }}>
+  {#if error}
+    <div
+      class="flex flex-col items-center gap-3 rounded-xl border border-paper-border bg-paper p-8 text-center shadow-public-card"
+    >
+      <p class="m-0 text-[15px] font-bold text-ink">We couldn't load your events</p>
+      <p class="m-0 text-[13px] text-ink-secondary">{error}</p>
       <button
-        on:click={() => (activeFilter = "upcoming")}
-        class="px-4 py-2 rounded-lg transition-all duration-200 {activeFilter ===
-        'upcoming'
-          ? 'bg-teal-500 text-white border-teal-500'
-          : 'bg-gray-800 text-white border border-gray-700 hover:border-teal-500'}"
-      >
-        Upcoming
-      </button>
-      <button
-        on:click={() => (activeFilter = "past")}
-        class="px-4 py-2 rounded-lg transition-all duration-200 {activeFilter ===
-        'past'
-          ? 'bg-teal-500 text-white border-teal-500'
-          : 'bg-gray-800 text-white border border-gray-700 hover:border-teal-500'}"
-      >
-        Past
-      </button>
-      <button
-        on:click={() => (activeFilter = "drafts")}
-        class="px-4 py-2 rounded-lg transition-all duration-200 {activeFilter ===
-        'drafts'
-          ? 'bg-teal-500 text-white border-teal-500'
-          : 'bg-gray-800 text-white border border-gray-700 hover:border-teal-500'}"
-      >
-        Drafts
-      </button>
-      <a
-        href="/dashboard/events/createEvent"
-        class="hidden h-10 items-center rounded-lg bg-teal-500 px-4 text-sm font-semibold text-white transition hover:bg-teal-600 lg:inline-flex"
-      >
-        + Create Event
-      </a>
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  {#if isLoading}
-    <div class="col-span-full flex items-center justify-center py-12">
-      <div class="text-center">
-        <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto mb-4"
-        ></div>
-        <p class="text-gray-300">Loading events...</p>
-      </div>
-    </div>
-  {:else if error}
-    <div class="col-span-full text-center py-12">
-      <p class="text-red-400 mb-4">{error}</p>
-      <button
+        type="button"
+        class="cursor-pointer rounded-[10px] bg-brand px-5 py-2.5 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
         on:click={loadEvents}
-        class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
       >
         Try Again
       </button>
     </div>
-  {:else if filteredEvents.length === 0}
-    <div class="text-center py-12" in:fade={{ duration: 300 }}>
-      <svg
-        class="mx-auto h-12 w-12 text-gray-400"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-        />
-      </svg>
-      <h3 class="mt-2 text-sm font-medium text-gray-300">
-        {getEmptyStateMessage().title}
-      </h3>
-      <p class="mt-1 text-sm text-gray-500">
-        {getEmptyStateMessage().message}
-      </p>
-      {#if events.length === 0}
-        <div class="mt-4">
-          <a
-            href="/dashboard/events/createEvent"
-            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
-          >
-            Create Event
-          </a>
-        </div>
+  {:else}
+    <!-- Stats -->
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      {#if isLoading}
+        {#each Array(4) as _}
+          <div class="h-20 animate-pulse rounded-xl bg-paper-border/60 lg:h-24 lg:rounded-2xl"></div>
+        {/each}
+      {:else}
+        <EventsStatTile label="Total events" value={counts.total} sub="Across all statuses" icon={Calendar} tone="brand" />
+        <EventsStatTile label="Active" value={counts.active} sub="Live & selling" icon={Check} tone="success" />
+        <EventsStatTile label="Draft" value={counts.draft} sub="Needs publishing" icon={SquarePen} tone="warning" />
+        <EventsStatTile label="Cancelled" value={counts.ended} sub="Ended / archived" icon={X} tone="error" />
       {/if}
     </div>
-  {:else}
-    <!-- Events Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-      {#each filteredEvents as event, index}
-        <div
-          class="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-teal-400/50 transition-all duration-300 hover:shadow-lg hover:shadow-teal-400/10"
-          in:fly={{ y: 20, duration: 300, delay: index * 100 }}
+
+    <!-- Search + chips (mobile: chips first; desktop: search row first) -->
+    <div class="flex flex-col gap-4">
+      <div class="order-2 flex items-center justify-between gap-4 lg:order-1">
+        <label
+          class="flex w-full items-center gap-2.5 rounded-lg border border-paper-border bg-paper px-4 py-3 lg:w-[420px] lg:rounded-xl lg:border-transparent lg:shadow-public-card"
         >
-          <!-- Event Image -->
-          <div class="relative h-48 overflow-hidden">
-            <EventCover
-              src={event.image}
-              alt={event.title}
-              fill
-              class="transition-transform duration-300 hover:scale-105"
-            />
-            <!-- Status Badge -->
-            <div class="absolute top-3 right-3">
-              <span
-                class="px-2 py-1 text-xs font-semibold rounded-full {event.statusColor} text-white"
-              >
-                {event.status}
-              </span>
-            </div>
-          </div>
-
-          <!-- Event Details -->
-          <div class="p-6">
-            <h3 class="text-xl font-bold text-white mb-3">{event.title}</h3>
-
-            <!-- Date and Location -->
-            <div class="space-y-2 mb-4">
-              <div class="flex items-center text-gray-300">
-                <svg
-                  class="w-4 h-4 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                <span class="text-sm">{event.date}</span>
-              </div>
-              <div class="flex items-center text-gray-300">
-                <svg
-                  class="w-4 h-4 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                <span class="text-sm">{event.location}</span>
-              </div>
-            </div>
-
-            <!-- Metrics -->
-            <div class="grid grid-cols-2 gap-4 mb-6">
-              <div class="text-center">
-                <div class="text-2xl font-bold text-teal-400">
-                  {event.ticketsSold}
-                </div>
-                <div class="text-xs text-gray-400">TICKETS SOLD</div>
-              </div>
-              <div class="text-center">
-                <div class="text-2xl font-bold text-teal-400">
-                  {event.revenue}
-                </div>
-                <div class="text-xs text-gray-400">REVENUE</div>
-              </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex gap-2">
-              <button
-                on:click={() => {
-                  if (activeFilter === "upcoming") {
-                    shareEvent(event);
-                  } else if (activeFilter === "drafts") {
-                    goto(`/dashboard/events/editEvent/${event.id}`);
-                  }
-                }}
-                class="flex-1 bg-gradient-to-r {event.primaryActionColor} text-white py-2 px-4 rounded-lg font-medium hover:opacity-90 transition-opacity duration-200"
-              >
-                {event.primaryAction}
-              </button>
-              <a
-                href="/dashboard/events/eventDetails?id={event.id}"
-                class="flex-1 border {event.secondaryActionColor} py-2 px-4 rounded-lg font-medium transition-all duration-200 hover:bg-gray-700 text-center"
-              >
-                {event.secondaryAction}
-              </a>
-            </div>
-          </div>
-        </div>
-      {/each}
+          <Search class="size-[18px] shrink-0 text-ink-muted" aria-hidden="true" />
+          <span class="sr-only">Filter events by name</span>
+          <input
+            type="search"
+            bind:value={searchQuery}
+            placeholder="Filter events by name..."
+            class="w-full min-w-0 border-0 bg-transparent p-0 text-[14px] text-ink placeholder:text-ink-muted focus:outline-none focus:ring-0"
+          />
+        </label>
+        <a
+          href="/dashboard/events/createEvent"
+          class="hidden shrink-0 items-center gap-2 rounded-full bg-brand px-6 py-3 text-[14px] font-bold text-white no-underline transition-opacity hover:opacity-90 lg:flex"
+        >
+          <Plus class="size-4" aria-hidden="true" />
+          Create Event
+        </a>
+      </div>
+      <div class="order-1 lg:order-2">
+        <EventsFilterChips
+          options={FILTERS}
+          active={activeFilter}
+          on:change={(e) => (activeFilter = e.detail)}
+        />
+      </div>
     </div>
+
+    <!-- Events -->
+    {#if isLoading}
+      <div
+        class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6 lg:rounded-xl lg:border lg:border-paper-border lg:bg-paper lg:p-6"
+        aria-busy="true"
+        aria-label="Loading events"
+      >
+        {#each Array(2) as _}
+          <div class="flex animate-pulse flex-col overflow-hidden rounded-xl border border-paper-border bg-paper lg:rounded-2xl">
+            <div class="h-40 bg-paper-border/60"></div>
+            <div class="flex flex-col gap-3 p-4">
+              <div class="h-4 w-2/3 rounded bg-paper-border/60"></div>
+              <div class="h-3 w-1/3 rounded bg-paper-border/60"></div>
+              <div class="h-2 w-full rounded-full bg-paper-border/60"></div>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {:else if events.length === 0}
+      <RecentEventsEmpty />
+    {:else}
+      <div
+        class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6 lg:rounded-xl lg:border lg:border-paper-border lg:bg-paper lg:p-6"
+      >
+        {#each filteredEvents as event (event.id)}
+          <OrganiserEventCard {event} {organiserName} on:share={() => shareEvent(event)} />
+        {:else}
+          <div class="col-span-full flex flex-col items-center gap-2 py-10 text-center">
+            <SearchX class="size-8 text-ink-muted" aria-hidden="true" />
+            <p class="m-0 text-[15px] font-bold text-ink">No events match</p>
+            <p class="m-0 text-[13px] text-ink-secondary">Try a different name or status.</p>
+            <button
+              type="button"
+              class="mt-1 cursor-pointer rounded-full border border-paper-border bg-paper px-4 py-2 text-[13px] font-semibold text-ink hover:border-brand/40"
+              on:click={clearFilters}
+            >
+              Clear filters
+            </button>
+          </div>
+        {/each}
+      </div>
+    {/if}
   {/if}
 </div>
 
-<!-- Floating Action Button (mobile only; FR-5) -->
+<!-- Mobile Create Event FAB (4:651) -->
 <a
   href="/dashboard/events/createEvent"
-  class="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-teal-500 to-teal-600 shadow-lg transition-all duration-200 hover:shadow-xl lg:hidden"
-  title="Create New Event"
+  class="fixed bottom-6 right-5 z-20 flex items-center gap-2 rounded-full bg-brand px-5 py-3.5 text-[14px] font-bold text-white no-underline shadow-[0_4px_16px_rgba(0,0,0,0.15)] transition-opacity hover:opacity-90 lg:hidden"
 >
-  <svg
-    class="h-6 w-6 text-white transition-transform duration-200"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      stroke-width="2"
-      d="M12 4v16m8-8H4"
-    />
-  </svg>
+  <Plus class="size-4" aria-hidden="true" />
+  Create Event
 </a>
 
-<!-- Share Event Modal -->
 <ShareEventModal
   event={selectedEventForSharing}
   isOpen={showShareModal}

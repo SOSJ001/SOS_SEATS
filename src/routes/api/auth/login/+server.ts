@@ -1,5 +1,5 @@
 /**
- * POST /api/auth/login — username|email + password session (roadmap 2.7).
+ * POST /api/auth/login: username|email + password session (roadmap 2.7).
  * Body: { identifier, password }
  */
 import { json } from "@sveltejs/kit";
@@ -73,11 +73,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     userName: meta.userName || null,
   });
 
-  setUserSessionCookie(
-    cookies,
-    await withRegistryUserName(data.user),
-    data.session.expires_at,
-  );
+  setUserSessionCookie(cookies, await withRegistryUserName(data.user));
 
   return json(
     {

@@ -11,6 +11,8 @@
   export let className = "";
   /** `"desktop"` (default) or `"mobile"` for 884:60 geometry. */
   export let variant = "desktop";
+  /** Hide the COMING SOON pill where it is not true (e.g. organiser empty states). */
+  export let showBadge = true;
 
   let stageFrame;
   let isEntering = false;
@@ -188,12 +190,14 @@
       </div>
 
       <!-- COMING SOON badge -->
-      <div
-        class="empty-badge absolute left-[107px] top-[121px] flex items-center gap-1 rounded-full bg-brand px-2.5 py-[5px] text-[8px] font-bold tracking-[0.64px] text-white shadow-[0_4px_12px_-2px_rgba(255,90,31,0.2)]"
-      >
-        <span class="size-1 rounded-full bg-white"></span>
-        COMING SOON
-      </div>
+      {#if showBadge}
+        <div
+          class="empty-badge absolute left-[107px] top-[121px] flex items-center gap-1 rounded-full bg-brand px-2.5 py-[5px] text-[8px] font-bold tracking-[0.64px] text-white shadow-[0_4px_12px_-2px_rgba(255,90,31,0.2)]"
+        >
+          <span class="size-1 rounded-full bg-white"></span>
+          COMING SOON
+        </div>
+      {/if}
 
       <!-- Sparkles -->
       <div
@@ -365,12 +369,14 @@
       </div>
 
       <!-- COMING SOON badge -->
-      <div
-        class="empty-badge absolute left-[191px] top-[115px] flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-[11px] font-bold tracking-[0.88px] text-white shadow-[0_6px_16px_-2px_rgba(255,90,31,0.25)]"
-      >
-        <span class="size-1.5 rounded-full bg-white"></span>
-        COMING SOON
-      </div>
+      {#if showBadge}
+        <div
+          class="empty-badge absolute left-[191px] top-[115px] flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-[11px] font-bold tracking-[0.88px] text-white shadow-[0_6px_16px_-2px_rgba(255,90,31,0.25)]"
+        >
+          <span class="size-1.5 rounded-full bg-white"></span>
+          COMING SOON
+        </div>
+      {/if}
 
       <!-- Sparkles -->
       <div
