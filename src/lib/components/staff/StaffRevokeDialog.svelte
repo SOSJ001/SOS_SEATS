@@ -6,7 +6,7 @@
    */
   import { createEventDispatcher } from "svelte";
   import UserX from "lucide-svelte/icons/user-x";
-  import StaffDialog from "./StaffDialog.svelte";
+  import AppDialog from "$lib/components/authed/AppDialog.svelte";
   import StaffNotice from "./StaffNotice.svelte";
   import { staffContactLabel } from "./staffFormat.js";
 
@@ -52,7 +52,7 @@
   }
 </script>
 
-<StaffDialog open={!!staff} variant="center" labelledby="staff-revoke-title" on:close={close}>
+<AppDialog open={!!staff} variant="center" labelledby="staff-revoke-title" on:close={close}>
   {#if staff}
     <div class="flex w-full flex-col items-center gap-2 text-center lg:gap-4">
       <div
@@ -118,4 +118,4 @@
       </button>
     </div>
   {/if}
-</StaffDialog>
+</AppDialog>

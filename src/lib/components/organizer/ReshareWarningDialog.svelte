@@ -1,8 +1,9 @@
 <script>
   // @ts-nocheck
   /** Warns before a private ticket that was already shared goes out again. */
-  import { createEventDispatcher, onDestroy } from "svelte";
+  import { createEventDispatcher } from "svelte";
   import TriangleAlert from "lucide-svelte/icons/triangle-alert";
+  import AppDialog from "$lib/components/authed/AppDialog.svelte";
   import { formatSharedAt, maskTicketNumber } from "$lib/client/ticketLayout";
 
   export let open = false;
@@ -11,9 +12,15 @@
   export let hasNext = false;
 
   const dispatch = createEventDispatcher();
-  let listening = false;
 
   $: viaLabel = guest?.sharedVia === "download" ? "Download" : "Share";
+  $: primaryAction = hasNext ? "next" : "again";
+  $: primaryLabel = hasNext ? "Share next unshared ticket" : "Share again anyway";
+
+  const primaryClass =
+    "flex h-11 cursor-pointer items-center justify-center rounded-lg border-0 bg-brand text-sm font-bold text-white hover:bg-brand/90 lg:h-10";
+  const cancelClass =
+    "flex h-11 cursor-pointer items-center justify-center rounded-lg border border-paper-border bg-white text-sm font-bold text-ink-secondary hover:bg-paper-cream lg:h-10";
 
   function close() {
     open = false;
@@ -24,97 +31,68 @@
     open = false;
     dispatch(action);
   }
-
-  function onKeydown(e) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      close();
-    }
-  }
-
-  function syncEscape() {
-    if (typeof document === "undefined") return;
-    if (open && !listening) {
-      document.addEventListener("keydown", onKeydown);
-      listening = true;
-    } else if (!open && listening) {
-      document.removeEventListener("keydown", onKeydown);
-      listening = false;
-    }
-  }
-
-  $: open, syncEscape();
-
-  onDestroy(() => {
-    if (typeof document !== "undefined" && listening) {
-      document.removeEventListener("keydown", onKeydown);
-      listening = false;
-    }
-  });
 </script>
 
-{#if open && guest}
-  <div
-    class="fixed inset-0 z-[100] flex items-center justify-center bg-ink/70 p-5"
-    role="presentation"
-    on:click|self={close}
-  >
-    <div
-      class="flex w-full max-w-[360px] flex-col items-center gap-4 rounded-2xl border border-paper-border bg-white px-6 py-7 text-center shadow-[0px_8px_28px_rgba(18,4,28,0.18)] lg:max-w-[420px] lg:gap-5 lg:px-8 lg:py-8"
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="reshare-warning-title"
-      aria-describedby="reshare-warning-desc"
-    >
+<AppDialog
+  open={open && !!guest}
+  variant="center"
+  role="alertdialog"
+  labelledby="reshare-warning-title"
+  describedby="reshare-warning-desc"
+  dense
+  on:close={close}
+>
+  {#if guest}
+    <div class="flex w-full flex-col items-center gap-2 text-center">
       <div
-        class="flex size-12 items-center justify-center rounded-full bg-[#fef3c7]"
+        class="flex size-12 items-center justify-center rounded-full bg-[#fef3c7] text-[#d97706]"
         aria-hidden="true"
       >
-        <TriangleAlert class="text-[#d97706]" size={22} strokeWidth={2} />
+        <TriangleAlert size={22} strokeWidth={2} />
       </div>
-
       <div class="flex w-full flex-col items-center gap-2">
         <h2
           id="reshare-warning-title"
-          class="m-0 text-xl font-extrabold text-ink lg:text-[22px]"
+          class="m-0 font-display text-xl font-bold text-ink lg:font-public lg:font-extrabold"
         >
           Already shared
         </h2>
-        <p
-          id="reshare-warning-desc"
-          class="m-0 text-sm leading-[1.45] text-ink-secondary"
-        >
+        <p id="reshare-warning-desc" class="m-0 text-sm leading-[1.4] text-ink-secondary lg:leading-5">
           Ticket {maskTicketNumber(guest.ticketNumber || guest.id)} was already shared
           on {formatSharedAt(guest.sharedAt)} (via {viaLabel}). Sharing it again may
           let two people use it.
         </p>
       </div>
+    </div>
 
-      <div class="flex w-full flex-col gap-2.5">
-        {#if hasNext}
-          <button
-            type="button"
-            class="flex h-11 w-full cursor-pointer items-center justify-center rounded-xl border-0 bg-brand text-sm font-bold text-white hover:opacity-90"
-            on:click={() => pick("next")}
-          >
-            Share next unshared ticket
-          </button>
-        {/if}
+    <div class="flex w-full flex-col items-center gap-1">
+      <div class="flex w-full flex-col gap-2.5 lg:hidden">
+        <button type="button" class="{primaryClass} w-full" on:click={() => pick(primaryAction)}>
+          {primaryLabel}
+        </button>
+        <button type="button" class="{cancelClass} w-full" on:click={close}>Cancel</button>
+      </div>
+
+      <div class="hidden w-full gap-3 lg:flex">
+        <button type="button" class="{cancelClass} w-28 shrink-0" on:click={close}>Cancel</button>
         <button
           type="button"
-          class="flex h-11 w-full cursor-pointer items-center justify-center rounded-xl border border-brand bg-white text-sm font-bold text-brand hover:bg-brand/5"
+          class="{primaryClass} min-w-0 flex-1 px-3"
+          on:click={() => pick(primaryAction)}
+        >
+          {primaryLabel}
+        </button>
+      </div>
+
+      {#if hasNext}
+        <button
+          type="button"
+          class="cursor-pointer border-0 bg-transparent py-2 text-sm font-bold text-ink-secondary underline hover:text-ink"
           on:click={() => pick("again")}
         >
           Share again anyway
         </button>
-        <button
-          type="button"
-          class="flex h-10 w-full cursor-pointer items-center justify-center rounded-xl border border-paper-border bg-white text-sm font-bold text-ink hover:bg-paper-cream"
-          on:click={close}
-        >
-          Cancel
-        </button>
-      </div>
+      {/if}
     </div>
-  </div>
-{/if}
+  {/if}
+</AppDialog>

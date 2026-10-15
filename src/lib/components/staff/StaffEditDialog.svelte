@@ -7,7 +7,7 @@
    */
   import { createEventDispatcher } from "svelte";
   import X from "lucide-svelte/icons/x";
-  import StaffDialog from "./StaffDialog.svelte";
+  import AppDialog from "$lib/components/authed/AppDialog.svelte";
   import StaffIdentity from "./StaffIdentity.svelte";
   import StaffEventPicker from "./StaffEventPicker.svelte";
   import StaffTextField from "./StaffTextField.svelte";
@@ -110,7 +110,7 @@
   }
 </script>
 
-<StaffDialog open={!!staff} labelledby="staff-edit-title" on:close>
+<AppDialog open={!!staff} labelledby="staff-edit-title" on:close>
   {#if staff}
     <h2 id="staff-edit-title" class="m-0 text-lg font-extrabold text-ink">Edit Door Staff</h2>
 
@@ -203,4 +203,4 @@
       </button>
     </div>
   {/if}
-</StaffDialog>
+</AppDialog>

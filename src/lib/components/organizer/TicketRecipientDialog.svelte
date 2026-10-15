@@ -1,10 +1,12 @@
 <script>
   // @ts-nocheck
   /** "Who is this for?" before a private ticket is downloaded or shared. */
-  import { createEventDispatcher, onDestroy, tick } from "svelte";
-  import UserRound from "lucide-svelte/icons/user-round";
+  import { createEventDispatcher } from "svelte";
+  import { browser } from "$app/environment";
+  import X from "lucide-svelte/icons/x";
   import Download from "lucide-svelte/icons/download";
   import Share2 from "lucide-svelte/icons/share-2";
+  import AppDialog from "$lib/components/authed/AppDialog.svelte";
   import { maskTicketNumber } from "$lib/client/ticketLayout";
 
   export let open = false;
@@ -17,21 +19,20 @@
   const DEFAULT_NAME = /^Private \d{3}$/;
 
   const dispatch = createEventDispatcher();
-  let inputEl;
   let name = "";
-  let listening = false;
   let preparedFor = null;
+  /** Desktop only, so phones don't pop the keyboard over the sheet. */
+  let autofocusName = false;
 
   $: if (open && guest && preparedFor !== guest.id) {
     preparedFor = guest.id;
     const current = String(guest.name || "").trim();
     name = DEFAULT_NAME.test(current) ? "" : current;
-    tick().then(() => inputEl?.focus());
+    autofocusName = browser && window.matchMedia("(min-width: 1024px)").matches;
   }
   $: if (!open) preparedFor = null;
 
-  $: actions =
-    primary === "download" ? ["download", "share"] : ["share", "download"];
+  $: otherVia = primary === "download" ? "share" : "download";
 
   function close() {
     open = false;
@@ -42,116 +43,80 @@
     open = false;
     dispatch("confirm", { via, name: name.trim() });
   }
-
-  function onSubmit() {
-    confirm(primary);
-  }
-
-  function onKeydown(e) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      close();
-    }
-  }
-
-  function syncEscape() {
-    if (typeof document === "undefined") return;
-    if (open && !listening) {
-      document.addEventListener("keydown", onKeydown);
-      listening = true;
-    } else if (!open && listening) {
-      document.removeEventListener("keydown", onKeydown);
-      listening = false;
-    }
-  }
-
-  $: open, syncEscape();
-
-  onDestroy(() => {
-    if (typeof document !== "undefined" && listening) {
-      document.removeEventListener("keydown", onKeydown);
-      listening = false;
-    }
-  });
 </script>
 
-{#if open && guest}
-  <div
-    class="fixed inset-0 z-[100] flex items-center justify-center bg-ink/70 p-5"
-    role="presentation"
-    on:click|self={close}
-  >
-    <form
-      class="flex w-full max-w-[360px] flex-col gap-4 rounded-2xl border border-paper-border bg-white px-6 py-7 shadow-[0px_8px_28px_rgba(18,4,28,0.18)] lg:max-w-[420px] lg:gap-5 lg:px-8 lg:py-8"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="ticket-recipient-title"
-      on:submit|preventDefault={onSubmit}
-    >
-      <div class="flex flex-col items-center gap-3 text-center">
-        <div
-          class="flex size-12 items-center justify-center rounded-full bg-brand/10"
-          aria-hidden="true"
-        >
-          <UserRound class="text-brand" size={22} strokeWidth={2} />
-        </div>
-        <div class="flex flex-col items-center gap-1">
-          <h2
-            id="ticket-recipient-title"
-            class="m-0 text-xl font-extrabold text-ink lg:text-[22px]"
-          >
-            Who is this for?
-          </h2>
-          <p class="m-0 text-sm text-ink-secondary">
-            Ticket {maskTicketNumber(guest.ticketNumber || guest.id)}
-          </p>
-        </div>
+<AppDialog
+  open={open && !!guest}
+  labelledby="ticket-recipient-title"
+  dense
+  on:close={close}
+>
+  {#if guest}
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex min-w-0 flex-col gap-0.5">
+        <h2 id="ticket-recipient-title" class="m-0 text-lg font-extrabold text-ink">
+          Who is this for?
+        </h2>
+        <p class="m-0 text-[13px] font-medium text-ink-muted">
+          Ticket {maskTicketNumber(guest.ticketNumber || guest.id)}
+        </p>
       </div>
-
-      <label class="flex flex-col gap-1.5">
-        <span class="text-xs font-bold text-ink">Guest name (optional)</span>
-        <input
-          bind:this={inputEl}
-          bind:value={name}
-          type="text"
-          maxlength={MAX_NAME_LENGTH}
-          autocomplete="off"
-          placeholder="e.g. Ama Kamara"
-          class="h-11 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 text-sm font-medium text-ink outline-none placeholder:text-ink-secondary focus:border-brand"
-        />
-        <span class="text-xs text-ink-secondary">
-          Shown in your guest list so you know who has this ticket.
-        </span>
-      </label>
-
-      <div class="flex w-full flex-col gap-2.5 lg:flex-row lg:gap-3">
-        {#each actions as via (via)}
-          <button
-            type={via === primary ? "submit" : "button"}
-            class="flex h-11 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl text-sm font-bold
-              {via === primary
-              ? 'border-0 bg-brand text-white hover:opacity-90'
-              : 'border border-brand bg-white text-brand hover:bg-brand/5'}"
-            on:click={via === primary ? undefined : () => confirm(via)}
-          >
-            {#if via === "download"}
-              <Download size={16} aria-hidden="true" />
-              Download
-            {:else}
-              <Share2 size={16} aria-hidden="true" />
-              Share
-            {/if}
-          </button>
-        {/each}
-      </div>
-
       <button
         type="button"
-        class="h-10 w-full cursor-pointer rounded-xl border border-paper-border bg-white text-sm font-bold text-ink hover:bg-paper-cream"
+        class="-mr-2 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-ink-muted hover:bg-paper-cream hover:text-ink"
+        aria-label="Close"
         on:click={close}
       >
-        Cancel
+        <X size={18} strokeWidth={2} aria-hidden="true" />
       </button>
+    </div>
+
+    <form class="flex flex-col gap-4" on:submit|preventDefault={() => confirm(primary)}>
+      <div class="flex flex-col gap-2">
+        <label for="ticket-recipient-name" class="text-sm font-bold text-ink">
+          Guest name <span class="font-medium text-ink-muted">(optional)</span>
+        </label>
+        <div
+          class="flex h-12 w-full items-center rounded-lg border-[1.5px] border-[#c7bfb8] bg-white px-4 shadow-[inset_0px_1px_2px_rgba(0,0,0,0.04)] focus-within:border-brand lg:h-10"
+        >
+          <input
+            id="ticket-recipient-name"
+            bind:value={name}
+            type="text"
+            maxlength={MAX_NAME_LENGTH}
+            autocomplete="off"
+            enterkeyhint="done"
+            placeholder="e.g. Ama Kamara"
+            data-autofocus={autofocusName ? "" : undefined}
+            class="min-w-0 flex-1 border-0 bg-transparent p-0 text-base text-ink placeholder:text-ink-muted focus:outline-none focus:ring-0 lg:text-sm"
+          />
+        </div>
+        <p class="m-0 text-xs text-ink-secondary">
+          Shown in your guest list so you know who has this ticket.
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <button
+          type="submit"
+          class="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-brand text-base font-extrabold text-white shadow-[0px_10px_24px_-8px_rgba(255,90,31,0.2)] hover:bg-brand/90 lg:h-10 lg:text-sm"
+        >
+          {#if primary === "download"}
+            <Download size={18} strokeWidth={2} aria-hidden="true" />
+            Download ticket
+          {:else}
+            <Share2 size={18} strokeWidth={2} aria-hidden="true" />
+            Share ticket
+          {/if}
+        </button>
+        <button
+          type="button"
+          class="flex h-10 w-full cursor-pointer items-center justify-center rounded-xl border-0 bg-transparent text-sm font-bold text-brand hover:bg-brand/5 lg:h-9"
+          on:click={() => confirm(otherVia)}
+        >
+          {otherVia === "download" ? "Download instead" : "Share instead"}
+        </button>
+      </div>
     </form>
-  </div>
-{/if}
+  {/if}
+</AppDialog>
