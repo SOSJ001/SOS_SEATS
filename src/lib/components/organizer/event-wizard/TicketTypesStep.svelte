@@ -6,6 +6,7 @@
   import { onMount } from "svelte";
   import WizardNav from "$lib/components/organizer/WizardNav.svelte";
   import { loadEventDraft, saveEventDraft } from "$lib/client/eventDraft";
+  import { draftIsPrivate } from "$lib/client/wizardSteps";
   import { EVENT_LIMITS } from "$lib/eventLimits";
   import Plus from "lucide-svelte/icons/plus";
   import Lock from "lucide-svelte/icons/lock";
@@ -41,6 +42,10 @@
 
   onMount(() => {
     const loaded = loadEventDraft(eventData, draftKey);
+    if (draftIsPrivate(loaded)) {
+      goto(`${basePath}/step3`, { replaceState: true });
+      return;
+    }
     eventData = {
       ...loaded,
       is_free_event:

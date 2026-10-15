@@ -7,7 +7,9 @@
   import WizardField from "$lib/components/organizer/WizardField.svelte";
   import WizardNav from "$lib/components/organizer/WizardNav.svelte";
   import CoverUpload from "$lib/components/organizer/event-wizard/CoverUpload.svelte";
+  import VisibilityPicker from "$lib/components/organizer/event-wizard/VisibilityPicker.svelte";
   import { loadEventDraft, saveEventDraft } from "$lib/client/eventDraft";
+  import { draftVisibility, draftIsPrivate } from "$lib/client/wizardSteps";
   import { compressImage } from "$lib/client/compressImage";
   import { DEFAULT_CATEGORY } from "$lib/eventCategories";
   import { EVENT_LIMITS } from "$lib/eventLimits";
@@ -32,6 +34,7 @@
     description: "",
     imagePreview: null,
     organizer: "",
+    event_visibility: "public",
   };
 
   let errors = {};
@@ -43,6 +46,16 @@
   $: exitHref = isEdit && event?.id
     ? `/dashboard/events/eventDetails?id=${event.id}`
     : "/dashboard/events";
+  $: isPrivate = draftIsPrivate(eventData);
+  $: privateLockedReason =
+    isEdit && event?.hasTicketSales
+      ? "Tickets have already been sold, so this event can't be made private."
+      : "";
+  $: publicLockedReason =
+    isEdit && event?.hasPrivateTickets
+      ? "This event has private invites, so it can't be made public."
+      : "";
+  $: nextShort = isPrivate ? "Next: Ticket Design" : "Next: Ticket Types";
 
   onMount(() => {
     eventData = loadEventDraft(
@@ -53,7 +66,16 @@
     if (!isEdit && !eventData.organizer && userName) {
       eventData.organizer = userName;
     }
+    eventData.event_visibility = draftIsPrivate(eventData) ? "private" : "public";
+    draftVisibility.set(eventData.event_visibility);
   });
+
+  function selectVisibility(e) {
+    eventData.event_visibility = e.detail;
+    if (isEdit) eventData._dirty = true;
+    draftVisibility.set(e.detail);
+    persist();
+  }
 
   async function handleImageUpload(e) {
     const file = e.currentTarget.files?.[0];
@@ -121,7 +143,7 @@
   function nextStep() {
     if (compressing || !validateStep()) return;
     if (!persist()) return;
-    goto(`${basePath}/step2`);
+    goto(`${basePath}/${isPrivate ? "step3" : "step2"}`);
   }
 </script>
 
@@ -189,6 +211,13 @@
           error={errors.location || ""}
         />
 
+        <VisibilityPicker
+          value={eventData.event_visibility}
+          {publicLockedReason}
+          {privateLockedReason}
+          on:change={selectVisibility}
+        />
+
         <!-- Mobile cover: under Venue (HI-FI 4:724) -->
         <div class="flex flex-col gap-1.5 lg:hidden">
           <p class="m-0 text-[13px] font-bold text-ink">Cover Media Upload</p>
@@ -224,7 +253,7 @@
       class="flex h-12 w-full items-center justify-center rounded-lg bg-brand text-[15px] font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
       on:click={nextStep}
     >
-      Next: Ticket Types
+      {nextShort}
     </button>
   </div>
 
@@ -232,7 +261,7 @@
   <div class="hidden lg:block">
     <WizardNav
       backLabel={isEdit ? "Cancel" : "Save Draft"}
-      nextLabel="Next: Ticket Types →"
+      nextLabel="{nextShort} →"
       nextDisabled={compressing}
       {onBack}
       onNext={nextStep}

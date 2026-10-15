@@ -26,6 +26,10 @@ export async function load({ params, locals }) {
   const sellable = (event.ticket_types || []).filter(
     (/** @type {any} */ t) => t.name !== PRIVATE_INVITE_TYPE_NAME
   );
+  const hasPrivateTickets = (event.ticket_types || []).some(
+    (/** @type {any} */ t) =>
+      t.name === PRIVATE_INVITE_TYPE_NAME && (t.sold_quantity || 0) > 0
+  );
 
   return {
     event: {
@@ -44,6 +48,7 @@ export async function load({ params, locals }) {
       status: event.status,
       ticket_design_config: event.ticket_design_config,
       hasTicketSales: sellable.some((t) => (t.sold_quantity || 0) > 0),
+      hasPrivateTickets,
       ticket_types: sellable
         .filter((t) => t.is_active !== false)
         .sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")))

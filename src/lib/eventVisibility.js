@@ -5,3 +5,11 @@
 export function isPrivateEvent(event) {
   return String(event?.event_visibility || "public").toLowerCase() === "private";
 }
+
+/**
+ * The hidden ticket type private invites are issued on (quantity 999999, never sellable).
+ * @param {unknown} name
+ */
+export function isPrivateInviteName(name) {
+  return String(name || "").trim().toLowerCase() === "private invite";
+}

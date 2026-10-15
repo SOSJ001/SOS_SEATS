@@ -20,7 +20,7 @@
 <nav class="mb-4 w-full lg:mb-6" aria-label={ariaLabel}>
   <!-- Mobile: HI-FI 4:724 / 506:107 stacked short labels, no connectors -->
   <ol class="flex w-full items-start justify-between gap-1 px-0 pb-4 lg:hidden">
-    {#each steps as step}
+    {#each steps as step, i}
       <li class="flex w-[64px] flex-col items-center gap-1.5">
         <div
           class="flex size-6 shrink-0 items-center justify-center rounded-xl text-[11px] font-extrabold border-2
@@ -34,7 +34,7 @@
           {#if isCompleted(step.id)}
             <Check size={12} strokeWidth={2.5} aria-hidden="true" />
           {:else}
-            <span>{step.id}</span>
+            <span>{i + 1}</span>
           {/if}
         </div>
         <span
@@ -68,7 +68,7 @@
             {#if isCompleted(step.id)}
               <Check size={12} strokeWidth={2.5} aria-hidden="true" />
             {:else}
-              <span>{step.id}</span>
+              <span>{i + 1}</span>
             {/if}
           </div>
           <span

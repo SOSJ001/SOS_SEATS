@@ -8,6 +8,7 @@
   import TicketLayoutPanel from "$lib/components/organizer/TicketLayoutPanel.svelte";
   import TicketLivePreview from "$lib/components/organizer/TicketLivePreview.svelte";
   import { loadEventDraft, saveEventDraft } from "$lib/client/eventDraft";
+  import { draftIsPrivate, stepNumber } from "$lib/client/wizardSteps";
   import {
     defaultTicketLayout,
     ensureTicketDesignWithLayout,
@@ -25,6 +26,10 @@
   $: isEdit = mode === "edit";
   $: nextShort = isEdit ? "Next: Review" : "Next: Publish";
   $: nextLong = isEdit ? "Next Step: Review →" : "Next Step: Review & Publish →";
+  $: isPrivate = draftIsPrivate(eventData);
+  $: previewTypes = isPrivate
+    ? [{ name: "Private Invite" }]
+    : eventData.ticket_types || [];
 
   onMount(() => {
     eventData = loadEventDraft({}, draftKey);
@@ -59,13 +64,13 @@
 
   function prevStep() {
     persist();
-    goto(`${basePath}/step2`);
+    goto(`${basePath}/${isPrivate ? "step1" : "step2"}`);
   }
 </script>
 
 <div class="flex flex-col gap-4 lg:gap-6" in:fade={{ duration: 200 }}>
   <h2 class="m-0 font-display text-[20px] font-bold text-ink lg:hidden">
-    3. Customize Ticket Design
+    {stepNumber(3, isPrivate)}. Customize Ticket Design
   </h2>
 
   <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
@@ -95,7 +100,7 @@
         eventDate={eventData.date || ""}
         eventTime={eventData.time || ""}
         eventLocation={eventData.location || ""}
-        ticketTypes={eventData.ticket_types || []}
+        ticketTypes={previewTypes}
       />
     </div>
   </div>

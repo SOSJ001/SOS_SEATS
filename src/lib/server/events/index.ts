@@ -279,7 +279,8 @@ function ticketTypeFields(ticket: any): TicketTypeFields {
  */
 async function planTicketTypeChanges(
   eventId: string,
-  incomingRaw: any[]
+  incomingRaw: any[],
+  { allowEmpty = false }: { allowEmpty?: boolean } = {}
 ): Promise<
   | { ok: true; plan: TicketTypePlan }
   | { ok: false; error: string; validation: boolean }
@@ -304,7 +305,7 @@ async function planTicketTypeChanges(
     deactivateIds: [],
     deleteIds: [],
   };
-  if (incoming.length === 0) return { ok: true, plan };
+  if (incoming.length === 0 && !allowEmpty) return { ok: true, plan };
   const keptIds = new Set<string>();
 
   for (const ticket of incoming) {
@@ -467,13 +468,16 @@ export async function loadEventUpdateState(
 /**
  * Writes only the keys in `payload` (already validated). Ticket types, when
  * given, are planned before and applied after the event row update, then
- * total_capacity is recomputed from the stored types.
+ * total_capacity is recomputed from the stored types. `clearSellableTypes`
+ * (private events) removes every sellable type: unsold ones are deleted,
+ * sold ones deactivated.
  */
 export async function updateEventWithDetails(
   eventId: string,
   payload: Record<string, any>,
   userId: string,
-  ticketTypes?: TicketTypeInput[]
+  ticketTypes?: TicketTypeInput[],
+  { clearSellableTypes = false }: { clearSellableTypes?: boolean } = {}
 ): Promise<
   | { success: true; event_id: string }
   | { success: false; error: string; validation: boolean }
@@ -491,8 +495,10 @@ export async function updateEventWithDetails(
     const db = getServerSupabase();
 
     let ticketPlan: TicketTypePlan | null = null;
-    if (ticketTypes && ticketTypes.length > 0) {
-      const planned = await planTicketTypeChanges(eventId, ticketTypes);
+    if ((ticketTypes && ticketTypes.length > 0) || clearSellableTypes) {
+      const planned = await planTicketTypeChanges(eventId, ticketTypes || [], {
+        allowEmpty: clearSellableTypes,
+      });
       if (!planned.ok) {
         return { success: false, error: planned.error, validation: planned.validation };
       }

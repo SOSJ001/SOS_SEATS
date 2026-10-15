@@ -47,27 +47,10 @@ export async function PUT({ request, locals, params }) {
       return json({ success: false, error: "Invalid JSON" }, { status: 400 });
     }
 
-    const validated = validateEventInput(body, "update", state.is_free_event);
-    if (!validated.ok) {
-      return json({ success: false, error: validated.error }, { status: 400 });
-    }
-    const { payload, ticketTypes } = validated.value;
-
-    if (
-      payload.is_free_event !== undefined &&
-      payload.is_free_event !== state.is_free_event &&
-      state.hasTicketSales
-    ) {
-      return json(
-        {
-          success: false,
-          error: "Tickets have already been sold, so the event can't switch between free and paid",
-        },
-        { status: 400 }
-      );
-    }
-
-    const toVisibility = payload.event_visibility;
+    const toVisibility =
+      body && typeof body === "object" && typeof body.event_visibility === "string"
+        ? body.event_visibility
+        : undefined;
     if (toVisibility !== undefined && toVisibility !== state.event_visibility) {
       if (toVisibility === "public" && state.hasPrivateTickets) {
         return json(
@@ -87,6 +70,31 @@ export async function PUT({ request, locals, params }) {
           { status: 400 }
         );
       }
+    }
+
+    const validated = validateEventInput(
+      body,
+      "update",
+      state.is_free_event,
+      state.event_visibility
+    );
+    if (!validated.ok) {
+      return json({ success: false, error: validated.error }, { status: 400 });
+    }
+    const { payload, ticketTypes, clearSellableTypes } = validated.value;
+
+    if (
+      payload.is_free_event !== undefined &&
+      payload.is_free_event !== state.is_free_event &&
+      state.hasTicketSales
+    ) {
+      return json(
+        {
+          success: false,
+          error: "Tickets have already been sold, so the event can't switch between free and paid",
+        },
+        { status: 400 }
+      );
     }
 
     const wasLive = state.status === "published" || state.status === "live";
@@ -120,7 +128,8 @@ export async function PUT({ request, locals, params }) {
       eventId,
       payload,
       user_Id,
-      ticketTypes
+      ticketTypes,
+      { clearSellableTypes: !!clearSellableTypes }
     );
 
     if (updateResult.success) {

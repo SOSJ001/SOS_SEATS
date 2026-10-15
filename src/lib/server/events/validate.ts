@@ -234,18 +234,23 @@ export function validateTicketTypes(
 export type ValidatedEventInput = {
   payload: Record<string, any>;
   ticketTypes?: TicketTypeInput[];
+  /** Private events keep no sellable ticket types; existing ones are removed on save. */
+  clearSellableTypes?: boolean;
 };
 
 /**
  * Validate an event body. In "create" mode the core fields are required;
  * in "update" mode only keys present in the body are validated and returned.
  * `currentIsFree` is the stored is_free_event, used to price tickets when the
- * body does not send is_free_event.
+ * body does not send is_free_event. `currentVisibility` is the stored
+ * event_visibility: private events take no sellable ticket types, public ones
+ * need at least one.
  */
 export function validateEventInput(
   body: unknown,
   mode: "create" | "update",
-  currentIsFree = false
+  currentIsFree = false,
+  currentVisibility = "public"
 ): Result<ValidatedEventInput> {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return err("Invalid request body");
@@ -341,8 +346,32 @@ export function validateEventInput(
     payload.contact_email = res.value;
   }
 
+  const storedVisibility = String(currentVisibility || "public").toLowerCase();
+  const visibility = payload.event_visibility ?? storedVisibility;
+
+  if (visibility === "private") {
+    const raw = b.ticket_types;
+    if (raw !== undefined && raw !== null && !Array.isArray(raw)) {
+      return err("Invalid ticket types");
+    }
+    if (Array.isArray(raw) && raw.length > 0) {
+      return err(
+        "Private events don't use ticket types. Generate invites from the Guests tab instead."
+      );
+    }
+    return ok({ payload, ticketTypes: [], clearSellableTypes: true });
+  }
+
+  const becomingPublic = mode === "update" && storedVisibility === "private";
+  if (
+    becomingPublic &&
+    (!Array.isArray(b.ticket_types) || b.ticket_types.length === 0)
+  ) {
+    return err("Add at least one ticket type before making it public");
+  }
+
   let ticketTypes: TicketTypeInput[] | undefined;
-  if (has("ticket_types")) {
+  if (has("ticket_types") || becomingPublic) {
     const isFree =
       payload.is_free_event !== undefined ? payload.is_free_event : currentIsFree;
     const res = validateTicketTypes(b.ticket_types, isFree);

@@ -3,6 +3,7 @@
  * Maps a `loadUserEvents` row to the shape used by OrganiserEventCard and the
  * dashboard / events list stats.
  */
+import { isPrivateEvent, isPrivateInviteName } from "$lib/eventVisibility.js";
 
 export const isActiveStatus = (status) => status === "published" || status === "live";
 
@@ -50,9 +51,22 @@ export function mapOrganiserEvent(event) {
   const revenueValue = stats
     ? Number(stats.totalRevenue) || 0
     : types.reduce((sum, t) => sum + (Number(t.price) || 0) * (Number(t.sold_quantity) || 0), 0);
-  const capacity =
+  const sellableCapacity =
     Number(event.total_capacity) ||
-    types.reduce((sum, t) => sum + (Number(t.quantity) || 0), 0);
+    types
+      .filter((t) => !isPrivateInviteName(t.name))
+      .reduce(
+        (sum, t) =>
+          sum +
+          (Number(t.is_active === false ? t.sold_quantity : t.quantity) || 0),
+        0,
+      );
+  const invitesIssued = types
+    .filter((t) => isPrivateInviteName(t.name))
+    .reduce((sum, t) => sum + (Number(t.sold_quantity) || 0), 0);
+  const capacity = isPrivateEvent(event)
+    ? sellableCapacity + invitesIssued
+    : sellableCapacity;
 
   const rawStatus = (event.status || "draft").toLowerCase();
   const isPast = isPastDate(event.date);

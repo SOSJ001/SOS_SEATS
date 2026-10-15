@@ -13,6 +13,7 @@
     saveEventDraft,
     clearEventDraft,
   } from "$lib/client/eventDraft";
+  import { draftIsPrivate, stepNumber } from "$lib/client/wizardSteps";
   import { showToast, defaultTicketDesignConfig } from "$lib/store";
 
   /** @type {"create" | "edit"} */
@@ -37,15 +38,6 @@
     { value: "21-plus", label: "21+" },
   ];
 
-  const visibilities = [
-    { value: "public", label: "Public", hint: "Show in browse" },
-    {
-      value: "private",
-      label: "Private",
-      hint: "Invite only. Generate tickets (fee per ticket), then share each one from the Guests tab.",
-    },
-  ];
-
   const summaryFields = [
     { label: "EVENT NAME", key: "name" },
     { label: "DATE & TIME", key: "dateTime" },
@@ -56,6 +48,7 @@
   ];
 
   $: isEdit = mode === "edit";
+  $: isPrivate = draftIsPrivate(eventData);
   $: canPublish = !isEdit || event?.status === "draft";
   $: busy = isPublishing || isSaving;
   $: hubHref = event?.id ? `/dashboard/events/eventDetails?id=${event.id}` : "/dashboard/events";
@@ -135,7 +128,7 @@
 
   // Template `{fn()}` does not track `eventData`; keep labels as $: deps.
   $: dateTimeDisplay = formatDateTime(eventData.date, eventData.time);
-  $: ticketTypesDisplay = ticketTypesSummaryFrom(eventData);
+  $: ticketTypesDisplay = isPrivate ? "Invite only" : ticketTypesSummaryFrom(eventData);
   $: audienceDisplay = audienceLabel(eventData.audience_type);
   $: visibilityDisplay = visibilityLabel(eventData.event_visibility);
 
@@ -154,12 +147,6 @@
     persist();
   }
 
-  function selectVisibility(value) {
-    eventData.event_visibility = value;
-    if (isEdit) eventData._dirty = true;
-    persist();
-  }
-
   function newImage() {
     return typeof eventData.imagePreview === "string" &&
       eventData.imagePreview.startsWith("data:")
@@ -168,6 +155,7 @@
   }
 
   function ticketRows() {
+    if (isPrivate) return [];
     return namedTypes(eventData).map((t) => ({
       ...(t.id ? { id: t.id } : {}),
       name: t.name,
@@ -221,8 +209,8 @@
             date: eventData.date || "",
             time: eventData.time || "",
             location: eventData.location || "",
-            total_capacity: totalCapacityOf(eventData),
-            ticket_type_count: namedTypes(eventData).length,
+            total_capacity: isPrivate ? 0 : totalCapacityOf(eventData),
+            ticket_type_count: isPrivate ? 0 : namedTypes(eventData).length,
           }),
         );
         clearEventDraft(draftKey);
@@ -316,12 +304,6 @@
       : "border-paper-border bg-white";
   }
 
-  function visibilityRowClass(selected) {
-    return selected
-      ? "border-2 border-brand bg-white"
-      : "border border-paper-border bg-white";
-  }
-
   function radioDot(selected) {
     return selected
       ? "border-brand bg-brand"
@@ -331,7 +313,7 @@
 
 <div class="flex flex-col gap-4 lg:gap-6" in:fade={{ duration: 200 }}>
   <h2 class="m-0 font-display text-[20px] font-bold text-ink lg:hidden">
-    4. Review Summary
+    {stepNumber(4, isPrivate)}. Review Summary
   </h2>
   <div class="hidden flex-col gap-1.5 lg:flex">
     <h2 class="m-0 text-[28px] font-extrabold leading-tight text-ink">Review</h2>
@@ -439,37 +421,6 @@
               <span class="text-[14px] font-bold text-ink lg:text-[13px] lg:font-semibold"
                 >{opt.label}</span
               >
-            </button>
-          {/each}
-        </div>
-      </div>
-
-      <div class="flex flex-col gap-1.5 lg:gap-3">
-        <p class="m-0 text-[13px] font-bold text-ink lg:text-sm lg:text-ink-secondary">
-          Visibility
-        </p>
-        <div class="flex flex-col gap-2 lg:gap-3">
-          {#each visibilities as opt}
-            <button
-              type="button"
-              class="flex w-full items-center gap-2.5 rounded-lg p-3 text-left cursor-pointer
-                {visibilityRowClass(eventData.event_visibility === opt.value)}"
-              on:click={() => selectVisibility(opt.value)}
-            >
-              <span
-                class="size-4 shrink-0 rounded-full border-[1.5px]
-                  {radioDot(eventData.event_visibility === opt.value)}"
-                aria-hidden="true"
-              ></span>
-              <span class="flex min-w-0 flex-col gap-0.5">
-                <span
-                  class="text-[14px] font-bold text-ink lg:text-[13px] lg:font-semibold"
-                  >{opt.label}</span
-                >
-                <span class="text-[12px] text-ink-secondary lg:text-[11px]"
-                  >{opt.hint}</span
-                >
-              </span>
             </button>
           {/each}
         </div>

@@ -4,7 +4,12 @@
   import { browser } from "$app/environment";
   import { page } from "$app/stores";
   import WizardStepper from "$lib/components/organizer/WizardStepper.svelte";
-  import { syncEditDraft } from "$lib/client/eventDraft";
+  import { editDraftKey, loadEventDraft, syncEditDraft } from "$lib/client/eventDraft";
+  import {
+    draftVisibility,
+    draftIsPrivate,
+    wizardSteps,
+  } from "$lib/client/wizardSteps";
   import { showToast } from "$lib/store";
 
   export let data;
@@ -30,6 +35,10 @@
           "This event changed since you started editing. Your unsaved edits were reset.",
         );
       }
+      const draft = loadEventDraft({}, editDraftKey(data.event.id));
+      draftVisibility.set(
+        draftIsPrivate(draft.event_visibility ? draft : data.event) ? "private" : "public",
+      );
     }
   }
 
@@ -38,6 +47,8 @@
     const m = $page.url.pathname.match(/\/step(\d)/);
     return m ? parseInt(m[1], 10) : 1;
   })();
+  $: steps = wizardSteps(EDIT_STEPS, $draftVisibility === "private");
+  $: position = Math.max(1, steps.findIndex((s) => s.id === currentStep) + 1);
 </script>
 
 <div class="w-full">
@@ -46,11 +57,11 @@
       ← Exit
     </a>
     <p class="m-0 text-base font-extrabold text-brand">
-      Step {currentStep} of {EDIT_STEPS.length}
+      Step {position} of {steps.length}
     </p>
   </header>
 
-  <WizardStepper {currentStep} steps={EDIT_STEPS} ariaLabel="Edit event steps" />
+  <WizardStepper {currentStep} {steps} ariaLabel="Edit event steps" />
 
   {#key data.event.updated_at}
     <slot />

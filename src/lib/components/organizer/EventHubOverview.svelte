@@ -9,6 +9,7 @@
     calculateOrganiserPlatformFee,
     formatPlatformFeePercent,
   } from "$lib/fees";
+  import { isPrivateEvent, isPrivateInviteName } from "$lib/eventVisibility.js";
 
   /** @type {any} */
   export let event = null;
@@ -25,17 +26,17 @@
     guestCount > 0 ? Math.round((checkedIn / guestCount) * 100) : 0;
   $: privateIssued = guests.filter((g) => {
     const status = String(g.status || "").toLowerCase();
-    const type = String(g.ticketType || "").toLowerCase();
     return (
       status === "issued" ||
-      type === "private invite" ||
+      isPrivateInviteName(g.ticketType) ||
       g.specialRequirements === "private_issue"
     );
   }).length;
+  $: isPrivate = isPrivateEvent(event);
 
   $: salesTypes = (
     Array.isArray(event?.ticketTypes) ? event.ticketTypes : []
-  ).filter((t) => String(t.name || "").toLowerCase() !== "private invite");
+  ).filter((t) => !isPrivateInviteName(t.name));
 
   $: totalRevenue = Number(event?.totalRevenue) || 0;
   $: platformFee = calculateOrganiserPlatformFee(totalRevenue);
@@ -92,7 +93,11 @@
             Total Guests Registered
           </p>
           <p class="m-0 text-[13px] font-semibold text-ink-secondary lg:text-[13px]">
-            Capacity: {event.totalCapacity || 0}
+            {#if isPrivate}
+              Invites: {privateIssued}
+            {:else}
+              Capacity: {event.totalCapacity || 0}
+            {/if}
           </p>
         </div>
       </div>
@@ -179,7 +184,14 @@
           Ticket Sales Summary
         </h3>
         {#if salesTypes.length === 0}
-          <p class="m-0 text-sm text-ink-secondary">No ticket types yet.</p>
+          <p class="m-0 text-sm text-ink-secondary">
+            {#if isPrivate}
+              Invite only. {privateIssued}
+              {privateIssued === 1 ? "invite" : "invites"} generated.
+            {:else}
+              No ticket types yet.
+            {/if}
+          </p>
         {:else}
           <div class="flex flex-col gap-4">
             {#each salesTypes as t, i}

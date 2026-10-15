@@ -41,7 +41,7 @@
       ? "Invite only. Generate tickets, then share each one from the Guests tab."
       : "Visible in browse.";
   $: visibilityValue = isPrivate ? "Private · Invite only" : "Public · Browse";
-  $: ticketsReleased = Number(snapshot?.total_capacity) || 0;
+  $: ticketsReleased = isPrivate ? 0 : Number(snapshot?.total_capacity) || 0;
   $: ticketTypeCount = Number(snapshot?.ticket_type_count) || 0;
   $: daysUntil = daysUntilEvent(snapshot?.date);
 
@@ -273,8 +273,12 @@
         <p
           class="m-0 text-[8px] font-medium uppercase tracking-wide text-ink-muted lg:text-[10px] lg:font-semibold"
         >
-          <span class="lg:hidden">Tickets</span>
-          <span class="hidden lg:inline">Tickets Released</span>
+          {#if isPrivate}
+            Invites
+          {:else}
+            <span class="lg:hidden">Tickets</span>
+            <span class="hidden lg:inline">Tickets Released</span>
+          {/if}
         </p>
         <p class="m-0 text-[18px] font-bold text-ink lg:mt-1 lg:text-lg lg:font-extrabold">
           {ticketsReleased}
@@ -298,11 +302,15 @@
         <p
           class="m-0 text-[8px] font-medium uppercase tracking-wide text-ink-muted lg:text-[10px] lg:font-semibold"
         >
-          <span class="lg:hidden">Types</span>
-          <span class="hidden lg:inline">Ticket Types</span>
+          {#if isPrivate}
+            Access
+          {:else}
+            <span class="lg:hidden">Types</span>
+            <span class="hidden lg:inline">Ticket Types</span>
+          {/if}
         </p>
         <p class="m-0 text-[18px] font-bold text-ink lg:mt-1 lg:text-lg lg:font-extrabold">
-          {ticketTypeCount}
+          {isPrivate ? "Invite only" : ticketTypeCount}
         </p>
       </div>
       <div
