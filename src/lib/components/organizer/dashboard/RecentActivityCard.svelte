@@ -42,7 +42,7 @@
       </div>
       <p class="m-0 text-[16px] font-bold leading-[22px] text-ink">No Recent Activity</p>
       <p class="m-0 text-[13px] leading-[18px] text-ink-secondary">
-        Recent ticket sales, guest check-ins, and event updates will appear here.
+        Recent ticket sales, private tickets, guest check-ins, and event updates will appear here.
       </p>
       <ul class="m-0 flex list-none flex-col gap-1 p-0 pt-1 text-[12px] leading-4 text-ink-muted">
         {#each TIPS as tip}

@@ -21,14 +21,3 @@ export function setupSmoothScrolling() {
     }
   });
 }
-
-// Scroll to element with animation
-export function scrollToElement(element, offset = 80) {
-  if (element) {
-    const targetPosition = element.offsetTop - offset;
-    window.scrollTo({
-      top: targetPosition,
-      behavior: "smooth",
-    });
-  }
-}

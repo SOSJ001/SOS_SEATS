@@ -8,6 +8,7 @@
   import MyTicketsStats from "./MyTicketsStats.svelte";
   import MyTicketsTicketRow from "./MyTicketsTicketRow.svelte";
   import AttendeeTabs from "./AttendeeTabs.svelte";
+  import PaymentAttemptRow from "./PaymentAttemptRow.svelte";
 
   export let userName = "Attendee";
   /** @type {any} */
@@ -20,7 +21,9 @@
   export let upcoming = [];
   /** @type {any[]} */
   export let past = [];
-  /** @type {"upcoming" | "past"} */
+  /** @type {any[]} Marketplace payment attempts (Payments tab) */
+  export let payments = [];
+  /** @type {"upcoming" | "past" | "payments"} */
   export let tab = "upcoming";
   /** @type {(ticket: any) => void} */
   export let onShowQr = () => {};
@@ -36,20 +39,23 @@
   export let onFeedback = () => {};
   /** @type {(ticket: any) => void} */
   export let onViewDetails = () => {};
-  /** @type {(next: "upcoming" | "past") => void} */
+  /** @type {(next: "upcoming" | "past" | "payments") => void} */
   export let onTabChange = () => {};
 
   const pageSize = 4;
   let pageIndex = 0;
 
   $: displayName = userName || "Attendee";
-  $: list = tab === "upcoming" ? upcoming : past;
-  $: activeHighlight = tab === "past" ? pastHighlight : highlight;
+  $: isPayments = tab === "payments";
+  $: list = isPayments ? payments : tab === "upcoming" ? upcoming : past;
+  $: activeHighlight = isPayments ? null : tab === "past" ? pastHighlight : highlight;
   $: highlightVariant = tab === "past" ? "past" : "upcoming";
-  $: emptyCopy =
-    tab === "upcoming"
+  $: emptyCopy = isPayments
+    ? "No ticket payments yet."
+    : tab === "upcoming"
       ? "No upcoming tickets yet. Claim or buy a pass to see it here."
       : "No past tickets yet.";
+  $: itemNoun = isPayments ? "payments" : "tickets";
 
   // Reset to first page when tab or list length changes
   $: tab, list.length, (pageIndex = 0);
@@ -106,6 +112,7 @@
     tabs={[
       { id: "upcoming", label: "Upcoming" },
       { id: "past", label: "Past History" },
+      { id: "payments", label: "Payments" },
     ]}
     active={tab}
     onChange={setTab}
@@ -120,23 +127,29 @@
         {emptyCopy}
       </p>
     {:else}
-      {#each pageRows as ticket (ticket.id)}
-        <MyTicketsTicketRow
-          {ticket}
-          {tab}
-          onShowQr={() => onShowQr(ticket)}
-          onTransfer={() => onTransfer(ticket)}
-          onDownload={() => onDownload(ticket)}
-          onViewDetails={() => onViewDetails(ticket)}
-        />
-      {/each}
+      {#if isPayments}
+        {#each pageRows as payment (payment.id)}
+          <PaymentAttemptRow {payment} />
+        {/each}
+      {:else}
+        {#each pageRows as ticket (ticket.id)}
+          <MyTicketsTicketRow
+            {ticket}
+            {tab}
+            onShowQr={() => onShowQr(ticket)}
+            onTransfer={() => onTransfer(ticket)}
+            onDownload={() => onDownload(ticket)}
+            onViewDetails={() => onViewDetails(ticket)}
+          />
+        {/each}
+      {/if}
 
       {#if showPager}
         <div
           class="flex flex-col items-stretch gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between"
         >
           <p class="m-0 text-[13px] text-ink-secondary">
-            Showing {rangeStart}–{rangeEnd} of {list.length} tickets
+            Showing {rangeStart}–{rangeEnd} of {list.length} {itemNoun}
           </p>
           <div class="flex flex-wrap items-center gap-2">
             <button

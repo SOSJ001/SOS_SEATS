@@ -23,6 +23,7 @@
   export let ticketTypes = [];
   export let ticketCount = 1;
   export let amountLabel = "";
+  export let amountTitle = "Amount Paid";
   export let paymentMethod = "Orange Money";
   export let timestamp = "";
   export let orderNumber = "";
@@ -56,6 +57,7 @@
     {dateLabel}
     {eventLocation}
     {amountLabel}
+    {amountTitle}
     {paymentMethod}
     {timestamp}
     {orderNumber}
@@ -99,6 +101,7 @@
         {ticketTypes}
         {ticketCount}
         {amountLabel}
+        {amountTitle}
         {paymentMethod}
         {timestamp}
         {orderNumber}

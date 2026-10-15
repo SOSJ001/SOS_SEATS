@@ -69,10 +69,18 @@ export async function load({ params, locals, url }) {
 
   const image = eventData.images?.[0]?.file_path || null;
 
-  const amount =
-    typeof order.total_amount === "string"
-      ? parseFloat(order.total_amount)
-      : Number(order.total_amount) || 0;
+  // total_amount is the ticket price only (organiser wallet maths). The hold
+  // has the exact charge incl. booking fee; older orders have no hold.
+  const ticketPrice = Number(order.total_amount) || 0;
+  const { data: hold } = await getServerSupabase()
+    .from("checkout_holds")
+    .select("amount")
+    .eq("order_id", order.id)
+    .limit(1)
+    .maybeSingle();
+  const isFree = order.payment_method === "free" || ticketPrice === 0;
+  const amount = hold ? Number(hold.amount) || 0 : ticketPrice;
+  const amountTitle = hold || isFree ? "Amount Paid" : "Ticket price";
 
   const qrPayload = await resolveOwnedQrToken(items, locals.userId);
 
@@ -91,6 +99,7 @@ export async function load({ params, locals, url }) {
       id: order.id,
       orderNumber: order.order_number || order.id,
       amount,
+      amountTitle,
       paymentMethod: paymentMethodLabel(order.payment_method),
       timestamp: formatTimestamp(
         order.created_at ? new Date(order.created_at) : new Date()

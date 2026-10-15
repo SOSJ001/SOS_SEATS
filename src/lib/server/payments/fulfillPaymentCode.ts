@@ -9,6 +9,7 @@ import {
   findOrderByTransactionHash,
 } from "$lib/server/tickets";
 import { getMonimeCredentials } from "./monimeEnv";
+import { findHoldForPaymentCode, updateHold } from "./checkoutHolds";
 
 export type FulfillPaymentCodeResult =
   | {
@@ -154,6 +155,21 @@ export async function fulfillPaymentCode(input: {
   const buyerName = String(metadata.buyer_name || "Guest User");
   const phone = metadata.phone ? String(metadata.phone) : undefined;
 
+  const hold = await findHoldForPaymentCode(
+    paymentCodeId,
+    metadata.hold_id ? String(metadata.hold_id) : null
+  );
+  const completeHold = async (orderId: string) => {
+    if (hold && (hold.status !== "completed" || hold.order_id !== orderId)) {
+      await updateHold(hold.id, {
+        status: "completed",
+        paid: true,
+        order_id: orderId,
+        error: null,
+      });
+    }
+  };
+
   // Idempotency: payment code id only (stable across processed + completed)
   const existing = await findOrderByTransactionHash(
     paymentCodeId,
@@ -164,6 +180,7 @@ export async function fulfillPaymentCode(input: {
     if (buyerId) {
       await attachBuyerId(existing.id, buyerId, paymentMethod);
     }
+    await completeHold(existing.id);
     return {
       ok: true,
       orderId: existing.id,
@@ -182,12 +199,19 @@ export async function fulfillPaymentCode(input: {
       if (buyerId) {
         await attachBuyerId(existingOm.id, buyerId, paymentMethod);
       }
+      await completeHold(existingOm.id);
       return {
         ok: true,
         orderId: existingOm.id,
         orderNumber: existingOm.order_number,
       };
     }
+  }
+
+  // Money has arrived: record it before creating the order, so a failure
+  // below still shows as "paid, tickets not created".
+  if (hold && !hold.paid) {
+    await updateHold(hold.id, { paid: true });
   }
 
   const amountCents =
@@ -222,6 +246,7 @@ export async function fulfillPaymentCode(input: {
     if (buyerId) {
       await attachBuyerId(result.orderId, buyerId, paymentMethod);
     }
+    await completeHold(result.orderId);
     return {
       ok: true,
       orderId: result.orderId,
@@ -239,6 +264,7 @@ export async function fulfillPaymentCode(input: {
     if (buyerId) {
       await attachBuyerId(raced.id, buyerId, paymentMethod);
     }
+    await completeHold(raced.id);
     return {
       ok: true,
       orderId: raced.id,
@@ -255,6 +281,7 @@ export async function fulfillPaymentCode(input: {
     if (buyerId) {
       await attachBuyerId(racedOm.id, buyerId, paymentMethod);
     }
+    await completeHold(racedOm.id);
     return {
       ok: true,
       orderId: racedOm.id,
@@ -262,5 +289,9 @@ export async function fulfillPaymentCode(input: {
     };
   }
 
-  return { ok: false, error: result.error || "Fulfill failed", status: 500 };
+  const error = result.error || "Fulfill failed";
+  if (hold) {
+    await updateHold(hold.id, { status: "failed", paid: true, error });
+  }
+  return { ok: false, error, status: 500 };
 }

@@ -1,7 +1,9 @@
 import { json } from "@sveltejs/kit";
 import {
   createEventWithDetails,
+  decodeEventImageDataUrl,
   uploadEventImage,
+  validateEventInput,
 } from "$lib/server/events";
 
 export async function POST({ request, locals }) {
@@ -13,85 +15,43 @@ export async function POST({ request, locals }) {
     }
 
     let eventData;
-    let imageFile = null;
-    let imageBase64 = null;
-
-    const contentType = request.headers.get("content-type");
-
-    if (contentType && contentType.includes("application/json")) {
+    try {
       eventData = await request.json();
-      if (
-        eventData.image &&
-        typeof eventData.image === "string" &&
-        eventData.image.startsWith("data:")
-      ) {
-        imageBase64 = eventData.image;
-      }
-    } else {
-      const formData = await request.formData();
-      eventData = JSON.parse(formData.get("eventData"));
-      imageFile = formData.get("image");
+    } catch {
+      return json({ success: false, error: "Invalid JSON" }, { status: 400 });
     }
 
+    const validated = validateEventInput(eventData, "create");
+    if (!validated.ok) {
+      return json({ success: false, error: validated.error }, { status: 400 });
+    }
+    const { payload, ticketTypes = [] } = validated.value;
+
     let imageId = null;
-
-    if (imageFile && imageFile.size > 0) {
-      const uploadResult = await uploadEventImage(imageFile, user_Id);
-      if (uploadResult.success) {
-        imageId = uploadResult.image_id;
-      } else {
-        return json(
-          { success: false, error: "Failed to upload image" },
-          { status: 400 }
-        );
+    const image = typeof eventData.image === "string" ? eventData.image : "";
+    if (image.startsWith("data:")) {
+      const decoded = decodeEventImageDataUrl(image);
+      if (!decoded.ok) {
+        return json({ success: false, error: decoded.error }, { status: 400 });
       }
-    } else if (imageBase64) {
-      try {
-        const base64Response = await fetch(imageBase64);
-        const blob = await base64Response.blob();
-        const file = new File([blob], "event-image.jpg", { type: blob.type });
-
-        const uploadResult = await uploadEventImage(file, user_Id);
-        if (uploadResult.success) {
-          imageId = uploadResult.image_id;
-        } else {
-          return json(
-            { success: false, error: "Failed to upload image" },
-            { status: 400 }
-          );
-        }
-      } catch {
-        return json(
-          { success: false, error: "Failed to process image" },
-          { status: 400 }
-        );
+      const upload = await uploadEventImage(decoded.image, user_Id);
+      if (!upload.success) {
+        return json({ success: false, error: upload.error }, { status: 500 });
       }
+      imageId = upload.image_id;
     }
 
     const eventPayload = {
-      name: eventData.name,
-      description: eventData.description,
-      date: eventData.date,
-      time: eventData.time,
-      location: eventData.location,
-      venue_address: eventData.venue_address,
-      category: eventData.category,
-      tags: eventData.tags || [],
-      organizer: eventData.organizer,
-      contact_email: eventData.contact_email,
-      website: eventData.website,
-      social_media: eventData.social_media || {},
+      ...payload,
+      tags: payload.tags || [],
+      social_media: payload.social_media || {},
       image_id: imageId,
-      is_free_event: eventData.is_free_event || false,
-      seating_type: eventData.seating_type || "general",
-      total_capacity: parseInt(eventData.total_capacity) || 0,
-      audience_type: eventData.audience_type || "all-ages",
-      event_visibility: eventData.event_visibility || "public",
-      status: eventData.status || "draft",
-      ticket_design_config: eventData.ticket_design_config || null,
-      ticket_types: eventData.ticket_types || [],
-      venue_sections: eventData.venue_sections || [],
-      seating_options: eventData.seating_options || {},
+      total_capacity: ticketTypes.reduce((sum, t) => sum + t.quantity, 0),
+      ticket_types: ticketTypes.map((t) => ({ ...t, benefits: [] })),
+      venue_address: null,
+      seating_type: "general",
+      venue_sections: [],
+      seating_options: { max_seats_per_order: 1 },
     };
 
     const result = await createEventWithDetails(eventPayload, user_Id);
@@ -102,10 +62,11 @@ export async function POST({ request, locals }) {
         message: "Event created successfully",
       });
     }
-    return json({ success: false, error: result.error }, { status: 400 });
-  } catch {
+    return json({ success: false, error: result.error }, { status: 500 });
+  } catch (error) {
+    console.error("createEventApi failed", error);
     return json(
-      { success: false, error: "Internal server error" },
+      { success: false, error: "Could not save the event" },
       { status: 500 }
     );
   }

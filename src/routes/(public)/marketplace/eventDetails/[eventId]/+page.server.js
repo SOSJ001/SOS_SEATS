@@ -1,8 +1,11 @@
 import { error } from "@sveltejs/kit";
 import { getEventById, loadPublicEvents } from "$lib/supabase";
+import { getMaxPerOrder } from "$lib/server/events";
+import { DEFAULT_CATEGORY } from "$lib/eventCategories";
+import { getActiveHoldCounts } from "$lib/server/payments";
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ params }) {
+export async function load({ params, locals }) {
   const eventId = params.eventId;
   if (!eventId) {
     throw error(404, "Event not found");
@@ -29,6 +32,7 @@ export async function load({ params }) {
       }));
 
   const image = eventData.images?.[0]?.file_path || null;
+  const held = await getActiveHoldCounts(eventId, locals.userId);
 
   const ticketTypes = (eventData.ticket_types || []).map((ticket) => ({
     id: ticket.id,
@@ -41,7 +45,7 @@ export async function load({ params }) {
     features: ticket.benefits || [],
     available_quantity: Math.max(
       0,
-      (ticket.quantity || 0) - (ticket.sold_quantity || 0)
+      (ticket.quantity || 0) - (ticket.sold_quantity || 0) - (held[ticket.id] || 0)
     ),
   }));
 
@@ -62,12 +66,13 @@ export async function load({ params }) {
     description: eventData.description || "",
     time: eventData.time || "",
     organizer: eventData.organizer || "",
-    category: eventData.category || "General",
+    category: eventData.category || DEFAULT_CATEGORY,
     total_capacity: eventData.total_capacity,
     ticket_types: ticketTypes,
     venue_sections: eventData.venue_sections || [],
-    seating_options: eventData.seating_options?.[0] || {
-      max_seats_per_order: 10,
+    seating_options: {
+      ...(eventData.seating_options?.[0] || {}),
+      max_seats_per_order: await getMaxPerOrder(eventId),
     },
     is_free_event: !!isFreeEvent,
   };

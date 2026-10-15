@@ -1,14 +1,15 @@
 /**
  * Marketplace checkout quote check before a Monime payment code is created
- * (roadmap 5.8 / FR-33). Rejects stale prices and sold-out or inactive types.
+ * (roadmap 5.8 / FR-33). Rejects stale prices and inactive or free types.
  * Do not import from client components.
  */
 import { getServerSupabase } from "$lib/server/db";
 import { calculateBookingFee } from "$lib/fees.js";
 import { parseSelectedTickets } from "./fulfillPaymentCode";
+import { isEventOnSale } from "$lib/server/events/onSale";
 
 export type CheckoutQuoteResult =
-  | { ok: true }
+  | { ok: true; eventId: string; selected: Record<string, number>; chargeCents: number }
   | {
       ok: false;
       code: "unavailable" | "price_changed" | "invalid_selection";
@@ -42,9 +43,25 @@ export async function validateCheckoutQuote(input: {
   }
 
   const supabase = getServerSupabase();
+  const { data: event, error: eventError } = await supabase
+    .from("events")
+    .select("status, event_visibility")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (eventError) {
+    throw new Error(eventError.message);
+  }
+  if (!isEventOnSale(event)) {
+    return {
+      ok: false,
+      code: "unavailable",
+      message: "Tickets for this event are not on sale.",
+    };
+  }
+
   const { data, error } = await supabase
     .from("ticket_types")
-    .select("id, price, quantity, sold_quantity, is_active")
+    .select("id, price, is_active")
     .eq("event_id", eventId)
     .in("id", ids);
 
@@ -59,8 +76,8 @@ export async function validateCheckoutQuote(input: {
   for (const row of data) {
     const qty = selected[row.id] || 0;
     const price = parsePrice(row.price);
-    const available = (row.quantity || 0) - (row.sold_quantity || 0);
-    if (row.is_active === false || available < qty) {
+    // Stock is checked by create_checkout_hold, which also counts other buyers' holds.
+    if (row.is_active === false) {
       return {
         ok: false,
         code: "unavailable",
@@ -82,5 +99,5 @@ export async function validateCheckoutQuote(input: {
     };
   }
 
-  return { ok: true };
+  return { ok: true, eventId, selected, chargeCents: expectedCents };
 }

@@ -1,10 +1,37 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { getServerSupabase } from "$lib/server/db";
+import {
+  fetchPaymentCodeFromMonime,
+  fulfillPaymentCode,
+} from "$lib/server/payments";
+
+async function findOrder(transactionId: string, eventId: string, paymentMethod: string) {
+  const db = getServerSupabase();
+  const lookup = (method?: string) => {
+    let query = db
+      .from("orders")
+      .select("id, order_number, buyer_id, payment_method")
+      .eq("transaction_hash", transactionId)
+      .eq("event_id", eventId);
+    if (method) query = query.eq("payment_method", method);
+    return query.order("created_at", { ascending: true }).limit(1);
+  };
+
+  let { data, error } = await lookup(paymentMethod || undefined);
+  // RPC historically hardcodes orange_money; retry without method filter
+  if (!data?.length && !error && paymentMethod) {
+    ({ data, error } = await lookup());
+  }
+  if (error) throw new Error(error.message || "Lookup failed");
+  return data?.[0] ?? null;
+}
 
 /**
- * Lookup order created by webhook fulfill (roadmap 5.4).
+ * Order for a marketplace payment code (roadmap 5.4).
  * Auth required; only returns the caller's own order (buyer_id match).
+ * If Monime says the code is paid but no order exists yet (webhook late or
+ * missing), creates it here; safe alongside the webhook.
  */
 export const GET: RequestHandler = async ({ url, locals }) => {
   if (!locals.userId) {
@@ -23,40 +50,39 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   }
 
   try {
-    const db = getServerSupabase();
-    let query = db
-      .from("orders")
-      .select("id, order_number, buyer_id, payment_method")
-      .eq("transaction_hash", transactionId)
-      .eq("event_id", eventId);
-
-    if (paymentMethod) {
-      query = query.eq("payment_method", paymentMethod);
-    }
-
-    let { data: order, error } = await query.maybeSingle();
-
-    // RPC historically hardcodes orange_money; retry without method filter
-    if (!order && !error && paymentMethod) {
-      const retry = await db
-        .from("orders")
-        .select("id, order_number, buyer_id, payment_method")
-        .eq("transaction_hash", transactionId)
-        .eq("event_id", eventId)
-        .maybeSingle();
-      order = retry.data;
-      error = retry.error;
-    }
-
-    if (error) {
-      return json(
-        { success: false, error: error.message || "Lookup failed" },
-        { status: 500 }
-      );
-    }
+    let order = await findOrder(transactionId, eventId, paymentMethod);
 
     if (!order) {
-      return json({ success: true, found: false });
+      const code = await fetchPaymentCodeFromMonime(transactionId);
+      const meta = (code?.metadata || {}) as Record<string, unknown>;
+      if (
+        !code ||
+        String(meta.buyer_id || "") !== locals.userId ||
+        String(meta.event_id || "") !== eventId
+      ) {
+        return json({ success: true, found: false });
+      }
+      if (String(code.status || "").toLowerCase() !== "completed") {
+        return json({ success: true, found: false });
+      }
+
+      const fulfilled = await fulfillPaymentCode({
+        paymentCodeId: transactionId,
+        metadata: meta,
+        data: code,
+      });
+      if (!fulfilled.ok) {
+        return json({
+          success: true,
+          found: false,
+          paidNoTickets: true,
+          error: fulfilled.error,
+        });
+      }
+      order = await findOrder(transactionId, eventId, paymentMethod);
+      if (!order) {
+        return json({ success: true, found: false });
+      }
     }
 
     if (!order.buyer_id || order.buyer_id !== locals.userId) {

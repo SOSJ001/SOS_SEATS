@@ -1,8 +1,9 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import {
-  getMonimeCredentials,
+  cancelMonimePaymentCode,
   fetchPaymentCodeFromMonime,
+  markPaymentCodeEnded,
 } from "$lib/server/payments";
 
 /** Cancel an unused payment code the signed-in user created. */
@@ -26,40 +27,17 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
       return json({ success: false, error: "Not found" }, { status: 404 });
     }
 
-    const creds = getMonimeCredentials();
-    if (!creds) {
+    const cancelled = await cancelMonimePaymentCode(codeId);
+    if (!cancelled.ok) {
       return json(
-        { success: false, error: "Monime API credentials not configured" },
-        { status: 500 }
+        { success: false, error: cancelled.error },
+        { status: cancelled.status }
       );
     }
 
-    const response = await fetch(
-      `https://api.monime.io/v1/payment-codes/${encodeURIComponent(codeId)}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${creds.apiKey}`,
-          "Content-Type": "application/json",
-          "Monime-Space-Id": creds.spaceId,
-          "Monime-Version": "caph.2025-08-23",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return json(
-        {
-          success: false,
-          error: errorData.message || "Failed to cancel payment code",
-        },
-        { status: response.status }
-      );
-    }
-
-    const result = await response.json().catch(() => ({}));
-    return json({ success: true, data: result });
+    // Only after Monime confirms, so a paid attempt is never shown as cancelled.
+    await markPaymentCodeEnded(codeId, "cancelled");
+    return json({ success: true, data: cancelled.data });
   } catch (error) {
     return json(
       {

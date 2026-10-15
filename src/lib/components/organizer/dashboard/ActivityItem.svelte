@@ -6,15 +6,21 @@
   import Ticket from "lucide-svelte/icons/ticket";
   import Users from "lucide-svelte/icons/users";
   import Calendar from "lucide-svelte/icons/calendar";
+  import TicketCheck from "lucide-svelte/icons/ticket-check";
 
-  /** "ticket_sale" | "check_in" | "event_created" */
+  /** "ticket_sale" | "check_in" | "event_created" | "private_issue" */
   export let type = "ticket_sale";
   export let message = "";
   export let details = "";
   export let time = "";
   export let showConnector = true;
 
-  const ICONS = { ticket_sale: Ticket, check_in: Users, event_created: Calendar };
+  const ICONS = {
+    ticket_sale: Ticket,
+    check_in: Users,
+    event_created: Calendar,
+    private_issue: TicketCheck,
+  };
   $: icon = ICONS[type] || Calendar;
 </script>
 

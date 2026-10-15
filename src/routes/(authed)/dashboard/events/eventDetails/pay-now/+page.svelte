@@ -13,14 +13,22 @@
   import MmProviderLogo from "$lib/components/public/MmProviderLogo.svelte";
   import { monimeService } from "$lib/monime";
   import { showToast } from "$lib/store";
+  import {
+    PRIVATE_ISSUE_FEE_NLE,
+    privateIssueChargeCents,
+    privateIssueFeeTotal,
+  } from "$lib/privateIssueLimits";
 
   export let data;
 
   $: event = data.event;
   $: error = data.error;
   $: qty = data.qty || 1;
-  $: feeEach = data.feeEach || 0.99;
-  $: feeTotal = data.feeTotal || qty * feeEach;
+  $: feeEach = data.feeEach || PRIVATE_ISSUE_FEE_NLE;
+  $: feeTotal = privateIssueFeeTotal(qty);
+  $: chargeCents = privateIssueChargeCents(qty);
+  $: chargeTotal = chargeCents / 100;
+  $: mobileMoneyFee = Math.round((chargeTotal - feeTotal) * 100) / 100;
 
   /** @type {"orange_money" | "afrimoney"} */
   let paymentMethod = "orange_money";
@@ -42,11 +50,6 @@
     creating = true;
     paymentStatus = "pending";
     try {
-      // Exact issue fee (no buyer booking fee / no 5% organiser fee).
-      // Keep Monime 1% top-up so net received covers fee after Monime cut.
-      const monimeFee = feeTotal * 0.01;
-      const chargeAmount = feeTotal + monimeFee;
-
       const providerMap = {
         orange_money: ["m17"],
         afrimoney: ["m18"],
@@ -56,7 +59,7 @@
         `${event.title} — Private issue × ${qty}`,
         {
           currency: "SLE",
-          value: Math.round(chargeAmount * 100),
+          value: chargeCents,
         },
         providerMap[paymentMethod] || ["m17"],
         {
@@ -217,6 +220,14 @@
               >NLe {feeTotal.toFixed(2)}</span
             >
           </div>
+          <div
+            class="flex items-center justify-between text-sm lg:text-[12px]"
+          >
+            <span class="text-ink-secondary">Mobile money fee (1%)</span>
+            <span class="font-semibold text-ink lg:font-bold"
+              >NLe {mobileMoneyFee.toFixed(2)}</span
+            >
+          </div>
           <div class="h-px w-full bg-paper-border lg:hidden"></div>
           <div
             class="flex items-center justify-between rounded-xl border border-brand/10 bg-[#fff7ed] p-3 lg:rounded-lg lg:px-2.5 lg:py-2"
@@ -227,7 +238,7 @@
             >
             <span
               class="font-display text-[22px] font-bold text-brand lg:text-xl"
-              >NLe {feeTotal.toFixed(2)}</span
+              >NLe {chargeTotal.toFixed(2)}</span
             >
           </div>
         </div>

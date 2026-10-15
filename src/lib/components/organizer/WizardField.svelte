@@ -12,6 +12,9 @@
   export let max = undefined;
   export let step = undefined;
   export let rows = undefined;
+  export let maxlength = undefined;
+  export let name = undefined;
+  export let inputmode = undefined;
 
   function onInput(e) {
     value = e.currentTarget.value;
@@ -25,10 +28,12 @@
   {#if type === "textarea"}
     <textarea
       {id}
+      {name}
       {required}
       {placeholder}
       {disabled}
       {rows}
+      {maxlength}
       {value}
       on:input={onInput}
       class="w-full rounded-lg border bg-white px-3.5 py-3 text-base text-ink placeholder:text-[#999] focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:opacity-50
@@ -37,6 +42,7 @@
   {:else if type === "select"}
     <select
       {id}
+      {name}
       {required}
       {disabled}
       {value}
@@ -49,6 +55,8 @@
   {:else}
     <input
       {id}
+      {name}
+      {inputmode}
       {type}
       {required}
       {placeholder}
@@ -56,6 +64,7 @@
       {min}
       {max}
       {step}
+      {maxlength}
       {value}
       on:input={onInput}
       class="h-[42px] w-full rounded-lg border bg-white px-3.5 text-base text-ink placeholder:text-[#999] focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:opacity-50

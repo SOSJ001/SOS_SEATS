@@ -1,7 +1,7 @@
 <script>
   // @ts-nocheck
   /**
-   * "..." overflow menu on the organiser event card: Share, and Publish for drafts.
+   * "..." overflow menu on the organiser event card: Share (public, live events), and Publish for drafts.
    */
   import { createEventDispatcher } from "svelte";
   import Ellipsis from "lucide-svelte/icons/ellipsis";
@@ -12,6 +12,7 @@
   export let eventId;
   export let eventTitle = "event";
   export let canPublish = false;
+  export let canShare = true;
   /** Tailwind classes for the trigger button background. */
   export let triggerClass = "bg-paper";
 
@@ -66,18 +67,20 @@
       class="absolute right-0 top-full z-20 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-paper-border bg-paper py-1 shadow-public-card"
       role="menu"
     >
-      <button
-        type="button"
-        role="menuitem"
-        class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-ink hover:bg-paper-cream"
-        on:click={onShare}
-      >
-        <Share2 class="size-4 text-ink-secondary" aria-hidden="true" />
-        Share
-      </button>
+      {#if canShare}
+        <button
+          type="button"
+          role="menuitem"
+          class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-ink hover:bg-paper-cream"
+          on:click={onShare}
+        >
+          <Share2 class="size-4 text-ink-secondary" aria-hidden="true" />
+          Share
+        </button>
+      {/if}
       {#if canPublish}
         <a
-          href="/dashboard/events/editEvent/{eventId}/step5"
+          href="/dashboard/events/editEvent/{eventId}/step4"
           role="menuitem"
           class="flex w-full items-center gap-2 px-3 py-2 text-[13px] font-semibold text-brand no-underline hover:bg-paper-cream"
           on:click={() => close()}

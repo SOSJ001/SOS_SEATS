@@ -78,7 +78,7 @@
     const ticketType = ticketTypes.find((t) => t.id === ticketId);
     if (!ticketType) return;
 
-    const maxSeatsPerOrder = event?.seating_options?.max_seats_per_order || 10;
+    const maxSeatsPerOrder = event?.seating_options?.max_seats_per_order || 1;
     const eventTotalCapacity = event?.total_capacity || 100;
     const ticketTypeCapacity = ticketType.available_quantity;
 
@@ -174,7 +174,7 @@
       return;
     }
 
-    const maxSeatsPerOrder = event?.seating_options?.max_seats_per_order || 10;
+    const maxSeatsPerOrder = event?.seating_options?.max_seats_per_order || 1;
     for (const [, quantity] of Object.entries(selectedTickets)) {
       if (quantity > maxSeatsPerOrder) {
         showToast(

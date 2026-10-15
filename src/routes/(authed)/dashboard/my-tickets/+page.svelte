@@ -26,6 +26,7 @@
   $: stats = data?.stats || { upcoming: 0, past: 0, transfer: 0 };
   $: upcoming = data?.upcoming || [];
   $: past = data?.past || [];
+  $: payments = data?.payments || [];
 
   function toOverlayProps(ticket) {
     return {
@@ -158,6 +159,7 @@
   {stats}
   {upcoming}
   {past}
+  {payments}
   {tab}
   onTabChange={(next) => (tab = next)}
   onShowQr={openQr}

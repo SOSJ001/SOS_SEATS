@@ -6,13 +6,42 @@
 import { getServerSupabase } from "$lib/server/db";
 import { generateUniqueFilename } from "$lib/store";
 import { formatNle, providerLabel } from "$lib/client/walletFormat";
+import { isPrivateEvent } from "$lib/eventVisibility";
 import { PRIVATE_INVITE_TYPE_NAME } from "$lib/server/payments/privateIssue";
+import { ticketCapacity, type TicketTypeInput } from "./validate";
+
+export {
+  ticketCapacity,
+  validateEventInput,
+  normalizeCategory,
+  normalizeTags,
+  normalizeUrl,
+  normalizeSocialMedia,
+  normalizeEmail,
+} from "./validate";
+export { isEventOnSale } from "./onSale";
+export {
+  getMaxPerOrder,
+  updateEventSettings,
+  DEFAULT_MAX_PER_ORDER,
+  type EventSettingsInput,
+} from "./settings";
 
 function orderActivityDetails(order: any): string {
   const ref = `Order #${order.order_number}`;
   if (order.payment_method === "free") return `${ref} - Free ticket`;
   const via = order.payment_method === "solana" ? "Solana" : providerLabel(order.payment_method);
   return `${ref} - ${formatNle(parseFloat(order.total_amount))} via ${via}`;
+}
+
+function privateIssueActivityDetails(row: any): string {
+  const qty = Number(row.metadata?.qty) || 0;
+  const tickets = `${qty} ticket${qty === 1 ? "" : "s"}`;
+  const amount = formatNle(Math.abs(parseFloat(row.amount) || 0));
+  if (row.type === "private_issue_payment") {
+    return `${tickets} - ${amount} via ${providerLabel(row.metadata?.payment_method)}`;
+  }
+  return `${tickets} - ${amount} from balance`;
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -36,38 +65,72 @@ function formatTimeAgo(dateString: string): string {
   return date.toLocaleDateString();
 }
 
+export const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024;
+
+export type EventImage = { bytes: Uint8Array; mime: string; ext: string };
+
+function sniffImageType(bytes: Uint8Array): { mime: string; ext: string } | null {
+  const at = (i: number) => bytes[i];
+  if (bytes.length >= 3 && at(0) === 0xff && at(1) === 0xd8 && at(2) === 0xff) {
+    return { mime: "image/jpeg", ext: "jpg" };
+  }
+  const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (bytes.length >= 8 && png.every((b, i) => at(i) === b)) {
+    return { mime: "image/png", ext: "png" };
+  }
+  const ascii = (from: number, to: number) =>
+    String.fromCharCode(...Array.from(bytes.subarray(from, to)));
+  if (bytes.length >= 12 && ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") {
+    return { mime: "image/webp", ext: "webp" };
+  }
+  return null;
+}
+
+/** Accepts a base64 data URL; only JPEG, PNG or WebP (checked by content) up to 5MB. */
+export function decodeEventImageDataUrl(
+  dataUrl: string
+): { ok: true; image: EventImage } | { ok: false; error: string } {
+  const match = /^data:([\w.+-]+\/[\w.+-]+)?;base64,/.exec(dataUrl);
+  if (!match) return { ok: false, error: "Cover image must be a JPEG, PNG or WebP" };
+  const base64 = dataUrl.slice(match[0].length);
+  if (Math.floor((base64.length * 3) / 4) > MAX_EVENT_IMAGE_BYTES + 3) {
+    return { ok: false, error: "Cover image must be 5MB or smaller" };
+  }
+  const bytes = new Uint8Array(Buffer.from(base64, "base64"));
+  if (bytes.length === 0) {
+    return { ok: false, error: "Cover image must be a JPEG, PNG or WebP" };
+  }
+  if (bytes.length > MAX_EVENT_IMAGE_BYTES) {
+    return { ok: false, error: "Cover image must be 5MB or smaller" };
+  }
+  const type = sniffImageType(bytes);
+  if (!type) return { ok: false, error: "Cover image must be a JPEG, PNG or WebP" };
+  return { ok: true, image: { bytes, ...type } };
+}
+
 export async function uploadEventImage(
-  imageFile: File | Blob,
-  userId: string,
-  fileNameHint = "event-image.jpg"
+  image: EventImage,
+  userId: string
 ): Promise<
   | { success: true; image_id: string; url: string }
   | { success: false; error: string }
 > {
   try {
     const db = getServerSupabase();
-    const name =
-      imageFile instanceof File && imageFile.name
-        ? imageFile.name
-        : fileNameHint;
-    const fileName = `events/${userId}/${generateUniqueFilename()}_${name}`;
-    const mimeType =
-      imageFile instanceof File && imageFile.type
-        ? imageFile.type
-        : "image/jpeg";
-    const fileSize =
-      imageFile instanceof File ? imageFile.size : (imageFile as Blob).size;
+    const fileName = `events/${userId}/${generateUniqueFilename()}.${image.ext}`;
 
     const { error: uploadError } = await db.storage
       .from("event_images")
-      .upload(fileName, imageFile, {
+      .upload(fileName, image.bytes, {
         cacheControl: "3600",
+        contentType: image.mime,
         upsert: false,
         metadata: { owner: userId },
       });
 
     if (uploadError) {
-      return { success: false, error: uploadError.message };
+      console.error("uploadEventImage storage error", uploadError);
+      return { success: false, error: "Could not upload the cover image" };
     }
 
     const { data: urlData } = db.storage
@@ -81,15 +144,16 @@ export async function uploadEventImage(
           user_id: userId,
           file_name: fileName,
           file_path: urlData.publicUrl,
-          file_size: fileSize,
-          mime_type: mimeType,
+          file_size: image.bytes.length,
+          mime_type: image.mime,
           is_public: true,
         },
       ])
       .select();
 
     if (imageError) {
-      return { success: false, error: imageError.message };
+      console.error("uploadEventImage images insert error", imageError);
+      return { success: false, error: "Could not upload the cover image" };
     }
 
     return {
@@ -98,7 +162,8 @@ export async function uploadEventImage(
       url: urlData.publicUrl,
     };
   } catch (error: any) {
-    return { success: false, error: error?.message || "Upload failed" };
+    console.error("uploadEventImage failed", error);
+    return { success: false, error: "Could not upload the cover image" };
   }
 }
 
@@ -164,8 +229,9 @@ export async function createEventWithDetails(
       p_seating_options: seating_options,
     });
 
-    if (error) {
-      return { success: false, error: error.message };
+    if (error || data?.[0]?.success === false || !data?.[0]?.event_id) {
+      console.error("createEventWithDetails failed", error || data);
+      return { success: false, error: "Could not save the event" };
     }
 
     return {
@@ -174,7 +240,8 @@ export async function createEventWithDetails(
       message: data[0].message,
     };
   } catch (error: any) {
-    return { success: false, error: error?.message || "Create failed" };
+    console.error("createEventWithDetails failed", error);
+    return { success: false, error: "Could not save the event" };
   }
 }
 
@@ -183,7 +250,6 @@ type TicketTypeFields = {
   price: number;
   quantity: number;
   description: string | null;
-  benefits: string[] | null;
 };
 
 type TicketTypePlan = {
@@ -203,7 +269,6 @@ function ticketTypeFields(ticket: any): TicketTypeFields {
     price: ticket.price,
     quantity: ticket.quantity,
     description: ticket.description,
-    benefits: ticket.benefits,
   };
 }
 
@@ -215,13 +280,19 @@ function ticketTypeFields(ticket: any): TicketTypeFields {
 async function planTicketTypeChanges(
   eventId: string,
   incomingRaw: any[]
-): Promise<{ ok: true; plan: TicketTypePlan } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; plan: TicketTypePlan }
+  | { ok: false; error: string; validation: boolean }
+> {
   const db = getServerSupabase();
   const { data: existingRows, error } = await db
     .from("ticket_types")
     .select("id, name, sold_quantity")
     .eq("event_id", eventId);
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("planTicketTypeChanges load failed", error);
+    return { ok: false, error: "Could not save the event", validation: false };
+  }
 
   const existing = (existingRows || []).filter((t) => !isPrivateInviteType(t));
   const existingById = new Map(existing.map((t) => [String(t.id), t]));
@@ -247,6 +318,7 @@ async function planTicketTypeChanges(
       return {
         ok: false,
         error: `${ticket.name || match.name}: quantity can't be lower than the ${sold} already sold`,
+        validation: true,
       };
     }
     keptIds.add(String(match.id));
@@ -328,136 +400,137 @@ async function applyTicketTypeChanges(
   return null;
 }
 
+/** Stored state the update rules depend on; null when the event is not the user's. */
+export async function loadEventUpdateState(
+  eventId: string,
+  userId: string
+): Promise<{
+  is_free_event: boolean;
+  status: string;
+  published_at: string | null;
+  image_id: string | null;
+  event_visibility: string;
+  hasTicketSales: boolean;
+  hasAnySales: boolean;
+  hasPrivateTickets: boolean;
+} | null> {
+  const db = getServerSupabase();
+  const { data: event, error } = await db
+    .from("events")
+    .select(
+      "id, is_free_event, status, published_at, image_id, event_visibility, ticket_types(name, sold_quantity)"
+    )
+    .eq("id", eventId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) {
+    console.error("loadEventUpdateState failed", error);
+    throw new Error("Could not load the event");
+  }
+  if (!event) return null;
+
+  const types: any[] = (event as any).ticket_types || [];
+  const hasTicketSales = types.some(
+    (t) => !isPrivateInviteType(t) && (Number(t.sold_quantity) || 0) > 0
+  );
+  let hasAnySales = types.some((t) => (Number(t.sold_quantity) || 0) > 0);
+  if (!hasAnySales) {
+    const { count } = await db
+      .from("guests")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", eventId);
+    hasAnySales = (count || 0) > 0;
+  }
+
+  const { count: privateCount, error: privateError } = await db
+    .from("guests")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", eventId)
+    .eq("special_requirements", "private_issue");
+  if (privateError) {
+    console.error("loadEventUpdateState private tickets failed", privateError);
+    throw new Error("Could not load the event");
+  }
+
+  return {
+    is_free_event: !!event.is_free_event,
+    status: String(event.status || "draft"),
+    published_at: event.published_at || null,
+    image_id: event.image_id || null,
+    event_visibility: String(event.event_visibility || "public").toLowerCase(),
+    hasTicketSales,
+    hasAnySales,
+    hasPrivateTickets: (privateCount || 0) > 0,
+  };
+}
+
+/**
+ * Writes only the keys in `payload` (already validated). Ticket types, when
+ * given, are planned before and applied after the event row update, then
+ * total_capacity is recomputed from the stored types.
+ */
 export async function updateEventWithDetails(
   eventId: string,
-  eventData: Record<string, any>,
+  payload: Record<string, any>,
   userId: string,
-  fullEventData: Record<string, any>
+  ticketTypes?: TicketTypeInput[]
 ): Promise<
-  { success: true; event_id: string } | { success: false; error: string }
+  | { success: true; event_id: string }
+  | { success: false; error: string; validation: boolean }
 > {
+  const failed = (logLabel: string, detail: unknown) => {
+    console.error(`updateEventWithDetails ${logLabel}`, detail);
+    return {
+      success: false as const,
+      error: "Could not save the event",
+      validation: false,
+    };
+  };
+
   try {
     const db = getServerSupabase();
 
     let ticketPlan: TicketTypePlan | null = null;
-    if (
-      Array.isArray(fullEventData.ticket_types) &&
-      fullEventData.ticket_types.length > 0
-    ) {
-      const planned = await planTicketTypeChanges(
-        eventId,
-        fullEventData.ticket_types
-      );
-      if (!planned.ok) return { success: false, error: planned.error };
+    if (ticketTypes && ticketTypes.length > 0) {
+      const planned = await planTicketTypeChanges(eventId, ticketTypes);
+      if (!planned.ok) {
+        return { success: false, error: planned.error, validation: planned.validation };
+      }
       ticketPlan = planned.plan;
     }
 
     const { error: eventUpdateError } = await db
       .from("events")
-      .update({
-        name: eventData.name,
-        description: eventData.description,
-        date: eventData.date,
-        time: eventData.time,
-        location: eventData.location,
-        venue_address: eventData.venue_address,
-        category: eventData.category,
-        tags: eventData.tags,
-        organizer: eventData.organizer,
-        contact_email: eventData.contact_email,
-        website: eventData.website,
-        social_media: eventData.social_media,
-        image_id: eventData.image_id,
-        is_free_event: eventData.is_free_event,
-        seating_type: eventData.seating_type,
-        total_capacity: eventData.total_capacity,
-        audience_type: eventData.audience_type,
-        event_visibility: eventData.event_visibility,
-        status: eventData.status,
-        published_at: eventData.published_at,
-        ticket_design_config: eventData.ticket_design_config,
-        updated_at: eventData.updated_at,
-      })
+      .update({ ...payload, updated_at: new Date().toISOString() })
       .eq("id", eventId)
       .eq("user_id", userId)
-      .select()
+      .select("id")
       .single();
 
-    if (eventUpdateError) {
-      return { success: false, error: eventUpdateError.message };
-    }
+    if (eventUpdateError) return failed("event update", eventUpdateError);
 
     if (ticketPlan) {
       const ticketError = await applyTicketTypeChanges(eventId, ticketPlan);
-      if (ticketError) return { success: false, error: ticketError };
-    }
+      if (ticketError) return failed("ticket types", ticketError);
 
-    if (
-      fullEventData.venue_sections &&
-      fullEventData.venue_sections.length > 0
-    ) {
-      await db.from("venue_sections").delete().eq("event_id", eventId);
+      const { data: stored, error: storedError } = await db
+        .from("ticket_types")
+        .select("name, quantity, sold_quantity, is_active")
+        .eq("event_id", eventId);
+      if (storedError) return failed("capacity load", storedError);
 
-      const venueSectionsToInsert = fullEventData.venue_sections.map(
-        (section: any) => ({
-          event_id: eventId,
-          name: section.name,
-          capacity: section.capacity,
-          price: section.price,
-          description: section.description,
-          seating_chart_data: section.seating_chart_data,
-        })
-      );
-
-      const { error: venueInsertError } = await db
-        .from("venue_sections")
-        .insert(venueSectionsToInsert);
-
-      if (venueInsertError) {
-        return { success: false, error: venueInsertError.message };
-      }
-    }
-
-    if (fullEventData.seating_options) {
-      await db.from("seating_options").delete().eq("event_id", eventId);
-
-      const { error: seatingInsertError } = await db
-        .from("seating_options")
-        .insert({
-          event_id: eventId,
-          allow_seat_selection:
-            fullEventData.seating_options.allow_seat_selection,
-          max_seats_per_order:
-            fullEventData.seating_options.max_seats_per_order,
-          reserved_seating: fullEventData.seating_options.reserved_seating,
-          has_seating_chart: fullEventData.seating_options.has_seating_chart,
-        });
-
-      if (seatingInsertError) {
-        return { success: false, error: seatingInsertError.message };
-      }
+      const { error: capacityError } = await db
+        .from("events")
+        .update({ total_capacity: ticketCapacity(stored) })
+        .eq("id", eventId)
+        .eq("user_id", userId);
+      if (capacityError) return failed("capacity update", capacityError);
     }
 
     return { success: true, event_id: eventId };
   } catch (error: any) {
-    return { success: false, error: error?.message || "Update failed" };
+    return failed("threw", error);
   }
-}
-
-export async function getEventImageId(
-  eventId: string,
-  userId: string
-): Promise<string | null> {
-  const db = getServerSupabase();
-  const { data, error } = await db
-    .from("events")
-    .select("image_id")
-    .eq("id", eventId)
-    .eq("user_id", userId)
-    .single();
-
-  if (error || !data) return null;
-  return data.image_id ?? null;
 }
 
 export async function loadUserEvents(userId: string): Promise<any[]> {
@@ -539,107 +612,6 @@ export async function loadUserEvents(userId: string): Promise<any[]> {
     );
   } catch {
     return [];
-  }
-}
-
-export async function loadUserEventsForSelector(
-  userId: string
-): Promise<{ data: any[]; error: any }> {
-  try {
-    const db = getServerSupabase();
-    const { data: events, error } = await db
-      .from("events")
-      .select("id, name, date, image_id, ticket_design_config")
-      .eq("user_id", userId)
-      .order("date", { ascending: false });
-
-    if (error) return { data: [], error };
-
-    const eventsWithImages = await Promise.all(
-      (events || []).map(async (event) => {
-        const eventWithImage: any = { ...event };
-
-        if (event.image_id) {
-          const { data: imageData, error: imageError } = await db
-            .from("images")
-            .select("file_path")
-            .eq("id", event.image_id)
-            .single();
-
-          if (!imageError && imageData) {
-            if (imageData.file_path.startsWith("http")) {
-              eventWithImage.image = imageData.file_path;
-            } else {
-              const { data: urlData } = db.storage
-                .from("event_images")
-                .getPublicUrl(imageData.file_path);
-              eventWithImage.image = urlData.publicUrl;
-            }
-          }
-        }
-
-        return eventWithImage;
-      })
-    );
-
-    return { data: eventsWithImages, error: null };
-  } catch (error: any) {
-    return { data: [], error: error?.message || "Failed to load events" };
-  }
-}
-
-export async function loadGuestsRows(
-  userId: string
-): Promise<{ data: any[]; error: any }> {
-  try {
-    const db = getServerSupabase();
-    const { data: guests, error: guestsError } = await db.rpc(
-      "get_guests_for_user",
-      { user_id_param: userId }
-    );
-
-    if (guestsError) return { data: [], error: guestsError };
-    if (!guests || guests.length === 0) return { data: [], error: null };
-
-    const transformedGuests = guests.map((guest: any) => ({
-      id: guest.id,
-      name: `${guest.first_name} ${guest.last_name}`,
-      email: guest.email,
-      status:
-        guest.status === "checked-in"
-          ? "Checked In"
-          : guest.status === "pending"
-            ? "Pending"
-            : guest.status === "confirmed"
-              ? "Confirmed"
-              : guest.status === "cancelled"
-                ? "Cancelled"
-                : "Pending",
-      avatar:
-        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMCIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44MyAyLjE2IDQuODMgNC44M1MxNC42NyAxNC42NyAxMiAxNC42N1M3LjE3IDEyLjUxIDcuMTcgOS44M1M5LjMzIDUgMTIgNXptMCAxMmM0LjQyIDAgOC4xNy0yLjE2IDEwLjQyLTUuNDJDMjAuMTUgMTUuNjYgMTYuNDIgMTggMTIgMThzLTguMTUtMi4zNC0xMC40Mi01LjQyQzMuODMgMTQuODQgNy41OCAxNyAxMiAxN3oiLz4KPC9zdmc+Cjwvc3ZnPgo=",
-      ticket_number: guest.ticket_number,
-      phone: guest.phone,
-      wallet_address: guest.wallet_address,
-      seat_number: guest.seat_number,
-      check_in_time: guest.check_in_time,
-      event_id: guest.event_id,
-      event_title: guest.event_name,
-      event_date: guest.event_date,
-      ticket_type: guest.ticket_type_name || "General",
-      ticket_price: guest.ticket_type_price || 0,
-      venue_section: guest.venue_section_name || null,
-      special_requirements: guest.special_requirements,
-      created_at: guest.created_at,
-      order_number: guest.order_number || `GUEST-${guest.id}`,
-      payment_method: guest.payment_method || "Free",
-      payment_status: guest.payment_status || "Completed",
-      current_owner: guest.current_owner,
-      order_item_id: guest.order_item_id,
-    }));
-
-    return { data: transformedGuests, error: null };
-  } catch (error: any) {
-    return { data: [], error: error?.message || "Failed to load guests" };
   }
 }
 
@@ -734,6 +706,43 @@ export async function getRecentActivities(userId: string): Promise<any[]> {
       });
     }
 
+    // Private issues create no order; filter by metadata.user_id because the
+    // ledger key may be a linked wallet rather than user:<id>.
+    const { data: privateIssues, error: privateError } = await db
+      .from("wallet_transactions")
+      .select("id, type, amount, created_at, metadata")
+      .eq("source", "private_issue")
+      .eq("status", "completed")
+      .eq("metadata->>user_id", userId)
+      .eq("metadata->>tickets_issued", "true")
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    if (!privateError && privateIssues?.length) {
+      const eventIds = [
+        ...new Set(privateIssues.map((t: any) => t.metadata?.event_id).filter(Boolean)),
+      ];
+      const eventNames = new Map<string, string>();
+      if (eventIds.length) {
+        const { data: issueEvents } = await db
+          .from("events")
+          .select("id, name")
+          .in("id", eventIds);
+        for (const e of issueEvents || []) eventNames.set(e.id, e.name);
+      }
+
+      privateIssues.forEach((t: any) => {
+        activities.push({
+          type: "private_issue",
+          icon: "ticket",
+          message: `Private Tickets Issued: ${eventNames.get(t.metadata?.event_id) || "Event"}`,
+          details: privateIssueActivityDetails(t),
+          time: formatTimeAgo(t.created_at),
+          timestamp: t.created_at,
+        });
+      });
+    }
+
     return activities
       .sort(
         (a, b) =>
@@ -782,139 +791,6 @@ export async function loadOwnedEventForEdit(
   return eventWithImage;
 }
 
-export async function deleteOwnedEvent(
-  eventId: string,
-  userId: string
-): Promise<{ success: true } | { success: false; error: string }> {
-  try {
-    const db = getServerSupabase();
-
-    const { data: eventData, error: eventError } = await db
-      .from("events")
-      .select("image_id")
-      .eq("id", eventId)
-      .eq("user_id", userId)
-      .single();
-
-    if (eventError || !eventData) {
-      return { success: false, error: "Event not found" };
-    }
-
-    const { error: deleteError } = await db
-      .from("events")
-      .delete()
-      .eq("id", eventId)
-      .eq("user_id", userId);
-
-    if (deleteError) {
-      return { success: false, error: deleteError.message };
-    }
-
-    if (eventData.image_id) {
-      const { data: imageData } = await db
-        .from("images")
-        .select("file_name")
-        .eq("id", eventData.image_id)
-        .single();
-
-      if (imageData?.file_name) {
-        await db.storage.from("event_images").remove([imageData.file_name]);
-        await db.from("images").delete().eq("id", eventData.image_id);
-      }
-    }
-
-    return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error?.message || "Delete failed" };
-  }
-}
-
-export async function addGuestToOwnedEvent(
-  eventId: string,
-  userId: string,
-  guestData: Record<string, any>
-): Promise<
-  { success: true; data: any } | { success: false; error: string }
-> {
-  try {
-    const db = getServerSupabase();
-
-    const { data: owned, error: ownedError } = await db
-      .from("events")
-      .select("id")
-      .eq("id", eventId)
-      .eq("user_id", userId)
-      .single();
-
-    if (ownedError || !owned) {
-      return { success: false, error: "Event not found or unauthorized" };
-    }
-
-    const { data: ticketNumberData, error: ticketNumberError } = await db.rpc(
-      "generate_ticket_number"
-    );
-
-    if (ticketNumberError) {
-      return { success: false, error: "Failed to generate ticket number" };
-    }
-
-    const { data, error } = await db
-      .from("guests")
-      .insert([
-        {
-          event_id: eventId,
-          ticket_type_id: guestData.ticket_type_id,
-          venue_section_id: guestData.venue_section_id,
-          first_name: guestData.first_name,
-          last_name: guestData.last_name,
-          email: guestData.email,
-          phone: guestData.phone,
-          wallet_address: guestData.wallet_address,
-          ticket_number: ticketNumberData,
-          seat_number: guestData.seat_number,
-          status: guestData.status || "pending",
-          special_requirements: guestData.special_requirements,
-        },
-      ])
-      .select();
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data: data[0] };
-  } catch (error: any) {
-    return { success: false, error: error?.message || "Add guest failed" };
-  }
-}
-
-export async function loadEventTicketTypes(
-  eventId: string,
-  userId: string
-): Promise<{ success: true; data: any[] } | { success: false; error: string }> {
-  const db = getServerSupabase();
-  const { data: owned } = await db
-    .from("events")
-    .select("id")
-    .eq("id", eventId)
-    .eq("user_id", userId)
-    .single();
-
-  if (!owned) {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  const { data: ticketTypes, error } = await db
-    .from("ticket_types")
-    .select("id, name, description, price, quantity, sold_quantity, is_active")
-    .eq("event_id", eventId)
-    .eq("is_active", true)
-    .order("price", { ascending: true });
-
-  if (error) return { success: false, error: error.message };
-  return { success: true, data: ticketTypes || [] };
-}
-
 export async function assertEventOwnedByUser(
   eventId: string,
   userId: string
@@ -929,19 +805,31 @@ export async function assertEventOwnedByUser(
   return !!data;
 }
 
-export async function getEventOrdersRevenue(
+export type PrivateEventCheck =
+  | { ok: true }
+  | { ok: false; error: string; status: number };
+
+/** Owner check for private ticket issuing: the event must also be private. */
+export async function assertPrivateEventOwnedByUser(
   eventId: string,
   userId: string
-): Promise<any[]> {
-  const db = getServerSupabase();
-  const owned = await assertEventOwnedByUser(eventId, userId);
-  if (!owned) return [];
-
-  const { data, error } = await db
-    .from("orders")
-    .select("id, total_amount, payment_status, order_status, created_at")
-    .eq("event_id", eventId);
-
-  if (error) return [];
-  return data || [];
+): Promise<PrivateEventCheck> {
+  const { data } = await getServerSupabase()
+    .from("events")
+    .select("id, event_visibility")
+    .eq("id", eventId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!data) {
+    return { ok: false, error: "Event not found or unauthorized", status: 403 };
+  }
+  if (!isPrivateEvent(data)) {
+    return {
+      ok: false,
+      error: "Private tickets can only be issued for private events",
+      status: 400,
+    };
+  }
+  return { ok: true };
 }
+

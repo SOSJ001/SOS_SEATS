@@ -230,8 +230,9 @@
           <p
             class="m-0 text-sm leading-snug text-ink lg:text-[11px] lg:text-ink-secondary"
           >
-            This amount will be taken from your available balance immediately.
-            Tickets will be permanently created and assigned to the guest.
+            NLe {formatNle(feeTotal)} is taken from your available balance as
+            soon as you confirm. Your {qty === 1 ? "ticket goes" : `${qty} tickets go`}
+            straight onto your guest list, ready to share with your guests.
           </p>
         </div>
 

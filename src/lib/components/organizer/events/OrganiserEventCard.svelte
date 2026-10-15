@@ -11,6 +11,7 @@
   import Eye from "lucide-svelte/icons/eye";
   import EventCover from "$lib/components/event/EventCover.svelte";
   import EventCardMenu from "./EventCardMenu.svelte";
+  import { canShareEvent } from "./mapOrganiserEvent.js";
 
   /**
    * @type {{ id: string | number, title: string, date: string, location?: string | null,
@@ -31,6 +32,8 @@
   };
 
   $: status = STATUS[event.status?.toLowerCase()] || STATUS.draft;
+  $: canShare = canShareEvent(event);
+  $: canPublish = event.status?.toLowerCase() === "draft";
   $: hasCapacity = event.capacity > 0;
   $: pct = hasCapacity ? Math.min(100, (event.ticketsSold / event.capacity) * 100) : 0;
   $: revenueLabel = `NLe ${(event.revenueValue || 0).toLocaleString()}`;
@@ -124,13 +127,16 @@
         <Eye class="size-4" aria-hidden="true" />
         View
       </a>
-      <EventCardMenu
-        eventId={event.id}
-        eventTitle={event.title}
-        canPublish={event.status?.toLowerCase() === "draft"}
-        triggerClass="bg-paper lg:bg-[#fff7f2]"
-        on:share={() => dispatch("share")}
-      />
+      {#if canShare || canPublish}
+        <EventCardMenu
+          eventId={event.id}
+          eventTitle={event.title}
+          {canPublish}
+          {canShare}
+          triggerClass="bg-paper lg:bg-[#fff7f2]"
+          on:share={() => dispatch("share")}
+        />
+      {/if}
     </div>
   </div>
 </article>

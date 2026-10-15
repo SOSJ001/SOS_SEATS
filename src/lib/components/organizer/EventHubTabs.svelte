@@ -1,15 +1,15 @@
 <script>
   // @ts-nocheck
   /** Hub tabs — desktop HI-FI 199:99 / mobile HI-FI 209:58. */
-  export let eventId = "";
-  /** @type {"overview" | "guests" | "generate"} */
+  import { hubTabsFor } from "$lib/eventHubTabs";
+
+  /** @type {any} */
+  export let event = null;
+  /** @type {"overview" | "guests" | "generate" | "settings"} */
   export let active = "overview";
 
-  const tabs = [
-    { id: "overview", label: "Overview" },
-    { id: "guests", label: "Guests" },
-    { id: "generate", label: "Generate" },
-  ];
+  $: eventId = event?.id || "";
+  $: tabs = hubTabsFor(event);
 
   function hrefFor(id) {
     const q = new URLSearchParams();

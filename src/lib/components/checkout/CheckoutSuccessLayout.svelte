@@ -22,6 +22,7 @@
   export let eventName = "";
   export let ticketsLabel = "";
   export let amountLabel = "";
+  export let amountTitle = "Amount Deducted";
   export let paymentMethod = "Wallet Balance";
   export let timestamp = "";
   export let primaryLabel = "View Guest List";
@@ -56,6 +57,7 @@
       {eventName}
       {ticketsLabel}
       {amountLabel}
+      {amountTitle}
       {paymentMethod}
       {timestamp}
       {primaryLabel}

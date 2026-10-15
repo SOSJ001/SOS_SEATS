@@ -8,7 +8,8 @@
   $: event = data.event;
   $: error = data.error;
   $: qty = data.qty || 1;
-  $: feeTotal = data.feeTotal ?? qty * 0.99;
+  $: amount = data.amount ?? data.feeTotal ?? qty * 0.99;
+  $: amountTitle = data.amountTitle || "Amount Deducted";
   $: paymentMethod = data.paymentMethod || "Available Balance";
   $: timestamp = data.timestamp || "";
 
@@ -23,7 +24,7 @@
   $: subtitle = `${qty} ${ticketWord} have been issued and added to the guest list.`;
   $: bannerText = `✓ All ${qty} ${ticketWord} are now on the guest list`;
   $: ticketsLabel = `${qty} Ticket${qty === 1 ? "" : "s"}`;
-  $: amountLabel = `NLe ${formatNle(feeTotal)}`;
+  $: amountLabel = `NLe ${formatNle(amount)}`;
   $: primaryHref = event?.id
     ? `/dashboard/events/eventDetails?id=${event.id}&tab=guests`
     : "/dashboard/events";
@@ -59,6 +60,7 @@
     eventName={event.title}
     {ticketsLabel}
     {amountLabel}
+    {amountTitle}
     {paymentMethod}
     {timestamp}
     primaryLabel="View Guest List"

@@ -8,6 +8,7 @@
   import Wallet from "lucide-svelte/icons/wallet";
   import Smartphone from "lucide-svelte/icons/smartphone";
   import Info from "lucide-svelte/icons/info";
+  import { PRIVATE_ISSUE_MAX_QTY } from "$lib/privateIssueLimits";
 
   /** @type {any} */
   export let event = null;
@@ -52,7 +53,7 @@
   }).length;
 
   function setQty(n) {
-    qty = Math.min(500, Math.max(1, n));
+    qty = Math.min(PRIVATE_ISSUE_MAX_QTY, Math.max(1, n));
   }
 
   function dec() {
@@ -169,7 +170,7 @@
             <input
               type="number"
               min="1"
-              max="500"
+              max={PRIVATE_ISSUE_MAX_QTY}
               inputmode="numeric"
               value={qty}
               on:input={onQtyInput}

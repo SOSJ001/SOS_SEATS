@@ -8,6 +8,7 @@
   export let dateLabel = "";
   export let eventLocation = "";
   export let amountLabel = "";
+  export let amountTitle = "Amount Paid";
   export let paymentMethod = "Orange Money";
   export let timestamp = "";
   export let orderNumber = "";
@@ -78,7 +79,7 @@
           </span>
         </div>
         <div class="flex items-start justify-between gap-3">
-          <span class="text-ink-secondary">Amount Paid</span>
+          <span class="text-ink-secondary">{amountTitle}</span>
           <span class="font-bold text-ink">{amountLabel}</span>
         </div>
         <div class="flex items-start justify-between gap-3">

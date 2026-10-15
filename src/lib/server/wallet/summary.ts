@@ -5,6 +5,7 @@
  * import from $lib/server/payments/privateIssue (it imports this file).
  */
 import { getServerSupabase } from "$lib/server/db";
+import { expireStalePayments } from "$lib/server/payments/checkoutHolds";
 import { calculateSaleSplit } from "$lib/fees";
 import { listOrganizerOrders, RESERVED_WITHDRAWAL_STATUSES } from "./index";
 
@@ -23,6 +24,8 @@ const toNumber = (v: unknown) => {
 
 export type WalletSummary = {
   available: number;
+  /** `available` without the zero floor; negative means more was spent than earned */
+  balance: number;
   pending: number;
   totalEarned: number;
   withdrawn: number;
@@ -61,7 +64,17 @@ export type WalletHistoryRow =
       eventName: string | null;
       quantity: number | null;
       amount: number;
-      status: "paid";
+      status: "paid" | "refunded";
+    }
+  | {
+      /** Private ticket fee paid by mobile money; display only, never in the balance */
+      kind: "private_payment";
+      id: string;
+      createdAt: string;
+      eventName: string | null;
+      quantity: number | null;
+      amount: number;
+      status: "paid" | "not_issued" | "waiting" | "cancelled";
     };
 
 type Sale = {
@@ -216,8 +229,10 @@ export async function getWalletSummary(
     }
   }
 
+  const balance = round2(released - withdrawn - privateFees);
   return {
-    available: Math.max(0, round2(released - withdrawn - privateFees)),
+    available: Math.max(0, balance),
+    balance,
     pending: round2(pending),
     totalEarned: round2(released + pending),
     withdrawn: round2(withdrawn),
@@ -237,6 +252,32 @@ function withdrawalStatus(t: any): "completed" | "on_its_way" | "on_hold" | "fai
   if (t.status === "failed") return "failed";
   if (IN_PROGRESS_STATUSES.includes(t.status)) return t.external_id ? "on_its_way" : "on_hold";
   return "completed";
+}
+
+/** Mobile money private issue payments, under the ledger key and `user:<id>`. */
+async function loadPrivatePayments(
+  userId: string,
+  ledgerKey: string,
+  limit: number
+): Promise<any[]> {
+  const keys = [...new Set([ledgerKey, `user:${userId}`])];
+  const { data, error } = await getServerSupabase()
+    .from("wallet_transactions")
+    .select("id, amount, status, metadata, created_at")
+    .in("wallet_address", keys)
+    .eq("type", "private_issue_payment")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+function privatePaymentStatus(t: any): "paid" | "not_issued" | "waiting" | "cancelled" {
+  if (t.status === "completed") {
+    return t.metadata?.tickets_issued === true ? "paid" : "not_issued";
+  }
+  if (t.status === "pending") return "waiting";
+  return "cancelled";
 }
 
 async function loadEventNames(eventIds: string[]): Promise<Map<string, string>> {
@@ -260,11 +301,14 @@ export async function getWalletHistory(
   const limit = Math.max(1, Math.floor(opts.limit || 50));
   const now = opts.now || new Date();
 
-  const [sales, ledger] = await Promise.all([
+  if (filter === "all") await expireStalePayments();
+
+  const [sales, ledger, privatePayments] = await Promise.all([
     filter === "withdrawals" ? Promise.resolve([]) : loadSales(userId, now, limit),
     filter === "sales"
       ? Promise.resolve([])
       : loadLedger(userId, ledgerKey, HISTORY_WITHDRAWAL_STATUSES, limit),
+    filter === "all" ? loadPrivatePayments(userId, ledgerKey, limit) : Promise.resolve([]),
   ]);
 
   const rows: WalletHistoryRow[] = sales.map((s) => ({
@@ -280,8 +324,25 @@ export async function getWalletHistory(
 
   const fees = filter === "all" ? ledger.filter(isPrivateFee) : [];
   const eventNames = await loadEventNames([
-    ...new Set(fees.map((t) => t.metadata?.event_id).filter(Boolean) as string[]),
+    ...new Set(
+      [...fees, ...privatePayments]
+        .map((t) => t.metadata?.event_id)
+        .filter(Boolean) as string[]
+    ),
   ]);
+
+  for (const t of privatePayments) {
+    const qty = Number(t.metadata?.qty);
+    rows.push({
+      kind: "private_payment",
+      id: t.id,
+      createdAt: t.created_at,
+      eventName: eventNames.get(t.metadata?.event_id) ?? null,
+      quantity: Number.isFinite(qty) && qty > 0 ? qty : null,
+      amount: round2(Math.abs(toNumber(t.amount))),
+      status: privatePaymentStatus(t),
+    });
+  }
 
   for (const t of ledger) {
     const amount = round2(Math.abs(toNumber(t.amount)));
@@ -295,7 +356,7 @@ export async function getWalletHistory(
         eventName: eventNames.get(t.metadata?.event_id) ?? null,
         quantity: Number.isFinite(qty) && qty > 0 ? qty : null,
         amount,
-        status: "paid",
+        status: t.status === "failed" ? "refunded" : "paid",
       });
       continue;
     }

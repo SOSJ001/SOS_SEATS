@@ -1,14 +1,20 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import {
+  fetchPaymentCodeFromMonime,
+  fulfilPrivateIssuePayment,
   fulfillPaymentCode,
   getMonimeWebhookSecret,
+  markPaymentCodeEnded,
   verifyMonimeWebhookSignature,
 } from "$lib/server/payments";
 
 /**
  * Monime payment-code webhook (roadmap 5.4 / FR-34 / FR-35).
  * Auth: Monime-Signature + MONIME_WEBHOOK_SECRET (no session).
+ * processed/completed: create the tickets (marketplace order or private issue).
+ * Any other payment_code event: read the code status from Monime and record
+ * cancelled or expired codes.
  */
 export const POST: RequestHandler = async ({ request }) => {
   const secret = getMonimeWebhookSecret();
@@ -36,10 +42,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const event = payload.event as { name?: string; id?: string } | undefined;
   const eventName = event?.name || "";
-  if (
-    eventName !== "payment_code.processed" &&
-    eventName !== "payment_code.completed"
-  ) {
+  if (!eventName.startsWith("payment_code.")) {
     return json({ success: true, ignored: true, event: eventName });
   }
 
@@ -57,10 +60,42 @@ export const POST: RequestHandler = async ({ request }) => {
     );
   }
 
-  const metadata =
-    (data?.metadata as Record<string, unknown> | null | undefined) ?? null;
-
   try {
+    const isPaymentEvent =
+      eventName === "payment_code.processed" ||
+      eventName === "payment_code.completed";
+
+    if (!isPaymentEvent) {
+      const code = await fetchPaymentCodeFromMonime(paymentCodeId);
+      const status = String(code?.status || "").toLowerCase();
+      if (status === "cancelled" || status === "expired") {
+        await markPaymentCodeEnded(paymentCodeId, status);
+      }
+      return json({ success: true, event: eventName, status: status || null });
+    }
+
+    let metadata =
+      (data?.metadata as Record<string, unknown> | null | undefined) ?? null;
+    if (!metadata?.purpose && !metadata?.event_id) {
+      const remote = await fetchPaymentCodeFromMonime(paymentCodeId);
+      metadata = (remote?.metadata as Record<string, unknown> | undefined) ?? metadata;
+    }
+
+    if (metadata?.purpose === "private_issue") {
+      const result = await fulfilPrivateIssuePayment({ paymentCodeId });
+      if (result.success) {
+        return json({ success: true, privateIssue: true, qty: result.qty });
+      }
+      if (result.notCompleted) {
+        // "processed" can arrive before the code reads completed; the completed event follows.
+        return json({ success: true, pending: true });
+      }
+      if (result.status < 500) {
+        return json({ success: true, ignored: true, error: result.error });
+      }
+      return json({ success: false, error: result.error }, { status: 500 });
+    }
+
     const result = await fulfillPaymentCode({
       paymentCodeId,
       metadata,

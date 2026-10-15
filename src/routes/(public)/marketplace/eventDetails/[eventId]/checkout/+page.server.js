@@ -1,5 +1,6 @@
 import { error, redirect } from "@sveltejs/kit";
 import { getEventById } from "$lib/supabase";
+import { getActiveHoldCounts } from "$lib/server/payments";
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, locals }) {
@@ -22,6 +23,7 @@ export async function load({ params, locals }) {
   );
 
   const image = eventData.images?.[0]?.file_path || null;
+  const held = await getActiveHoldCounts(eventId, locals.userId);
 
   const ticketTypes = (eventData.ticket_types || []).map((ticket) => ({
     id: ticket.id,
@@ -32,7 +34,7 @@ export async function load({ params, locals }) {
         : Number(ticket.price) || 0,
     available_quantity: Math.max(
       0,
-      (ticket.quantity || 0) - (ticket.sold_quantity || 0)
+      (ticket.quantity || 0) - (ticket.sold_quantity || 0) - (held[ticket.id] || 0)
     ),
   }));
 

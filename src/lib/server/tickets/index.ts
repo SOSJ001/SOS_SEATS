@@ -4,6 +4,7 @@
  * Do not import from client components.
  */
 import { getServerSupabase } from "$lib/server/db";
+import { expireStalePayments } from "$lib/server/payments/checkoutHolds";
 import { env } from "$env/dynamic/public";
 
 const ANONYMOUS_KEY = env.PUBLIC_SUPABASE_ANON_KEY || "anonymous";
@@ -165,7 +166,10 @@ export async function claimTickets(
           paidResult?.[0]?.error_message ||
           paidError?.message ||
           "Failed to create paid ticket order";
-        if (errorMessage.includes("Not enough tickets available")) {
+        if (
+          errorMessage.includes("Not enough tickets available") ||
+          errorMessage.includes("Insufficient tickets available")
+        ) {
           return {
             success: false,
             error:
@@ -257,8 +261,9 @@ export async function findOrderByTransactionHash(
     .eq("transaction_hash", transactionId)
     .eq("event_id", eventId)
     .eq("payment_method", paymentMethod)
-    .maybeSingle();
-  return data ?? null;
+    .order("created_at", { ascending: true })
+    .limit(1);
+  return data?.[0] ?? null;
 }
 
 export async function loadOrderItemsForOrder(orderId: string) {
@@ -286,11 +291,6 @@ export async function resolveOwnedQrToken(
     .eq("id", owned.guest_id)
     .maybeSingle();
   return guest?.qr_token ? String(guest.qr_token) : "";
-}
-
-export async function getTicketType(ticketTypeId: string) {
-  const db = getServerSupabase();
-  return db.from("ticket_types").select("*").eq("id", ticketTypeId).single();
 }
 
 export type MyTicketStatus =
@@ -643,74 +643,91 @@ export async function loadMyTicketsForBuyer(
   };
 }
 
-export async function loadUserOrdersServer(
-  userId: string | null,
-  walletAddress: string | null = null
-) {
+export type PaymentAttemptStatus =
+  | "paid"
+  | "waiting"
+  | "paid_no_tickets"
+  | "failed"
+  | "cancelled"
+  | "expired";
+
+export type PaymentAttemptRow = {
+  id: string;
+  eventId: string;
+  eventName: string;
+  ticketsLabel: string;
+  amount: number;
+  paymentMethod: string;
+  createdAt: string;
+  status: PaymentAttemptStatus;
+  orderId: string | null;
+};
+
+function attemptStatus(hold: any, now: number): PaymentAttemptStatus {
+  if (hold.status === "completed" && hold.order_id) return "paid";
+  if (hold.paid) return "paid_no_tickets";
+  if (hold.status === "pending") {
+    return new Date(hold.expires_at).getTime() > now ? "waiting" : "expired";
+  }
+  if (hold.status === "failed") return "failed";
+  if (hold.status === "cancelled") return "cancelled";
+  return "expired";
+}
+
+/**
+ * The buyer's marketplace payment attempts (checkout_holds only, so organiser
+ * private issue payments never appear). Only attempts that got a payment code.
+ */
+export async function loadMyPaymentAttempts(
+  userId: string,
+  limit = 50
+): Promise<PaymentAttemptRow[]> {
+  if (!userId) return [];
+  await expireStalePayments();
   const db = getServerSupabase();
-  let walletAddressToUse = walletAddress;
-  if (!walletAddressToUse && userId) {
-    walletAddressToUse = "anonymous";
-  }
-
-  if (walletAddressToUse) {
-    const { data: walletOrders, error: walletError } = await db.rpc(
-      "load_orders_by_wallet",
-      { p_wallet_address: walletAddressToUse }
-    );
-
-    if (!walletError && walletOrders && walletOrders.length > 0) {
-      return walletOrders.map((order: any) => ({
-        id: order.order_id,
-        event_id: order.event_id,
-        buyer_wallet_address: order.buyer_wallet_address,
-        buyer_name: order.buyer_name,
-        order_number: order.order_number,
-        total_amount: order.total_amount,
-        currency: order.currency,
-        payment_method: order.payment_method,
-        payment_status: order.payment_status,
-        order_status: order.order_status,
-        created_at: order.created_at,
-        events: {
-          name: order.event_name || "Unknown Event",
-          date: order.event_date,
-          location: order.event_location || "Unknown",
-        },
-        order_items: [
-          {
-            ticket_types: {
-              name: order.ticket_type_name || "Free Ticket",
-              price: order.ticket_type_price || 0,
-            },
-          },
-        ],
-      }));
-    }
-  }
-
-  let query = db
-    .from("orders")
+  const { data: holds, error } = await db
+    .from("checkout_holds")
     .select(
-      `
-      *,
-      events(name, date, location),
-      order_items(
-        *,
-        ticket_types(name, price),
-        venue_sections(name, price),
-        guests(first_name, last_name, email)
-      )
-    `
+      "id, event_id, selected_tickets, amount, payment_method, status, paid, order_id, expires_at, created_at, events ( name )"
     )
-    .order("created_at", { ascending: false });
+    .eq("buyer_id", userId)
+    .not("payment_code_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  if (!holds?.length) return [];
 
-  if (userId) query = query.eq("buyer_id", userId);
-  else if (walletAddress) query = query.eq("buyer_wallet_address", walletAddress);
+  const typeIds = [
+    ...new Set(holds.flatMap((h: any) => Object.keys(h.selected_tickets || {}))),
+  ];
+  const typeNames = new Map<string, string>();
+  if (typeIds.length) {
+    const { data: types } = await db
+      .from("ticket_types")
+      .select("id, name")
+      .in("id", typeIds);
+    for (const t of types || []) typeNames.set(t.id, t.name);
+  }
 
-  const { data, error } = await query;
-  if (error) return [];
-  return data || [];
+  const now = Date.now();
+  return holds.map((hold: any) => {
+    const event = Array.isArray(hold.events) ? hold.events[0] : hold.events;
+    const parts = Object.entries(hold.selected_tickets || {}).map(([id, qty]) => {
+      const n = Number(qty) || 0;
+      return `${n} × ${typeNames.get(id) || "Ticket"}`;
+    });
+    return {
+      id: hold.id,
+      eventId: hold.event_id,
+      eventName: event?.name || "Event",
+      ticketsLabel: parts.join(", ") || "Ticket",
+      amount: Number(hold.amount) || 0,
+      paymentMethod: String(hold.payment_method || ""),
+      createdAt: hold.created_at,
+      status: attemptStatus(hold, now),
+      orderId: hold.order_id || null,
+    };
+  });
 }
 
 export async function loadScanHistoryServer(eventId: string, limit = 50) {

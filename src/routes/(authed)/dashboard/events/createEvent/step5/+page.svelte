@@ -5,6 +5,8 @@
   import { fade } from "svelte/transition";
   import { onMount } from "svelte";
   import Check from "lucide-svelte/icons/check";
+  import Ticket from "lucide-svelte/icons/ticket";
+  import { canShareEvent } from "$lib/components/organizer/events/mapOrganiserEvent.js";
 
   const STATUS_SNAPSHOT_KEY = "eventCreateStatus";
 
@@ -30,13 +32,15 @@
   $: visibilityKey = String(snapshot?.event_visibility || "public");
   $: isDraft = statusKey === "draft";
   $: isPrivate = visibilityKey === "private";
+  $: canShare = canShareEvent({ status: statusKey, event_visibility: visibilityKey });
+  $: generateHref = `/dashboard/events/eventDetails?id=${eventId}&tab=generate`;
   $: headline = `${isDraft ? "DRAFT" : "PUBLISHED"} · ${isPrivate ? "PRIVATE" : "PUBLIC"}`;
   $: subcopy = isDraft
     ? "Saved as draft."
     : isPrivate
-      ? "Hidden from browse. Share the link."
+      ? "Invite only. Generate tickets, then share each one from the Guests tab."
       : "Visible in browse.";
-  $: visibilityValue = isPrivate ? "Private · Link only" : "Public · Browse";
+  $: visibilityValue = isPrivate ? "Private · Invite only" : "Public · Browse";
   $: ticketsReleased = Number(snapshot?.total_capacity) || 0;
   $: ticketTypeCount = Number(snapshot?.ticket_type_count) || 0;
   $: daysUntil = daysUntilEvent(snapshot?.date);
@@ -76,7 +80,7 @@
   }
 
   async function copyLink() {
-    if (!shareUrl) return;
+    if (!shareUrl || !canShare) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
       copied = true;
@@ -90,7 +94,7 @@
   }
 
   function goDashboard() {
-          goto("/dashboard/events");
+    goto("/dashboard/events");
   }
 
   function inviteStaff() {
@@ -111,20 +115,18 @@
   in:fade={{ duration: 200 }}
 >
   {#if !snapshot}
-    <div
-      class="rounded-2xl border border-paper-border bg-white p-8 text-center"
-    >
+    <div class="rounded-2xl border border-paper-border bg-white p-8 text-center">
       <h2 class="m-0 text-xl font-bold text-ink">No status to show</h2>
       <p class="mt-2 text-sm text-ink-secondary">
         Publish or save a draft from Review to see status here.
       </p>
-        <button
+      <button
         type="button"
         class="mt-6 w-full rounded-lg bg-brand px-6 py-3.5 text-sm font-extrabold text-white transition hover:opacity-90 cursor-pointer"
         on:click={goDashboard}
-        >
+      >
         Go to Dashboard
-        </button>
+      </button>
     </div>
   {:else}
     <div class="flex flex-col items-center gap-1.5 pt-1 text-center lg:gap-3 lg:pt-2">
@@ -143,10 +145,10 @@
           class="m-0 font-display text-[18px] font-bold uppercase tracking-tight text-ink lg:font-sans lg:text-2xl lg:font-extrabold"
         >
           {headline}
-          </h2>
+        </h2>
         <p class="m-0 text-[12px] text-ink-secondary lg:text-sm">{subcopy}</p>
-            </div>
-          </div>
+      </div>
+    </div>
 
     <section
       class="flex flex-col gap-1 overflow-hidden rounded-xl border border-paper-border bg-white px-4 py-2.5 lg:gap-4 lg:p-5"
@@ -206,48 +208,63 @@
       </dl>
     </section>
 
-    <!-- Mobile share row -->
-    <div
-      class="flex items-center gap-2 overflow-hidden rounded-[10px] border border-paper-border bg-white px-3.5 py-2.5 lg:hidden"
-    >
-      <p class="m-0 min-w-0 flex-1 truncate text-[11px] text-ink-muted">
-        {shareUrl || "—"}
-      </p>
-          <button
-        type="button"
-        class="shrink-0 rounded-lg bg-brand px-3.5 py-1.5 text-[11px] font-semibold text-white transition hover:opacity-90 cursor-pointer"
-        on:click={copyLink}
-          >
-        {copied ? "Copied" : "Copy"}
-          </button>
-        </div>
-
-    <!-- Desktop share section -->
-    <section
-      class="hidden flex-col gap-3 rounded-xl border border-paper-border bg-white p-5 lg:flex"
-    >
-      <p
-        class="m-0 text-[11px] font-semibold uppercase tracking-wide text-ink-muted"
+    {#if canShare}
+      <!-- Mobile share row -->
+      <div
+        class="flex items-center gap-2 overflow-hidden rounded-[10px] border border-paper-border bg-white px-3.5 py-2.5 lg:hidden"
       >
-        Share Event
-      </p>
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-        <input
-          type="text"
-          readonly
-          value={shareUrl}
-          class="min-w-0 flex-1 rounded-lg border border-paper-border bg-paper-cream px-3 py-2.5 text-base text-ink outline-none"
-          aria-label="Event share link"
-        />
+        <p class="m-0 min-w-0 flex-1 truncate text-[11px] text-ink-muted">
+          {shareUrl || "—"}
+        </p>
         <button
           type="button"
-          class="shrink-0 rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90 cursor-pointer"
+          class="shrink-0 rounded-lg bg-brand px-3.5 py-1.5 text-[11px] font-semibold text-white transition hover:opacity-90 cursor-pointer"
           on:click={copyLink}
         >
-          {copied ? "Copied" : "Copy Link"}
+          {copied ? "Copied" : "Copy"}
         </button>
       </div>
-    </section>
+
+      <!-- Desktop share section -->
+      <section
+        class="hidden flex-col gap-3 rounded-xl border border-paper-border bg-white p-5 lg:flex"
+      >
+        <p class="m-0 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+          Share Event
+        </p>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+          <input
+            type="text"
+            readonly
+            value={shareUrl}
+            class="min-w-0 flex-1 rounded-lg border border-paper-border bg-paper-cream px-3 py-2.5 text-base text-ink outline-none"
+            aria-label="Event share link"
+          />
+          <button
+            type="button"
+            class="shrink-0 rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90 cursor-pointer"
+            on:click={copyLink}
+          >
+            {copied ? "Copied" : "Copy Link"}
+          </button>
+        </div>
+      </section>
+    {:else if isPrivate}
+      <!-- Mobile: private events are invite only -->
+      <a
+        href={generateHref}
+        class="flex items-center justify-center gap-2 rounded-[10px] bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white no-underline transition hover:opacity-90 lg:hidden"
+      >
+        <Ticket size={16} aria-hidden="true" />
+        Generate tickets
+      </a>
+    {:else}
+      <p
+        class="m-0 rounded-[10px] border border-paper-border bg-white px-3.5 py-2.5 text-center text-[12px] text-ink-secondary lg:hidden"
+      >
+        Publish to get a share link.
+      </p>
+    {/if}
 
     <div class="grid grid-cols-2 gap-1.5 lg:grid-cols-4 lg:gap-3">
       <div
@@ -261,8 +278,8 @@
         </p>
         <p class="m-0 text-[18px] font-bold text-ink lg:mt-1 lg:text-lg lg:font-extrabold">
           {ticketsReleased}
-          </p>
-        </div>
+        </p>
+      </div>
       <div
         class="rounded-[10px] border border-paper-border bg-white px-3 py-2 text-left lg:rounded-xl lg:py-3.5 lg:text-center"
       >
@@ -273,8 +290,8 @@
         </p>
         <p class="m-0 text-[18px] font-bold text-ink lg:mt-1 lg:text-lg lg:font-extrabold">
           NLe 0.00
-                  </p>
-                </div>
+        </p>
+      </div>
       <div
         class="rounded-[10px] border border-paper-border bg-white px-3 py-2 text-left lg:rounded-xl lg:py-3.5 lg:text-center"
       >
@@ -286,8 +303,8 @@
         </p>
         <p class="m-0 text-[18px] font-bold text-ink lg:mt-1 lg:text-lg lg:font-extrabold">
           {ticketTypeCount}
-                  </p>
-                </div>
+        </p>
+      </div>
       <div
         class="rounded-[10px] border border-paper-border bg-white px-3 py-2 text-left lg:rounded-xl lg:py-3.5 lg:text-center"
       >
@@ -313,16 +330,16 @@
         >
           Edit Event
         </button>
-      <button
+        <button
           type="button"
           class="rounded-[10px] border border-paper-border bg-white py-2 text-[13px] font-semibold text-ink transition hover:bg-paper-cream cursor-pointer"
           on:click={inviteStaff}
-      >
+        >
           Invite Staff
-      </button>
+        </button>
       </div>
 
-      <!-- Desktop: Invite | Edit | Share -->
+      <!-- Desktop: Invite | Edit | Share (or Generate / publish note) -->
       <div class="hidden grid-cols-1 gap-2 sm:grid-cols-3 lg:grid">
         <button
           type="button"
@@ -338,13 +355,29 @@
         >
           Edit Event
         </button>
-        <button
-          type="button"
-          class="rounded-lg border border-paper-border bg-white px-3 py-3 text-sm font-bold text-ink transition hover:bg-paper-cream cursor-pointer"
-          on:click={copyLink}
-        >
-          Share Event
-        </button>
+        {#if canShare}
+          <button
+            type="button"
+            class="rounded-lg border border-paper-border bg-white px-3 py-3 text-sm font-bold text-ink transition hover:bg-paper-cream cursor-pointer"
+            on:click={copyLink}
+          >
+            Share Event
+          </button>
+        {:else if isPrivate}
+          <a
+            href={generateHref}
+            class="flex items-center justify-center gap-2 rounded-lg border border-paper-border bg-white px-3 py-3 text-sm font-bold text-ink no-underline transition hover:bg-paper-cream"
+          >
+            <Ticket size={16} class="text-brand" aria-hidden="true" />
+            Generate tickets
+          </a>
+        {:else}
+          <p
+            class="m-0 flex items-center justify-center rounded-lg border border-dashed border-paper-border px-3 py-3 text-center text-[13px] text-ink-secondary"
+          >
+            Publish to get a share link.
+          </p>
+        {/if}
       </div>
 
       <button

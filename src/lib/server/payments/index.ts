@@ -8,12 +8,15 @@ export {
   PRIVATE_ISSUE_FEE_NLE,
   PRIVATE_INVITE_TYPE_NAME,
   privateIssueFeeTotal,
+  privateIssueChargeCents,
   getOrganiserNleBalance,
-  issuePrivateGuests,
   issuePrivateTicketsWithWallet,
-  claimPrivateIssuePayment,
-  debitWalletForPrivateIssue,
+  recordPendingPrivateIssuePayment,
+  fulfilPrivateIssuePayment,
+  type FulfilPrivateIssueResult,
   isPrivateIssuedGuest,
+  parsePrivateIssueQty,
+  PRIVATE_ISSUE_MAX_QTY,
 } from "./privateIssue";
 export { getMonimeCredentials, getMonimeWebhookSecret, type MonimeCredentials } from "./monimeEnv";
 export {
@@ -41,3 +44,13 @@ export {
   validateCheckoutQuote,
   type CheckoutQuoteResult,
 } from "./validateCheckoutQuote";
+export { cancelMonimePaymentCode, type CancelPaymentCodeResult } from "./cancelPaymentCode";
+export {
+  createCheckoutHold,
+  updateHold,
+  findHoldForPaymentCode,
+  getActiveHoldCounts,
+  markPaymentCodeEnded,
+  expireStalePayments,
+  type HoldRow,
+} from "./checkoutHolds";

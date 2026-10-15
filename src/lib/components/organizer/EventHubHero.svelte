@@ -10,6 +10,7 @@
   import Calendar from "lucide-svelte/icons/calendar";
   import EventCover from "$lib/components/event/EventCover.svelte";
   import { showToast } from "$lib/store";
+  import { canShareEvent } from "$lib/components/organizer/events/mapOrganiserEvent.js";
 
   /** @type {any} */
   export let event = null;
@@ -29,6 +30,7 @@
     return datePart ? `${datePart} · ${loc}` : loc;
   })();
 
+  $: canShare = canShareEvent(event);
   $: statusKey = String(event?.status || "draft").toLowerCase();
   $: isLiveStatus = statusKey === "live" || statusKey === "published";
   $: statusLabel = isLiveStatus
@@ -105,13 +107,15 @@
     </div>
 
     <div class="flex flex-wrap gap-2">
-      <button
-        type="button"
-        class="inline-flex items-center justify-center rounded-lg border border-[#e2e8f0] bg-white px-3.5 py-2.5 text-[12px] font-bold text-ink cursor-pointer hover:bg-paper-cream"
-        on:click={copyLink}
-      >
-        {copied ? "Copied" : "Copy event link"}
-      </button>
+      {#if canShare}
+        <button
+          type="button"
+          class="inline-flex items-center justify-center rounded-lg border border-[#e2e8f0] bg-white px-3.5 py-2.5 text-[12px] font-bold text-ink cursor-pointer hover:bg-paper-cream"
+          on:click={copyLink}
+        >
+          {copied ? "Copied" : "Copy event link"}
+        </button>
+      {/if}
       <button
         type="button"
         class="inline-flex items-center justify-center rounded-lg border-0 bg-brand px-3.5 py-2.5 text-[12px] font-bold text-white cursor-pointer hover:opacity-90"
@@ -154,14 +158,16 @@
       </div>
 
       <div class="flex flex-wrap gap-3">
-        <button
-          type="button"
-          class="inline-flex items-center gap-2.5 rounded-xl border border-[#e8e3dd] bg-white px-4 py-3 text-sm font-bold text-ink shadow-[0px_6px_8px_rgba(0,0,0,0.04)] cursor-pointer hover:bg-paper-cream"
-          on:click={copyLink}
-        >
-          <Copy size={18} class="text-brand" aria-hidden="true" />
-          {copied ? "Copied" : "Copy event link"}
-        </button>
+        {#if canShare}
+          <button
+            type="button"
+            class="inline-flex items-center gap-2.5 rounded-xl border border-[#e8e3dd] bg-white px-4 py-3 text-sm font-bold text-ink shadow-[0px_6px_8px_rgba(0,0,0,0.04)] cursor-pointer hover:bg-paper-cream"
+            on:click={copyLink}
+          >
+            <Copy size={18} class="text-brand" aria-hidden="true" />
+            {copied ? "Copied" : "Copy event link"}
+          </button>
+        {/if}
         <button
           type="button"
           class="inline-flex items-center gap-2.5 rounded-xl border-0 bg-brand px-4 py-3 text-sm font-extrabold text-white shadow-[0px_10px_11px_rgba(237,107,45,0.2)] cursor-pointer hover:opacity-90"

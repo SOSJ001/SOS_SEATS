@@ -6,6 +6,17 @@
 
 export const isActiveStatus = (status) => status === "published" || status === "live";
 
+/**
+ * A public link only opens for public events that are published or live
+ * (anon cannot read drafts or private events). Private events are invite only.
+ * @param {{ status?: string, dbStatus?: string, event_visibility?: string } | null | undefined} event
+ */
+export function canShareEvent(event) {
+  if (!event) return false;
+  const status = String(event.dbStatus || event.status || "").toLowerCase();
+  return (event.event_visibility || "public") === "public" && isActiveStatus(status);
+}
+
 /** Today as YYYY-MM-DD in Sierra Leone time (same rule as the door scanner). */
 export function todayInFreetown(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -54,6 +65,8 @@ export function mapOrganiserEvent(event) {
     image: event.image?.file_path || null,
     // Display-only: past published/live events read as ended. The database status is unchanged.
     status: isPast && isActiveStatus(rawStatus) ? "completed" : rawStatus,
+    dbStatus: rawStatus,
+    event_visibility: event.event_visibility || "public",
     isPast,
     ticketsSold,
     capacity,

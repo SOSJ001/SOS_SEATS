@@ -9,6 +9,7 @@
   import { sessionFromDb } from "$lib/store";
   import { goto } from "$app/navigation";
   import { signInHref } from "$lib/auth/postAuthRedirect.js";
+  import { FEATURED_CATEGORIES } from "$lib/eventCategories";
   import {
     formatBookingFeeLabel,
     formatPlatformFeePercent,
@@ -18,11 +19,11 @@
 
   export let data;
 
-  const CATEGORIES = ["Music", "Tech", "Comedy", "Sports", "Workshops", "Food"];
+  const CATEGORIES = FEATURED_CATEGORIES;
   const HERO_IMG = "/hifi/hero.png";
 
   let searchQuery = "";
-  let activeCategory = "Music";
+  let activeCategory = FEATURED_CATEGORIES[0];
   $: events = normalizeEvents(data?.events || []);
   $: upcoming = events.slice(0, 3);
   $: isLoggedIn = !!$sessionFromDb;

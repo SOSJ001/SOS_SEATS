@@ -1,6 +1,6 @@
 <script>
   // @ts-nocheck
-  /** Event hub — Overview | Guests | Generate (mobile 208:58 / 374:160 / 208:219; desktop 199:56 / 527:621 / 199:350). */
+  /** Event hub — Overview | Guests | Generate | Settings (mobile 208:58 / 374:160 / 208:219; desktop 199:56 / 527:621 / 199:350). */
   import { onMount, onDestroy } from "svelte";
   import { page } from "$app/stores";
   import EventHubHero from "$lib/components/organizer/EventHubHero.svelte";
@@ -8,17 +8,18 @@
   import EventHubOverview from "$lib/components/organizer/EventHubOverview.svelte";
   import EventHubGuests from "$lib/components/organizer/EventHubGuests.svelte";
   import EventHubGenerate from "$lib/components/organizer/EventHubGenerate.svelte";
+  import EventHubSettings from "$lib/components/organizer/EventHubSettings.svelte";
   import { organiserTopbarTitle } from "$lib/client/organiserUi";
+  import { normalizeHubTab } from "$lib/eventHubTabs";
 
   export let data;
+  export let form;
 
   $: event = data.event;
   $: error = data.error;
   $: walletBalance = data.walletBalance ?? 0;
   $: tabParam = $page.url.searchParams.get("tab") || data.tab || "overview";
-  $: activeTab = ["overview", "guests", "generate"].includes(tabParam)
-    ? tabParam
-    : "overview";
+  $: activeTab = normalizeHubTab(tabParam, event);
 
   onMount(() => {
     if (event?.title) organiserTopbarTitle.set(event.title);
@@ -48,20 +49,22 @@
       Back to Events
     </a>
   </div>
-            {:else}
+{:else}
   <!-- Hero → tabs → body (Figma PageBody mobile + desktop). -->
   <div class="-mx-4 -mt-4 flex flex-col md:-mx-6 md:-mt-6">
     <div
       class="flex flex-col gap-4 bg-public-page px-4 py-6 md:px-8 md:py-8 lg:gap-8"
     >
       <EventHubHero {event} />
-      <EventHubTabs eventId={event.id} active={activeTab} />
+      <EventHubTabs {event} active={activeTab} />
       {#if activeTab === "overview"}
         <EventHubOverview {event} />
       {:else if activeTab === "guests"}
         <EventHubGuests {event} />
-        {:else}
+      {:else if activeTab === "generate"}
         <EventHubGenerate {event} {walletBalance} />
+      {:else if activeTab === "settings"}
+        <EventHubSettings settings={data.settings} {form} />
       {/if}
     </div>
   </div>

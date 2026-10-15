@@ -4,6 +4,7 @@
    * Organiser Dashboard Overview (HI-FI 55:857 desktop, 469:80 mobile;
    * empty 1615:5197 / 1615:5496).
    */
+  import { afterNavigate, invalidate } from "$app/navigation";
   import { sessionFromDb } from "$lib/store";
   import Layers from "lucide-svelte/icons/layers";
   import Ticket from "lucide-svelte/icons/ticket";
@@ -25,6 +26,11 @@
   if (data.user_Id !== undefined) {
     sessionFromDb.set(data.user_Id);
   }
+
+  // A full page load already has fresh data; only in-app visits reload it.
+  afterNavigate(({ from }) => {
+    if (from) invalidate("app:dashboard");
+  });
 
   $: organiserName = data.userName || "";
   $: events = (data.events || []).map(mapOrganiserEvent);

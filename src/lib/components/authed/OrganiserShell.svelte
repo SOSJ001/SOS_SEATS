@@ -52,7 +52,6 @@
     if (p.startsWith("/dashboard/events/eventDetails")) return "Event Details";
     if (p.startsWith("/dashboard/events")) return "Events";
     if (p.startsWith("/dashboard/invite-staff")) return "Invite Door Staff & Scanner Accounts";
-    if (p.startsWith("/dashboard/guests")) return "Guest List Management";
     if (p.startsWith("/dashboard/wallet")) return "Wallet & Proceeds";
     if (p.startsWith("/dashboard/settings")) return "Settings";
     if (p.startsWith("/dashboard/scanner")) return "Door Scanner";

@@ -1,6 +1,8 @@
 import { json } from "@sveltejs/kit";
 import { claimTickets } from "$lib/server/tickets";
 import { getServerSupabase } from "$lib/server/db";
+import { isEventOnSale } from "$lib/server/events/onSale";
+import { getMaxPerOrder } from "$lib/server/events/settings";
 
 const MAX_PER_TYPE = 50;
 
@@ -53,13 +55,24 @@ export async function POST({ request, locals }) {
     const db = getServerSupabase();
     const { data: event } = await db
       .from("events")
-      .select("id, status")
+      .select("id, status, event_visibility")
       .eq("id", eventId)
       .maybeSingle();
-    if (!event || !["published", "live"].includes(event.status)) {
+    if (!isEventOnSale(event)) {
       return json(
         { success: false, error: "Event not available" },
         { status: 404 }
+      );
+    }
+
+    const maxPerOrder = await getMaxPerOrder(eventId);
+    if (Object.values(quantities).some((qty) => qty > maxPerOrder)) {
+      return json(
+        {
+          success: false,
+          error: `You can take at most ${maxPerOrder} of each ticket type per order`,
+        },
+        { status: 400 }
       );
     }
 

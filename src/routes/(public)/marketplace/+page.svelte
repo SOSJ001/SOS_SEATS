@@ -9,18 +9,13 @@
   import { page } from "$app/stores";
   import { onMount } from "svelte";
   import { loadPublicEvents } from "$lib/supabase.js";
+  import { EVENT_CATEGORIES } from "$lib/eventCategories";
 
   export let data;
 
-  const FILTER_CHIPS = [
-    "This Weekend",
-    "Music",
-    "Comedy",
-    "Freetown",
-    "Bo",
-    "Kenema",
-    "Makeni",
-  ];
+  const WEEKEND_CHIP = "This Weekend";
+  const TOWN_CHIPS = ["Freetown", "Bo", "Kenema", "Makeni"];
+  const FILTER_CHIPS = [WEEKEND_CHIP, ...EVENT_CATEGORIES, ...TOWN_CHIPS];
 
   const LOCATIONS = [
     "All Western Area",
@@ -89,7 +84,7 @@
 
   let searchQuery = $page.url.searchParams.get("q") || "";
   let activeChip =
-    chipFromCategory($page.url.searchParams.get("category")) || "This Weekend";
+    chipFromCategory($page.url.searchParams.get("category")) || WEEKEND_CHIP;
   let selectedLocations = ["All Western Area"];
   let selectedPrice = "Any Price";
   let selectedDate = "Any Date";
@@ -128,18 +123,26 @@
   });
 
   $: filtered = allEvents.filter((event) => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = searchQuery.trim().toLowerCase().replace(/^#/, "");
     const name = (event.name || "").toLowerCase();
     const venue = (event.venue || "").toLowerCase();
     const cat = (event.category || "").toLowerCase();
+    const tags = Array.isArray(event.tags)
+      ? event.tags.map((t) => String(t).toLowerCase())
+      : [];
     const matchesSearch =
-      !q || name.includes(q) || venue.includes(q) || cat.includes(q);
+      !q ||
+      name.includes(q) ||
+      venue.includes(q) ||
+      cat.includes(q) ||
+      tags.some((t) => t.includes(q));
 
     let matchesChip = true;
-    if (activeChip && activeChip !== "This Weekend") {
+    if (activeChip && activeChip !== WEEKEND_CHIP) {
       const chip = activeChip.toLowerCase();
-      matchesChip =
-        cat.includes(chip) || venue.includes(chip) || name.includes(chip);
+      matchesChip = TOWN_CHIPS.includes(activeChip)
+        ? venue.includes(chip)
+        : cat === chip;
     }
 
     let matchesPrice = true;

@@ -20,6 +20,7 @@
   export let ticketTypes = [];
   export let ticketCount = 1;
   export let amountLabel = "";
+  export let amountTitle = "Amount Paid";
   export let paymentMethod = "Orange Money";
   export let timestamp = "";
   export let orderNumber = "";
@@ -128,7 +129,7 @@
       <span class="truncate text-right font-bold text-ink">{eventName}</span>
     </div>
     <div class="flex items-center justify-between gap-3 text-[13px] lg:text-[12px]">
-      <span class="text-ink-secondary">Amount Paid</span>
+      <span class="text-ink-secondary">{amountTitle}</span>
       <span class="font-bold text-ink">{amountLabel}</span>
     </div>
     <div class="flex items-center justify-between gap-3 text-[13px] lg:text-[12px]">

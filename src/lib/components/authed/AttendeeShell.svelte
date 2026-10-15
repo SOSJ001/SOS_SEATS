@@ -30,9 +30,7 @@
     $page.route.id === "/(authed)/dashboard/my-tickets/transfers/[ticketId]";
   $: onReceipt =
     $page.route.id ===
-      "/(authed)/dashboard/my-tickets/transfers/receipt/preview" ||
-    $page.route.id ===
-      "/(authed)/dashboard/my-tickets/transfers/receipt/[transferId]";
+    "/(authed)/dashboard/my-tickets/transfers/receipt/[transferId]";
   $: hideMobileHeader = (onTransferForm || onReceipt) && !$page.error;
   $: initials = initialsFromName(userName);
 

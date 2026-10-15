@@ -30,7 +30,7 @@
       lasts: "Up to 7 days, or until you sign out",
     },
     {
-      name: "eventCreationData, eventEditData",
+      name: "eventCreationData, eventEditDraft:<event id>",
       type: "localStorage",
       purpose: "Saves your event draft while you create or edit an event.",
       lasts: "Until the event is saved or you clear your browser data",

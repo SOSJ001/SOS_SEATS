@@ -14,7 +14,9 @@ function emptyDashboard() {
   };
 }
 
-export async function load({ locals }) {
+export async function load({ locals, depends }) {
+  // Uses no url/params, so the dashboard page invalidates this on in-app visits.
+  depends("app:dashboard");
   const user_Id = locals.userId;
   const userName = locals.userName;
   const sessionType = locals.sessionType;

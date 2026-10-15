@@ -2,17 +2,58 @@ import { getServerSupabase } from "$lib/server/db";
 import {
   getOrganiserNleBalance,
   isPrivateIssuedGuest,
-  PRIVATE_INVITE_TYPE_NAME,
 } from "$lib/server/payments";
+import { fail } from "@sveltejs/kit";
+import {
+  assertEventOwnedByUser,
+  getMaxPerOrder,
+  ticketCapacity,
+  updateEventSettings,
+} from "$lib/server/events";
+import { normalizeHubTab } from "$lib/eventHubTabs";
 
 const supabase = getServerSupabase();
 
+export const actions = {
+  saveSettings: async ({ request, locals, url }) => {
+    if (!locals.userId) {
+      return fail(401, { error: "Unauthorized" });
+    }
+    const eventId = url.searchParams.get("id");
+    if (!eventId) {
+      return fail(400, { error: "Event ID is required" });
+    }
+
+    const fd = await request.formData();
+    const str = (/** @type {string} */ key) => String(fd.get(key) ?? "");
+    const values = {
+      category: str("category"),
+      tags: fd.getAll("tags").map(String),
+      website: str("website"),
+      social_media: {
+        facebook: str("facebook"),
+        twitter: str("twitter"),
+        instagram: str("instagram"),
+      },
+      contact_email: str("contact_email"),
+      maxPerOrder: str("maxPerOrder"),
+    };
+
+    if (!(await assertEventOwnedByUser(eventId, locals.userId))) {
+      return fail(403, { error: "Event not found or unauthorized", values });
+    }
+
+    const result = await updateEventSettings(eventId, locals.userId, values);
+    if (!result.success) {
+      return fail(result.validation ? 400 : 500, { error: result.error, values });
+    }
+    return { success: true };
+  },
+};
+
 export async function load({ url, locals }) {
   const eventId = url.searchParams.get("id");
-  const tabParam = url.searchParams.get("tab") || "overview";
-  const tab = ["overview", "guests", "generate"].includes(tabParam)
-    ? tabParam
-    : "overview";
+  const tab = normalizeHubTab(url.searchParams.get("tab"));
 
   if (!eventId) {
     return {
@@ -131,14 +172,7 @@ export async function load({ url, locals }) {
       { p_event_id: eventId }
     );
 
-    const totalCapacity =
-      eventWithImage.ticket_types?.reduce(
-        (sum, ticket) =>
-          ticket.name === PRIVATE_INVITE_TYPE_NAME
-            ? sum
-            : sum + (ticket.quantity || 0),
-        0
-      ) || 0;
+    const totalCapacity = ticketCapacity(eventWithImage.ticket_types);
 
     eventStats.remainingTickets = totalCapacity - eventStats.totalTicketsSold;
 
@@ -237,6 +271,9 @@ export async function load({ url, locals }) {
             status: guest.status,
             specialRequirements: guest.special_requirements || null,
             createdAt: guest.created_at || null,
+            sharedAt: guest.shared_at || null,
+            sharedVia: guest.shared_via || null,
+            shareCount: guest.share_count || 0,
           };
         }) || [],
     };
@@ -248,9 +285,24 @@ export async function load({ url, locals }) {
       return db - da;
     });
 
+    const social = eventWithImage.social_media || {};
+    const settings = {
+      category: eventWithImage.category || "",
+      tags: Array.isArray(eventWithImage.tags) ? eventWithImage.tags : [],
+      website: eventWithImage.website || "",
+      social_media: {
+        facebook: social.facebook || "",
+        twitter: social.twitter || "",
+        instagram: social.instagram || "",
+      },
+      contact_email: eventWithImage.contact_email || "",
+      maxPerOrder: await getMaxPerOrder(eventId),
+    };
+
     return {
       event: formattedEvent,
-      tab,
+      settings,
+      tab: normalizeHubTab(url.searchParams.get("tab"), formattedEvent),
       walletBalance,
     };
   } catch {

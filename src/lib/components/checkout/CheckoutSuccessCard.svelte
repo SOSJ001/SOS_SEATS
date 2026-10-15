@@ -9,6 +9,7 @@
   export let eventName = "";
   export let ticketsLabel = "";
   export let amountLabel = "";
+  export let amountTitle = "Amount Deducted";
   export let paymentMethod = "Wallet Balance";
   export let timestamp = "";
   export let primaryLabel = "View Guest List";
@@ -97,7 +98,7 @@
     <div
       class="flex items-center justify-between gap-3 text-[13px] lg:border-b lg:border-paper-border lg:px-3.5 lg:py-2.5 lg:text-[12px]"
     >
-      <span class="text-ink-secondary">Amount Deducted</span>
+      <span class="text-ink-secondary">{amountTitle}</span>
       <span class="font-extrabold text-brand lg:font-bold">{amountLabel}</span>
     </div>
     <div class="h-px w-full bg-paper-border lg:hidden"></div>

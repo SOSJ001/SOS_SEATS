@@ -282,6 +282,13 @@
         if (res.status === 403) {
           return { ok: false, error: "Order ownership mismatch" };
         }
+        if (res.ok && body.paidNoTickets) {
+          return {
+            ok: false,
+            error:
+              "Payment received but your tickets could not be created. See Payments in My Tickets.",
+          };
+        }
       } catch (err) {
         console.error("Order wait poll error:", err);
       }

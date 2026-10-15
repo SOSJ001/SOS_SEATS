@@ -14,12 +14,6 @@ export async function walletDataGet(
   return res.json();
 }
 
-/** Withdrawable balance and fees, computed on the server. */
-export async function getWithdrawable() {
-  const res = await fetch("/api/wallet/withdraw");
-  return res.json();
-}
-
 /** Pay out the chosen amount (whole available balance if none) to a mobile money number. */
 export async function requestWithdrawal(body: {
   amount?: number;
@@ -37,14 +31,5 @@ export async function requestWithdrawal(body: {
 /** Refresh the signed-in organiser's pending payouts from Monime. */
 export async function syncPayouts() {
   const res = await fetch("/api/wallet/sync-payouts", { method: "POST" });
-  return res.json();
-}
-
-export async function ordersFulfill(body: Record<string, any>) {
-  const res = await fetch("/api/orders/fulfill", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
   return res.json();
 }

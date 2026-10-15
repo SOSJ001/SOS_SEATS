@@ -2,14 +2,6 @@
 import { monimeService } from "./monime.js";
 import { calculateBookingFee } from "./fees.js";
 
-/**
- * Calculate platform service fee
- */
-export function calculatePlatformFee(ticketPrice: number): number {
-  // Service fee removed for mobile money payments
-  return 0;
-}
-
 export { calculateWithdrawalFee } from "./fees.js";
 
 interface TicketPurchaseData {

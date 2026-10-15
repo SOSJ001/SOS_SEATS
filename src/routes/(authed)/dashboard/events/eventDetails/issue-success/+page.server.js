@@ -1,6 +1,8 @@
 import { getServerSupabase } from "$lib/server/db";
 import {
   PRIVATE_ISSUE_FEE_NLE,
+  PRIVATE_ISSUE_MAX_QTY,
+  privateIssueChargeCents,
   privateIssueFeeTotal,
 } from "$lib/server/payments";
 
@@ -8,8 +10,13 @@ const supabase = getServerSupabase();
 
 export async function load({ url, locals }) {
   const eventId = url.searchParams.get("id");
-  const qty = Math.max(1, Math.floor(Number(url.searchParams.get("qty")) || 1));
-  const paymentMethod = paymentMethodLabel(url.searchParams.get("method"));
+  const qty = Math.min(
+    PRIVATE_ISSUE_MAX_QTY,
+    Math.max(1, Math.floor(Number(url.searchParams.get("qty")) || 1))
+  );
+  const method = url.searchParams.get("method");
+  const paymentMethod = paymentMethodLabel(method);
+  const paidByMobileMoney = method === "orange_money" || method === "afrimoney";
 
   if (!eventId) {
     return {
@@ -86,6 +93,11 @@ export async function load({ url, locals }) {
     qty,
     feeEach: PRIVATE_ISSUE_FEE_NLE,
     feeTotal: privateIssueFeeTotal(qty),
+    // Mobile money charges the fee plus 1%; the wallet path deducts the fee only.
+    amount: paidByMobileMoney
+      ? privateIssueChargeCents(qty) / 100
+      : privateIssueFeeTotal(qty),
+    amountTitle: paidByMobileMoney ? "Amount Paid" : "Amount Deducted",
     paymentMethod,
     timestamp: formatTimestamp(new Date()),
   };

@@ -61,6 +61,7 @@
     ticketTypes={order.ticketTypes}
     ticketCount={order.ticketCount}
     {amountLabel}
+    amountTitle={order?.amountTitle || "Amount Paid"}
     paymentMethod={order.paymentMethod}
     timestamp={order.timestamp}
     orderNumber={order.orderNumber}

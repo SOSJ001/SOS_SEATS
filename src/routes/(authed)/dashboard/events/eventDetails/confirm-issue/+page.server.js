@@ -1,15 +1,20 @@
 import { getServerSupabase } from "$lib/server/db";
 import {
   PRIVATE_ISSUE_FEE_NLE,
+  PRIVATE_ISSUE_MAX_QTY,
   privateIssueFeeTotal,
   getOrganiserNleBalance,
 } from "$lib/server/payments";
+import { isPrivateEvent } from "$lib/eventVisibility";
 
 const supabase = getServerSupabase();
 
 export async function load({ url, locals }) {
   const eventId = url.searchParams.get("id");
-  const qty = Math.max(1, Math.floor(Number(url.searchParams.get("qty")) || 1));
+  const qty = Math.min(
+    PRIVATE_ISSUE_MAX_QTY,
+    Math.max(1, Math.floor(Number(url.searchParams.get("qty")) || 1))
+  );
 
   if (!eventId) {
     return {
@@ -34,7 +39,7 @@ export async function load({ url, locals }) {
 
   const { data: event, error } = await supabase
     .from("events")
-    .select("id, name, date, time, location, image_id, user_id")
+    .select("id, name, date, time, location, image_id, user_id, event_visibility")
     .eq("id", eventId)
     .eq("user_id", userId)
     .single();
@@ -43,6 +48,16 @@ export async function load({ url, locals }) {
     return {
       status: 404,
       error: "Event not found",
+      qty,
+      feeEach: PRIVATE_ISSUE_FEE_NLE,
+      walletBalance: 0,
+    };
+  }
+
+  if (!isPrivateEvent(event)) {
+    return {
+      status: 400,
+      error: "Private tickets can only be issued for private events",
       qty,
       feeEach: PRIVATE_ISSUE_FEE_NLE,
       walletBalance: 0,

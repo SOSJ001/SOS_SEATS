@@ -29,7 +29,17 @@ export type WalletHistoryRow =
       eventName: string | null;
       quantity: number | null;
       amount: number;
-      status: "paid";
+      status: "paid" | "refunded";
+    }
+  | {
+      /** Private ticket fee paid by mobile money; not taken from the balance */
+      kind: "private_payment";
+      id: string;
+      createdAt: string;
+      eventName: string | null;
+      quantity: number | null;
+      amount: number;
+      status: "paid" | "not_issued" | "waiting" | "cancelled";
     };
 
 export type WalletHistoryFilter = "all" | "sales" | "withdrawals";
@@ -120,18 +130,24 @@ export function rowTitle(row: WalletHistoryRow, layout: WalletLayout): string {
 export function rowTypeLabel(row: WalletHistoryRow): string {
   if (row.kind === "sale") return "Ticket sale";
   if (row.kind === "withdrawal") return "Withdrawal";
+  if (row.kind === "private_payment") return "Fee (mobile money)";
   return "Fee";
 }
 
 export function rowAmount(row: WalletHistoryRow): string {
   if (row.kind === "sale") return `+${formatNle(row.amount)}`;
   if (row.kind === "withdrawal" && row.status === "failed") return formatNle(row.amount);
+  if (row.kind === "fee" && row.status === "refunded") return formatNle(row.amount);
+  if (row.kind === "private_payment") return formatNle(row.amount);
   return `-${formatNle(row.amount)}`;
 }
 
 export function rowAmountClass(row: WalletHistoryRow, layout: WalletLayout): string {
   if (row.kind === "sale") return "text-[#00e676]";
-  if (row.kind === "fee") return "text-[#ef4444]";
+  if (row.kind === "private_payment") return "text-ink-secondary";
+  if (row.kind === "fee") {
+    return row.status === "refunded" ? "text-ink-secondary" : "text-[#ef4444]";
+  }
   if (row.status === "failed") return "text-ink-secondary";
   return layout === "mobile" ? "text-[#ff1744]" : "text-brand";
 }
@@ -147,7 +163,13 @@ export function rowStatusLabel(row: WalletHistoryRow): string {
     if (row.status === "on_hold") return "On hold";
     return "Completed";
   }
-  return "Paid";
+  if (row.kind === "private_payment") {
+    if (row.status === "not_issued") return "Paid, tickets not issued";
+    if (row.status === "waiting") return "Waiting for payment";
+    if (row.status === "cancelled") return "Cancelled";
+    return "Paid";
+  }
+  return row.status === "refunded" ? "Refunded" : "Paid";
 }
 
 export function rowStatusTone(row: WalletHistoryRow): WalletStatusTone {
@@ -156,5 +178,10 @@ export function rowStatusTone(row: WalletHistoryRow): WalletStatusTone {
     if (row.status === "failed") return "red";
     if (row.status === "on_its_way" || row.status === "on_hold") return "amber";
   }
+  if (row.kind === "private_payment") {
+    if (row.status === "waiting") return "amber";
+    if (row.status === "not_issued" || row.status === "cancelled") return "red";
+  }
+  if (row.kind === "fee" && row.status === "refunded") return "amber";
   return "green";
 }

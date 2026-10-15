@@ -1,10 +1,14 @@
 import { json } from "@sveltejs/kit";
 import {
+  assertEventOwnedByUser,
+  decodeEventImageDataUrl,
+  loadEventUpdateState,
   updateEventWithDetails,
   uploadEventImage,
-  getEventImageId,
+  validateEventInput,
 } from "$lib/server/events";
 
+/** Partial update: only fields present in the body are validated and written. */
 export async function PUT({ request, locals, params }) {
   try {
     const user_Id = locals.userId;
@@ -21,76 +25,102 @@ export async function PUT({ request, locals, params }) {
       );
     }
 
-    const eventData = await request.json();
-    let imageId = null;
-    let imageBase64 = null;
-
-    if (
-      eventData.image &&
-      typeof eventData.image === "string" &&
-      eventData.image.startsWith("data:")
-    ) {
-      imageBase64 = eventData.image;
+    if (!(await assertEventOwnedByUser(eventId, user_Id))) {
+      return json(
+        { success: false, error: "Event not found or unauthorized" },
+        { status: 403 }
+      );
     }
 
-    if (imageBase64) {
-      try {
-        const base64Response = await fetch(imageBase64);
-        const blob = await base64Response.blob();
-        const file = new File([blob], "event-image.jpg", { type: blob.type });
+    const state = await loadEventUpdateState(eventId, user_Id);
+    if (!state) {
+      return json(
+        { success: false, error: "Event not found or unauthorized" },
+        { status: 403 }
+      );
+    }
 
-        const uploadResult = await uploadEventImage(file, user_Id);
-        if (uploadResult.success) {
-          imageId = uploadResult.image_id;
-        } else {
-          return json(
-            { success: false, error: "Failed to upload image" },
-            { status: 400 }
-          );
-        }
-      } catch {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ success: false, error: "Invalid JSON" }, { status: 400 });
+    }
+
+    const validated = validateEventInput(body, "update", state.is_free_event);
+    if (!validated.ok) {
+      return json({ success: false, error: validated.error }, { status: 400 });
+    }
+    const { payload, ticketTypes } = validated.value;
+
+    if (
+      payload.is_free_event !== undefined &&
+      payload.is_free_event !== state.is_free_event &&
+      state.hasTicketSales
+    ) {
+      return json(
+        {
+          success: false,
+          error: "Tickets have already been sold, so the event can't switch between free and paid",
+        },
+        { status: 400 }
+      );
+    }
+
+    const toVisibility = payload.event_visibility;
+    if (toVisibility !== undefined && toVisibility !== state.event_visibility) {
+      if (toVisibility === "public" && state.hasPrivateTickets) {
         return json(
-          { success: false, error: "Failed to process image" },
+          {
+            success: false,
+            error: "This event has private tickets, so it can't be made public",
+          },
           { status: 400 }
         );
       }
-    } else {
-      imageId = await getEventImageId(eventId, user_Id);
-      if (imageId === null && eventData.image_id) {
-        imageId = eventData.image_id;
+      if (toVisibility === "private" && state.hasTicketSales) {
+        return json(
+          {
+            success: false,
+            error: "Tickets have already been sold for this event, so it can't be made private",
+          },
+          { status: 400 }
+        );
       }
     }
 
-    const eventPayload = {
-      name: eventData.name,
-      description: eventData.description,
-      date: eventData.date,
-      time: eventData.time,
-      location: eventData.location,
-      venue_address: eventData.venue_address,
-      category: eventData.category,
-      tags: eventData.tags || [],
-      organizer: eventData.organizer,
-      contact_email: eventData.contact_email,
-      website: eventData.website,
-      social_media: eventData.social_media || {},
-      image_id: imageId,
-      is_free_event: eventData.is_free_event || false,
-      seating_type: eventData.seating_type || "general",
-      total_capacity: parseInt(eventData.total_capacity) || 0,
-      audience_type: eventData.audience_type || "all-ages",
-      event_visibility: eventData.event_visibility || "public",
-      status: eventData.status,
-      published_at: eventData.published_at,
-      ticket_design_config: eventData.ticket_design_config || null,
-      updated_at: new Date().toISOString(),
-    };
+    const wasLive = state.status === "published" || state.status === "live";
+    if (payload.status === "draft" && wasLive && state.hasAnySales) {
+      return json(
+        {
+          success: false,
+          error: "This event already has tickets out, so it can't go back to draft",
+        },
+        { status: 400 }
+      );
+    }
+    if (payload.status === "published" && !state.published_at) {
+      payload.published_at = new Date().toISOString();
+    }
+
+    const image = typeof body.image === "string" ? body.image : "";
+    if (image.startsWith("data:")) {
+      const decoded = decodeEventImageDataUrl(image);
+      if (!decoded.ok) {
+        return json({ success: false, error: decoded.error }, { status: 400 });
+      }
+      const upload = await uploadEventImage(decoded.image, user_Id);
+      if (!upload.success) {
+        return json({ success: false, error: upload.error }, { status: 500 });
+      }
+      payload.image_id = upload.image_id;
+    }
 
     const updateResult = await updateEventWithDetails(
       eventId,
-      eventPayload,
+      payload,
       user_Id,
-      eventData
+      ticketTypes
     );
 
     if (updateResult.success) {
@@ -102,11 +132,12 @@ export async function PUT({ request, locals, params }) {
     }
     return json(
       { success: false, error: updateResult.error },
-      { status: 400 }
+      { status: updateResult.validation ? 400 : 500 }
     );
-  } catch {
+  } catch (error) {
+    console.error("updateEventApi failed", error);
     return json(
-      { success: false, error: "Internal server error" },
+      { success: false, error: "Could not save the event" },
       { status: 500 }
     );
   }

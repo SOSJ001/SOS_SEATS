@@ -1,18 +1,19 @@
 import { json } from "@sveltejs/kit";
 import {
   issuePrivateTicketsWithWallet,
-  issuePrivateGuests,
-  claimPrivateIssuePayment,
+  fulfilPrivateIssuePayment,
+  parsePrivateIssueQty,
   privateIssueFeeTotal,
   PRIVATE_ISSUE_FEE_NLE,
+  PRIVATE_ISSUE_MAX_QTY,
 } from "$lib/server/payments";
 import { assertEventOwnedByUser } from "$lib/server/events";
 
 /**
  * POST /api/events/[eventId]/private-issue
  * body: { qty, method: "wallet" | "fulfill", paymentCodeId? }
- * - wallet: debit NLe proceeds + insert guests
- * - fulfill: verify the MM payment code with Monime (once per code), then insert guests
+ * - wallet: take the fee from the NLe balance and create the tickets (fee returned on failure)
+ * - fulfill: verify the MM payment code with Monime, then create the tickets once per payment
  */
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ params, request, locals }) {
@@ -41,28 +42,30 @@ export async function POST({ params, request, locals }) {
     return json({ success: false, error: "Invalid JSON" }, { status: 400 });
   }
 
-  const qty = Math.floor(Number(body?.qty) || 0);
+  const qty = parsePrivateIssueQty(body?.qty);
   const method = String(body?.method || "wallet");
-  const feeTotal = privateIssueFeeTotal(qty);
 
-  if (qty < 1) {
+  if (qty === null) {
     return json(
-      { success: false, error: "Quantity must be at least 1" },
+      {
+        success: false,
+        error: `Quantity must be a whole number from 1 to ${PRIVATE_ISSUE_MAX_QTY}`,
+      },
       { status: 400 }
     );
   }
 
+  const ledgerKey = locals.linkedWalletAddress || locals.walletAddress || null;
+
   if (method === "wallet") {
-    const walletAddress =
-      locals.linkedWalletAddress || locals.walletAddress || null;
     const result = await issuePrivateTicketsWithWallet({
       eventId,
       userId,
-      walletAddress,
+      walletAddress: ledgerKey,
       qty,
     });
     if (!result.success) {
-      return json({ success: false, error: result.error }, { status: 400 });
+      return json({ success: false, error: result.error }, { status: result.status || 400 });
     }
     return json({
       success: true,
@@ -74,27 +77,24 @@ export async function POST({ params, request, locals }) {
   }
 
   if (method === "fulfill") {
-    const claim = await claimPrivateIssuePayment({
-      paymentCodeId: String(body?.paymentCodeId || ""),
-      eventId,
+    const paymentCodeId = String(body?.paymentCodeId || "");
+    const result = await fulfilPrivateIssuePayment({
+      paymentCodeId,
       userId,
-      walletAddress: locals.linkedWalletAddress || locals.walletAddress || null,
+      eventId,
       qty,
+      ledgerKey,
     });
-    if (!claim.success) {
-      return json({ success: false, error: claim.error }, { status: claim.status });
-    }
-    const result = await issuePrivateGuests({ eventId, userId, qty });
     if (!result.success) {
-      return json({ success: false, error: result.error }, { status: 400 });
+      return json({ success: false, error: result.error }, { status: result.status });
     }
     return json({
       success: true,
       qty: result.qty,
-      feeTotal: result.feeTotal,
+      feeTotal: privateIssueFeeTotal(result.qty),
       feeEach: PRIVATE_ISSUE_FEE_NLE,
-      guests: result.guests,
-      paymentCodeId: body?.paymentCodeId || null,
+      guests: [],
+      paymentCodeId,
     });
   }
 

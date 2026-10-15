@@ -128,6 +128,37 @@ export function ticketPreviewLayout(
   };
 }
 
+/**
+ * Props for TicketLivePreview and exportTicketCardPng from an organiser event
+ * and guest (guests tab). qrData is empty without a token, so no fake QR is drawn.
+ */
+export function guestTicketCardProps(event: any, guest: any) {
+  return {
+    layout: ticketPreviewLayout(event?.ticketDesignConfig),
+    eventName: event?.title || "Event",
+    eventDate: event?.rawDate || event?.date || "",
+    eventTime: event?.time || "",
+    eventLocation: event?.location || "",
+    ticketTypes: [{ name: guest?.ticketType || "Private Invite" }],
+    ticketNumber: guest?.ticketNumber || guest?.id || "",
+    qrData: guest?.qrToken || "",
+  };
+}
+
+/** "Oct 15, 14:02" for share timestamps on the organiser guests tab. */
+export function formatSharedAt(value: string | null | undefined): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+}
+
 /** Last 4 characters only, so a screenshot cannot rebuild the entry QR. */
 export function maskTicketNumber(value: string | null | undefined): string {
   const raw = String(value || "").replace(/^#/, "").trim();

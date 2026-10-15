@@ -1,11 +1,11 @@
 <script>
   // @ts-nocheck
-  /** FR-8a create-wizard stepper (HI-FI 55:1132 desktop / 4:724 mobile). Do not use for editEvent. */
+  /** FR-8a event wizard stepper (HI-FI 55:1132 desktop / 4:724 mobile). */
   import Check from "lucide-svelte/icons/check";
 
   export let currentStep = 1;
-
-  const steps = [
+  export let ariaLabel = "Create event steps";
+  export let steps = [
     { id: 1, label: "Details", shortLabel: "Details" },
     { id: 2, label: "Ticket Types", shortLabel: "Types" },
     { id: 3, label: "Ticket Design", shortLabel: "Design" },
@@ -17,7 +17,7 @@
   $: isCurrent = (id) => id === currentStep;
 </script>
 
-<nav class="mb-4 w-full lg:mb-6" aria-label="Create event steps">
+<nav class="mb-4 w-full lg:mb-6" aria-label={ariaLabel}>
   <!-- Mobile: HI-FI 4:724 / 506:107 stacked short labels, no connectors -->
   <ol class="flex w-full items-start justify-between gap-1 px-0 pb-4 lg:hidden">
     {#each steps as step}

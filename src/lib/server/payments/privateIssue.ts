@@ -1,19 +1,34 @@
 /**
  * Private ticket issue fee (roadmap 4.5 / FR-41).
  * Fixed gateway fee 0.99 NLe per ticket. No organiser 5% / buyer booking fee.
+ * Tickets are created by the issue_private_tickets database function, once per
+ * completed fee (wallet) or payment (mobile money) row.
  */
 import { getServerSupabase } from "$lib/server/db";
-import { insertWalletTransaction } from "$lib/server/wallet";
+import { insertWalletTransaction, updateWalletTransaction } from "$lib/server/wallet";
 import { getWalletSummary } from "$lib/server/wallet/summary";
-import { assertEventOwnedByUser } from "$lib/server/events";
+import { assertPrivateEventOwnedByUser } from "$lib/server/events";
 import { fetchPaymentCodeFromMonime } from "./fulfillPaymentCode";
+import {
+  PRIVATE_ISSUE_FEE_NLE,
+  PRIVATE_ISSUE_MAX_QTY,
+  privateIssueChargeCents,
+  privateIssueFeeTotal,
+} from "$lib/privateIssueLimits";
 
-export const PRIVATE_ISSUE_FEE_NLE = 0.99;
+export {
+  PRIVATE_ISSUE_FEE_NLE,
+  PRIVATE_ISSUE_MAX_QTY,
+  privateIssueChargeCents,
+  privateIssueFeeTotal,
+};
 export const PRIVATE_INVITE_TYPE_NAME = "Private Invite";
 
-export function privateIssueFeeTotal(qty: number): number {
-  const n = Math.max(0, Math.floor(Number(qty) || 0));
-  return Math.round(n * PRIVATE_ISSUE_FEE_NLE * 100) / 100;
+/** Whole-number quantity in 1..PRIVATE_ISSUE_MAX_QTY, or null. */
+export function parsePrivateIssueQty(value: unknown): number | null {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1 || n > PRIVATE_ISSUE_MAX_QTY) return null;
+  return n;
 }
 
 /**
@@ -34,55 +49,174 @@ export async function getOrganiserNleBalance(
   }
 }
 
-async function ensurePrivateInviteTicketType(
-  eventId: string
-): Promise<{ id: string; name: string } | null> {
-  const db = getServerSupabase();
-  const { data: existing } = await db
-    .from("ticket_types")
-    .select("id, name")
-    .eq("event_id", eventId)
-    .eq("name", PRIVATE_INVITE_TYPE_NAME)
-    .maybeSingle();
-
-  if (existing?.id) return existing;
-
-  const { data: created, error } = await db
-    .from("ticket_types")
-    .insert([
-      {
-        event_id: eventId,
-        name: PRIVATE_INVITE_TYPE_NAME,
-        description: "Privately generated organiser invite",
-        price: 0,
-        quantity: 999999,
-        sold_quantity: 0,
-        is_active: false,
-      },
-    ])
-    .select("id, name")
-    .maybeSingle();
-
-  if (error || !created) return null;
-  return created;
-}
-
 export type PrivateIssueResult =
   | { success: true; guests: any[]; feeTotal: number; qty: number }
-  | { success: false; error: string };
+  | { success: false; error: string; status?: number };
 
-/**
- * Verify a mobile money private-issue payment with Monime and mark it used.
- * Must succeed before issuePrivateGuests on the MM path, so one payment
- * cannot be replayed to issue guests more than once.
- */
-export async function claimPrivateIssuePayment(opts: {
-  paymentCodeId: string;
+/** Run issue_private_tickets for a completed private issue row (safe to repeat). */
+async function issueTicketsForRow(
+  txId: string
+): Promise<{ success: true; issued: number } | { success: false; error: string }> {
+  const { data, error } = await getServerSupabase().rpc("issue_private_tickets", {
+    p_tx_id: txId,
+  });
+  const result = Array.isArray(data) ? data[0] : data;
+  if (error || !result?.success) {
+    return {
+      success: false,
+      error: result?.error_message || error?.message || "Could not create the tickets",
+    };
+  }
+  return { success: true, issued: Number(result.issued) || 0 };
+}
+
+/** Flip a wallet fee row to failed, which takes it out of the balance again. */
+async function returnWalletFee(row: { id: string; metadata?: any }, reason: string) {
+  const { error } = await updateWalletTransaction(row.id, {
+    status: "failed",
+    metadata: { ...(row.metadata || {}), refund_reason: reason },
+  });
+  if (error) console.error("[returnWalletFee]", row.id, error);
+}
+
+export async function issuePrivateTicketsWithWallet(opts: {
   eventId: string;
   userId: string;
   walletAddress: string | null | undefined;
   qty: number;
-}): Promise<{ success: true } | { success: false; error: string; status: number }> {
+}): Promise<PrivateIssueResult> {
+  const qty = parsePrivateIssueQty(opts.qty);
+  if (qty === null) {
+    return {
+      success: false,
+      error: `Quantity must be a whole number from 1 to ${PRIVATE_ISSUE_MAX_QTY}`,
+    };
+  }
+  const check = await assertPrivateEventOwnedByUser(opts.eventId, opts.userId);
+  if (!check.ok) return { success: false, error: check.error, status: check.status };
+
+  const feeTotal = privateIssueFeeTotal(qty);
+  const ledgerKey = opts.walletAddress || `user:${opts.userId}`;
+
+  const balance = await getOrganiserNleBalance(opts.userId, opts.walletAddress);
+  if (balance < feeTotal) {
+    return {
+      success: false,
+      error: `Not enough available balance (NLe ${balance.toFixed(2)} available, NLe ${feeTotal.toFixed(2)} due)`,
+    };
+  }
+
+  const { data: row, error } = await insertWalletTransaction({
+    wallet_address: ledgerKey,
+    type: "withdrawal",
+    source: "private_issue",
+    status: "completed",
+    amount: -Math.abs(feeTotal),
+    currency: "NLe",
+    metadata: {
+      note: `Private ticket issue × ${qty}`,
+      purpose: "private_issue",
+      event_id: opts.eventId,
+      qty,
+      fee_each: PRIVATE_ISSUE_FEE_NLE,
+      fee_total: feeTotal,
+      user_id: opts.userId,
+      tickets_issued: false,
+    },
+  });
+  if (error || !row) {
+    return { success: false, error: error || "Could not record the fee" };
+  }
+
+  // Re-check with the fee saved, so two quick clicks can't both spend the same money.
+  let after: number;
+  try {
+    after = (await getWalletSummary(opts.userId, ledgerKey)).balance;
+  } catch (err) {
+    console.error("[issuePrivateTicketsWithWallet] balance re-check", err);
+    await returnWalletFee(row, "Balance check failed");
+    return { success: false, error: "Could not check your balance. Nothing was charged." };
+  }
+  if (after < 0) {
+    await returnWalletFee(row, "Not enough available balance");
+    return { success: false, error: "Not enough available balance. Nothing was charged." };
+  }
+
+  const issued = await issueTicketsForRow(row.id);
+  if (!issued.success) {
+    await returnWalletFee(row, issued.error);
+    return {
+      success: false,
+      error: `Tickets could not be created, so NLe ${feeTotal.toFixed(2)} was returned to your available balance. ${issued.error}`,
+    };
+  }
+
+  return { success: true, guests: [], feeTotal, qty };
+}
+
+/**
+ * Record a mobile money private issue payment as pending when its Monime code
+ * is created, so the attempt exists even if the organiser never pays.
+ */
+export async function recordPendingPrivateIssuePayment(opts: {
+  paymentCodeId: string;
+  eventId: string;
+  userId: string;
+  ledgerKey: string;
+  qty: number;
+  paymentMethod: string;
+}): Promise<{ error: string | null }> {
+  const feeTotal = privateIssueFeeTotal(opts.qty);
+  const { error } = await insertWalletTransaction({
+    wallet_address: opts.ledgerKey,
+    type: "private_issue_payment",
+    source: "private_issue",
+    status: "pending",
+    amount: privateIssueChargeCents(opts.qty) / 100,
+    currency: "NLe",
+    external_id: opts.paymentCodeId,
+    metadata: {
+      note: `Private ticket issue × ${opts.qty} (mobile money)`,
+      purpose: "private_issue",
+      event_id: opts.eventId,
+      qty: opts.qty,
+      fee_each: PRIVATE_ISSUE_FEE_NLE,
+      fee_total: feeTotal,
+      user_id: opts.userId,
+      payment_method: opts.paymentMethod,
+      tickets_issued: false,
+    },
+  });
+  return { error };
+}
+
+export type FulfilPrivateIssueResult =
+  | { success: true; qty: number; eventId: string; alreadyIssued: boolean }
+  | { success: false; error: string; status: number; notCompleted?: boolean };
+
+async function findPrivateIssuePayment(paymentCodeId: string) {
+  const { data } = await getServerSupabase()
+    .from("wallet_transactions")
+    .select("id, status, metadata, wallet_address")
+    .eq("type", "private_issue_payment")
+    .eq("external_id", paymentCodeId)
+    .limit(1);
+  return data?.[0] ?? null;
+}
+
+/**
+ * Verify a mobile money private issue payment with Monime, mark its row
+ * completed and create the tickets. Safe to call from the browser and the
+ * webhook any number of times: one payment creates its tickets once.
+ */
+export async function fulfilPrivateIssuePayment(opts: {
+  paymentCodeId: string;
+  /** Signed-in organiser; omitted only for the signature-verified webhook. */
+  userId?: string;
+  eventId?: string;
+  qty?: number;
+  ledgerKey?: string | null;
+}): Promise<FulfilPrivateIssueResult> {
   const paymentCodeId = String(opts.paymentCodeId || "").trim();
   if (!paymentCodeId) {
     return { success: false, error: "Payment code required", status: 400 };
@@ -94,205 +228,99 @@ export async function claimPrivateIssuePayment(opts: {
   }
 
   const status = String(code.status || "").toLowerCase();
-  if (status !== "completed" && status !== "paid") {
-    return { success: false, error: "Payment is not completed yet", status: 402 };
+  if (status !== "completed") {
+    return {
+      success: false,
+      error: "Payment is not completed yet",
+      status: 402,
+      notCompleted: true,
+    };
   }
 
   const meta = (code.metadata || {}) as Record<string, unknown>;
+  const buyerId = String(meta.buyer_id || "");
+  const eventId = String(meta.event_id || "");
+  const qty = parsePrivateIssueQty(meta.qty);
+  if (meta.purpose !== "private_issue" || !buyerId || !eventId || qty === null) {
+    return { success: false, error: "Payment does not match this request", status: 403 };
+  }
   if (
-    meta.purpose !== "private_issue" ||
-    String(meta.event_id || "") !== opts.eventId ||
-    String(meta.buyer_id || "") !== opts.userId ||
-    Math.floor(Number(meta.qty) || 0) !== opts.qty
+    (opts.userId && buyerId !== opts.userId) ||
+    (opts.eventId && eventId !== opts.eventId) ||
+    (opts.qty !== undefined && qty !== opts.qty)
   ) {
     return { success: false, error: "Payment does not match this request", status: 403 };
   }
 
   const amount = (code.amount || {}) as { value?: number | string };
   const paid = (Number(amount.value) || 0) / 100;
-  const due = privateIssueFeeTotal(opts.qty);
-  if (paid + 0.005 < due) {
+  if (paid + 0.005 < privateIssueFeeTotal(qty)) {
     return { success: false, error: "Payment amount is too low", status: 402 };
   }
+  const paidRounded = Math.round(paid * 100) / 100;
 
   const db = getServerSupabase();
-  const { data: used } = await db
-    .from("wallet_transactions")
-    .select("id")
-    .eq("type", "private_issue_payment")
-    .eq("external_id", paymentCodeId)
-    .limit(1);
-  if (used && used.length > 0) {
-    return { success: false, error: "This payment has already been used", status: 409 };
+  let row = await findPrivateIssuePayment(paymentCodeId);
+
+  if (row && String(row.metadata?.user_id || "") !== buyerId) {
+    return { success: false, error: "Payment does not match this request", status: 403 };
   }
 
-  const { error } = await insertWalletTransaction({
-    wallet_address: opts.walletAddress || `user:${opts.userId}`,
-    type: "private_issue_payment",
-    source: "private_issue",
-    status: "completed",
-    amount: Math.round(paid * 100) / 100,
-    currency: "NLe",
-    external_id: paymentCodeId,
-    metadata: {
-      note: `Private ticket issue × ${opts.qty} (mobile money)`,
-      purpose: "private_issue",
-      event_id: opts.eventId,
-      qty: opts.qty,
-      user_id: opts.userId,
-    },
-  });
-  if (error) {
-    const duplicate = /duplicate key|one_use_per_private_issue_payment/i.test(error);
+  if (!row) {
+    // Codes created before pending rows were recorded.
+    const { error } = await insertWalletTransaction({
+      wallet_address: opts.ledgerKey || `user:${buyerId}`,
+      type: "private_issue_payment",
+      source: "private_issue",
+      status: "completed",
+      amount: paidRounded,
+      currency: "NLe",
+      external_id: paymentCodeId,
+      metadata: {
+        note: `Private ticket issue × ${qty} (mobile money)`,
+        purpose: "private_issue",
+        event_id: eventId,
+        qty,
+        user_id: buyerId,
+        tickets_issued: false,
+      },
+    });
+    if (error && !/duplicate key|one_use_per_private_issue_payment/i.test(error)) {
+      return { success: false, error, status: 500 };
+    }
+    row = await findPrivateIssuePayment(paymentCodeId);
+    if (!row) {
+      return { success: false, error: "Could not record the payment", status: 500 };
+    }
+  } else if (row.status !== "completed") {
+    // Monime confirmed the money, so this wins over pending, cancelled or expired.
+    const { error } = await db
+      .from("wallet_transactions")
+      .update({
+        status: "completed",
+        amount: paidRounded,
+        metadata: { ...(row.metadata || {}), cancel_reason: null },
+      })
+      .eq("id", row.id)
+      .neq("status", "completed");
+    if (error) return { success: false, error: error.message, status: 500 };
+  }
+
+  const issued = await issueTicketsForRow(row.id);
+  if (!issued.success) {
     return {
       success: false,
-      error: duplicate ? "This payment has already been used" : error,
-      status: duplicate ? 409 : 500,
+      error: `Payment received but the tickets could not be created yet. Try again; you will not be charged twice. ${issued.error}`,
+      status: 500,
     };
   }
-
-  return { success: true };
-}
-
-/**
- * Insert qty private-issued guests. Caller must have already collected payment
- * (wallet debit or verified MM payment via claimPrivateIssuePayment).
- */
-export async function issuePrivateGuests(opts: {
-  eventId: string;
-  userId: string;
-  qty: number;
-}): Promise<PrivateIssueResult> {
-  const qty = Math.floor(Number(opts.qty) || 0);
-  if (qty < 1) return { success: false, error: "Quantity must be at least 1" };
-  if (qty > 500) return { success: false, error: "Quantity too large" };
-
-  const owned = await assertEventOwnedByUser(opts.eventId, opts.userId);
-  if (!owned) return { success: false, error: "Event not found or unauthorized" };
-
-  const ticketType = await ensurePrivateInviteTicketType(opts.eventId);
-  if (!ticketType) {
-    return { success: false, error: "Could not create Private Invite ticket type" };
-  }
-
-  const db = getServerSupabase();
-  const rows: Record<string, any>[] = [];
-
-  for (let i = 0; i < qty; i++) {
-    const { data: ticketNumber, error: tnErr } = await db.rpc(
-      "generate_ticket_number"
-    );
-    if (tnErr || !ticketNumber) {
-      return { success: false, error: "Failed to generate ticket number" };
-    }
-    const n = String(i + 1).padStart(3, "0");
-    rows.push({
-      event_id: opts.eventId,
-      ticket_type_id: ticketType.id,
-      first_name: "Private",
-      last_name: n,
-      email: null,
-      phone: null,
-      ticket_number: ticketNumber,
-      status: "issued",
-      special_requirements: "private_issue",
-    });
-  }
-
-  const { data: guests, error } = await db.from("guests").insert(rows).select();
-  if (error) return { success: false, error: error.message };
-
-  // Bump sold_quantity on private invite type
-  const { data: tt } = await db
-    .from("ticket_types")
-    .select("sold_quantity")
-    .eq("id", ticketType.id)
-    .maybeSingle();
-  await db
-    .from("ticket_types")
-    .update({
-      sold_quantity: (Number(tt?.sold_quantity) || 0) + qty,
-    })
-    .eq("id", ticketType.id);
 
   return {
     success: true,
-    guests: guests || [],
-    feeTotal: privateIssueFeeTotal(qty),
     qty,
+    eventId,
+    alreadyIssued: Boolean(row.metadata?.tickets_issued),
   };
-}
-
-export async function debitWalletForPrivateIssue(opts: {
-  userId: string;
-  walletAddress: string | null | undefined;
-  eventId: string;
-  qty: number;
-  feeTotal: number;
-}): Promise<{ success: true } | { success: false; error: string }> {
-  const balance = await getOrganiserNleBalance(
-    opts.userId,
-    opts.walletAddress
-  );
-  if (balance < opts.feeTotal) {
-    return {
-      success: false,
-      error: `Not enough available balance (NLe ${balance.toFixed(2)} available, NLe ${opts.feeTotal.toFixed(2)} due)`,
-    };
-  }
-
-  const wallet = opts.walletAddress || `user:${opts.userId}`;
-  const { error } = await insertWalletTransaction({
-    wallet_address: wallet,
-    type: "withdrawal",
-    source: "private_issue",
-    status: "completed",
-    amount: -Math.abs(opts.feeTotal),
-    currency: "NLe",
-    metadata: {
-      note: `Private ticket issue × ${opts.qty}`,
-      purpose: "private_issue",
-      event_id: opts.eventId,
-      qty: opts.qty,
-      fee_each: PRIVATE_ISSUE_FEE_NLE,
-      fee_total: opts.feeTotal,
-      user_id: opts.userId,
-    },
-  });
-
-  if (error) return { success: false, error };
-  return { success: true };
-}
-
-export async function issuePrivateTicketsWithWallet(opts: {
-  eventId: string;
-  userId: string;
-  walletAddress: string | null | undefined;
-  qty: number;
-}): Promise<PrivateIssueResult> {
-  const qty = Math.floor(Number(opts.qty) || 0);
-  const feeTotal = privateIssueFeeTotal(qty);
-  if (qty < 1) return { success: false, error: "Quantity must be at least 1" };
-
-  const debit = await debitWalletForPrivateIssue({
-    userId: opts.userId,
-    walletAddress: opts.walletAddress,
-    eventId: opts.eventId,
-    qty,
-    feeTotal,
-  });
-  if (!debit.success) return debit;
-
-  const issued = await issuePrivateGuests({
-    eventId: opts.eventId,
-    userId: opts.userId,
-    qty,
-  });
-  if (!issued.success) {
-    // Best-effort: do not auto-refund in v1; surface error
-    return issued;
-  }
-  return issued;
 }
 
 export function isPrivateIssuedGuest(guest: {
