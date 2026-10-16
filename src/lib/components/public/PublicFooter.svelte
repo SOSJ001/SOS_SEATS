@@ -54,6 +54,7 @@
         </div>
         <div class="flex flex-col gap-3 min-w-[100px]">
           <h3 class="m-0 mb-1 text-sm font-extrabold text-white">Support</h3>
+          <a href="/how-to-buy" class={colLink}>How to buy</a>
           <a href="mailto:{LEGAL.contactEmail}" class={colLink}>Help Centre</a>
           <a href="/terms" class={colLink}>Terms of Service</a>
           <a href="/privacy" class={colLink}>Privacy Policy</a>

@@ -347,7 +347,7 @@
       >
         View My Tickets
       </button>
-      <a href="/marketplace" class={btnGhost}>Learn More</a>
+      <a href="/how-to-buy" class={btnGhost}>How to Buy</a>
     </div>
   </div>
     </section>

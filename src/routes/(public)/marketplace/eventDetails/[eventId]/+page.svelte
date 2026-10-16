@@ -56,7 +56,7 @@
   $: bookingFee = calculateBookingFee(baseTotal);
   $: totalWithFee = baseTotal + bookingFee;
 
-  $: ctaLabel = freeOnlySelected ? "Claim Free" : "Mobile money";
+  $: ctaLabel = freeOnlySelected ? "Claim Free" : "Buy";
   $: disclaimer = freeOnlySelected
     ? "By claiming, you agree to the SOS SEATS Terms and the event's entry rules. Your free ticket will be issued instantly and saved to your My Tickets dashboard."
     : "";

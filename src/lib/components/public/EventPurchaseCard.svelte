@@ -14,7 +14,7 @@
   export let selectedTickets = {};
   export let bookingFee = 0;
   export let totalWithFee = 0;
-  export let ctaLabel = "Mobile money";
+  export let ctaLabel = "Buy";
   export let disclaimer = "";
   export let disabled = false;
   export let loading = false;

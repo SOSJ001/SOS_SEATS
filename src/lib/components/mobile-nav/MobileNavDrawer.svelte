@@ -55,7 +55,7 @@
     ></button>
 
     <div
-      class="absolute right-0 top-0 z-10 flex h-full w-[min(292px,92vw)] flex-col overflow-y-auto bg-paper pb-8 pt-6 shadow-[-4px_0_12px_rgba(0,0,0,0.15)]"
+      class="absolute right-0 top-0 z-10 flex h-full w-[min(292px,92vw)] flex-col overflow-y-auto bg-paper pb-8 pt-6 font-public text-ink shadow-[-4px_0_12px_rgba(0,0,0,0.15)]"
     >
       <MobileNavHeader on:close={close} />
 
