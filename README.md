@@ -78,7 +78,7 @@ MONIME_PAYOUT_API_KEY=
 MONIME_WEBHOOK_SECRET=
 ```
 
-Monime account and Space setup: [Monime Dashboard](https://dashboard.monime.io).
+Monime account and Space setup: [Monime](https://monime.io/).
 
 ## Team
 
