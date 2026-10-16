@@ -11,6 +11,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { sessionFromDb } from "$lib/store";
 import { DEFAULT_CATEGORY } from "$lib/eventCategories";
+import { isPrivateInviteName } from "$lib/eventVisibility.js";
 import { env } from "$env/dynamic/public";
 
 // Get environment variables
@@ -222,14 +223,17 @@ export async function loadPublicEvents() {
           }
         }
 
-        // Determine price from ticket types
-        let price = "Free";
-        if (!event.is_free_event && ticketTypes && ticketTypes.length > 0) {
-          const lowestPrice = Math.min(
-            ...ticketTypes.map((t) => parseFloat(t.price) || 0)
-          );
-          price = `NLe ${lowestPrice}`;
-        }
+        // Listing price from active sellable types only (skip Private Invite / inactive)
+        const sellable = (ticketTypes || []).filter(
+          (t) => t.is_active !== false && !isPrivateInviteName(t.name)
+        );
+        const paid = sellable
+          .map((t) => parseFloat(t.price) || 0)
+          .filter((p) => p > 0);
+        const price =
+          event.is_free_event || paid.length === 0
+            ? "Free"
+            : `NLe ${Math.min(...paid)}`;
 
         return {
           id: event.id,
@@ -242,6 +246,7 @@ export async function loadPublicEvents() {
           venue: event.location,
           image: imageUrl,
           price: price,
+          is_free_event: !!event.is_free_event,
           category: event.category || DEFAULT_CATEGORY,
           tags: Array.isArray(event.tags) ? event.tags : [],
           description: event.description,
