@@ -6,7 +6,8 @@
  *
  * FREEZE (roadmap 3.1): no reads/writes to singular legacy tables
  * (event, guest, image, seat, wallet, orderhistory, userandpublickey).
- * App I/O uses plural tables only; DROP is 3.3 (blocked).
+ * App I/O uses plural tables only; DROP is 3.3 DONE
+ * (singular tables dropped; legacy_id_map retained).
  */
 import { createClient } from "@supabase/supabase-js";
 import { sessionFromDb } from "$lib/store";
