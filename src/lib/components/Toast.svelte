@@ -1,7 +1,12 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from "svelte";
-  import { fade, fly } from "svelte/transition";
+  import { createEventDispatcher } from "svelte";
+  import { fly } from "svelte/transition";
   import { quintOut } from "svelte/easing";
+  import CircleCheck from "lucide-svelte/icons/circle-check";
+  import CircleX from "lucide-svelte/icons/circle-x";
+  import TriangleAlert from "lucide-svelte/icons/triangle-alert";
+  import Info from "lucide-svelte/icons/info";
+  import X from "lucide-svelte/icons/x";
 
   export let toast: {
     id: string;
@@ -11,109 +16,72 @@
     duration: number;
     show: boolean;
   };
-  export let position:
-    | "top-right"
-    | "top-left"
-    | "bottom-right"
-    | "bottom-left"
-    | "top-center"
-    | "bottom-center" = "top-right";
 
   const dispatch = createEventDispatcher();
+
+  const tones = {
+    success: {
+      card: "border-green-600/30 bg-[#ecfdf5]",
+      icon: "text-green-600",
+      Icon: CircleCheck,
+    },
+    error: {
+      card: "border-red-500/30 bg-[#fef2f2]",
+      icon: "text-red-500",
+      Icon: CircleX,
+    },
+    warning: {
+      card: "border-[#efc96a] bg-[#fff9eb]",
+      icon: "text-[#d97706]",
+      Icon: TriangleAlert,
+    },
+    info: {
+      card: "border-brand/25 bg-brand-soft",
+      icon: "text-brand",
+      Icon: Info,
+    },
+  };
+
+  $: tone = tones[toast.type] || tones.info;
+  $: role = toast.type === "error" ? "alert" : "status";
 
   function handleClose() {
     dispatch("close", { id: toast.id });
   }
-
-  // Position classes
-  const positionClasses = {
-    "top-right": "top-4 right-4",
-    "top-left": "top-4 left-4",
-    "bottom-right": "bottom-4 right-4",
-    "bottom-left": "bottom-4 left-4",
-    "top-center": "top-4 left-1/2 transform -translate-x-1/2",
-    "bottom-center": "bottom-4 left-1/2 transform -translate-x-1/2",
-  };
-
-  // Type-specific styling
-  const typeStyles = {
-    success: "bg-green-600 border-green-500 text-white",
-    error: "bg-red-600 border-red-500 text-white",
-    warning: "bg-yellow-600 border-yellow-500 text-white",
-    info: "bg-blue-600 border-blue-500 text-white",
-  };
-
-  const typeIcons = {
-    success: "✓",
-    error: "✕",
-    warning: "⚠",
-    info: "ℹ",
-  };
 </script>
 
 {#if toast.show}
   <div
-    class="max-w-sm w-full"
-    transition:fly={{ y: 50, duration: 300, easing: quintOut }}
+    class="w-[calc(100vw-2rem)] max-w-[360px] rounded-xl border p-3 shadow-[0px_12px_16px_rgba(18,4,28,0.12)] {tone.card}"
+    {role}
+    transition:fly={{ y: 12, duration: 300, easing: quintOut }}
   >
-    <div
-      class="relative p-4 border rounded-lg shadow-lg {typeStyles[
-        toast.type
-      ]} transition-all duration-300 hover:shadow-xl"
-      in:fade={{ duration: 200 }}
-      out:fade={{ duration: 200 }}
-    >
-      <!-- Close button -->
-      <button
-        on:click={handleClose}
-        class="absolute top-2 right-2 text-white/70 hover:text-white transition-colors duration-200"
-        aria-label="Close toast"
-      >
-        <svg
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          ></path>
-        </svg>
-      </button>
+    <div class="flex items-start gap-3">
+      <svelte:component
+        this={tone.Icon}
+        size={18}
+        strokeWidth={2}
+        class="mt-0.5 shrink-0 {tone.icon}"
+        aria-hidden="true"
+      />
 
-      <!-- Toast content -->
-      <div class="flex items-start space-x-3 pr-6">
-        <!-- Icon slot -->
-        <div class="flex-shrink-0">
-          <slot name="icon">
-            <div
-              class="w-6 h-6 flex items-center justify-center rounded-full text-white text-sm font-bold"
-              class:bg-green-500={toast.type === "success"}
-              class:bg-red-500={toast.type === "error"}
-              class:bg-yellow-500={toast.type === "warning"}
-              class:bg-blue-500={toast.type === "info"}
-            >
-              {typeIcons[toast.type]}
-            </div>
-          </slot>
-        </div>
-
-        <!-- Content -->
-        <div class="flex-1 min-w-0">
-          <!-- Title -->
-          <h4 class="text-sm font-semibold mb-1">
-            {toast.title}
-          </h4>
-
-          <!-- Description -->
-          <p class="text-sm opacity-90">
+      <div class="min-w-0 flex-1">
+        <h4 class="m-0 text-sm font-extrabold text-ink">{toast.title}</h4>
+        {#if toast.description}
+          <p class="m-0 mt-0.5 text-xs leading-[1.4] text-ink-secondary">
             {toast.description}
           </p>
-        </div>
+        {/if}
       </div>
+
+      <button
+        type="button"
+        class="-mr-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-ink-muted hover:bg-paper-cream hover:text-ink"
+        aria-label="Close"
+        on:click={handleClose}
+      >
+        <X size={16} strokeWidth={2} aria-hidden="true" />
+      </button>
     </div>
   </div>
 {/if}
